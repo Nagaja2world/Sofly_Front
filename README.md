@@ -5,7 +5,7 @@
 | <img src="https://avatars.githubusercontent.com/u/162114710?v=4" width="100" height="100"> | <img src="https://avatars.githubusercontent.com/u/163288437?v=4" width="100" height="100"> | 
 |:---:|:---:|
 | [김예은](https://github.com/KimYeEun0929) | [김은솔](https://github.com/eunsol1530) | 
-| Frontend<br>Leader<br> | PM<br>Frontend<br><br> |
+| Frontend<br>Leader<br> | PM<br>Frontend<br> |
 
 
 
