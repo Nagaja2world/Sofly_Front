@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 interface CheckboxProps {
   label?: string;
   checked?: boolean;
@@ -11,19 +13,24 @@ export default function Checkbox({
   disabled = false,
   onChange,
 }: CheckboxProps) {
-  const handleClick = () => {
-    if (disabled) return;
-    onChange?.(!checked);
-  };
+  const id = useId();
 
   return (
     <label
-      onClick={handleClick}
+      htmlFor={id}
       className={[
         "inline-flex items-center gap-1 select-none",
         disabled ? "cursor-not-allowed" : "cursor-pointer",
       ].join(" ")}
     >
+      <input
+        id={id}
+        type="checkbox"
+        className="sr-only"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange?.(e.target.checked)}
+      />
       <span
         className={[
           "w-4 h-4 rounded-full flex items-center justify-center",
@@ -36,6 +43,7 @@ export default function Checkbox({
               ? "bg-transparent border-gray-300"
               : "bg-transparent border-gray-400 hover:border-gray-600",
         ].join(" ")}
+        aria-hidden="true"
       >
         {checked && (
           <svg width="12" height="10" viewBox="0 0 12 10" fill="none">

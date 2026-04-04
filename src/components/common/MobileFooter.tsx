@@ -28,7 +28,7 @@ export default function MobileFooter({
       ].join(" ")}
     >
       {/* 로고 */}
-      <span className="font-montserrat text-body2 font-semibold text-gray-700 gap-6">
+      <span className="font-montserrat text-body2 font-semibold text-gray-700">
         Sofly
       </span>
 

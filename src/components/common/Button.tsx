@@ -34,7 +34,7 @@ const typeClasses: Record<
 > = {
   solid: {
     base: "bg-primary text-gray-900 border border-transparent rounded-lg",
-    hover: "hover:bg-[#D4B23E] active:bg-[#D4B23E]",
+    hover: "hover:bg-primary-hover active:bg-primary-hover",
     disabled: "bg-gray-300 text-gray-500 border-transparent rounded-lg",
   },
   outlined: {
