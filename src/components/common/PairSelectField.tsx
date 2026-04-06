@@ -72,8 +72,8 @@ export default function PairSelectField({
           onLeftClick?.();
         }}
         className={[
-          "flex-1 bg-transparent border-none",
-          "font-pretendard text-body2 text-center",
+          "flex-1 min-w-0 bg-transparent border-none",
+          "font-pretendard text-body2 text-center truncate",
           "cursor-pointer hover:bg-gray-200/50 transition-colors",
           leftValue ? "text-gray-900" : "text-gray-700",
         ].join(" ")}
@@ -105,8 +105,8 @@ export default function PairSelectField({
           onRightClick?.();
         }}
         className={[
-          "flex-1 bg-transparent border-none",
-          "font-pretendard text-body2 text-center",
+          "flex-1 min-w-0 bg-transparent border-none",
+          "font-pretendard text-body2 text-center truncate",
           "cursor-pointer hover:bg-gray-200/50 transition-colors",
           rightValue ? "text-gray-900" : "text-gray-700",
         ].join(" ")}

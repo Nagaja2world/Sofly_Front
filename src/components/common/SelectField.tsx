@@ -69,7 +69,7 @@ export default function SelectField({
         ].join(" ")}
       >
         {leftIcon && <span className="inline-flex shrink-0">{leftIcon}</span>}
-        <span className="flex-1">{value || placeholder}</span>
+        <span className="flex-1 min-w-0 truncate">{value || placeholder}</span>
         {rightIcon && <span className="inline-flex shrink-0">{rightIcon}</span>}
       </button>
     </div>

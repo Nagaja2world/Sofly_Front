@@ -1,5 +1,7 @@
-import { type ReactNode } from "react";
+//import { type ReactNode } from "react";
 import Button from "./Button";
+
+import UserIcon from "@/assets/my.svg?react";
 
 type HeaderVariant = "default" | "login";
 
@@ -10,23 +12,23 @@ interface HeaderProps {
   onLogin?: () => void;
   /** 로그아웃 클릭 */
   onLogout?: () => void;
-  /** 유저 아이콘 (src/assets에서 import하여 전달, login variant에서 사용) */
-  userIcon?: ReactNode;
+  // /** 유저 아이콘 (src/assets에서 import하여 전달, login variant에서 사용) */
+  // userIcon?: ReactNode;
 }
 
 export default function Header({
   variant = "default",
   onLogin,
   onLogout,
-  userIcon,
+  //userIcon,
 }: HeaderProps) {
   return (
     <header
       className={[
-        "flex items-center justify-between bg-white h-20",
+        "flex items-center justify-between h-20",
         variant === "login"
-          ? "border-b border-gray-300"
-          : "border-b border-white",
+          ? "border-b border-gray-300 bg-white"
+          : "border-b border-white bg-background",
       ].join(" ")}
     >
       {/* Logo */}
@@ -44,19 +46,7 @@ export default function Header({
           onClick={onLogout}
           className="flex items-center bg-transparent border-none cursor-pointer text-black hover:text-gray-900 transition-colors"
         >
-          {userIcon ?? (
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 20c0-4 4-7 8-7s8 3 8 7" />
-            </svg>
-          )}
+          <UserIcon />
           <span className="font-pretendard text-body3 px-4 py-2.5">
             로그아웃
           </span>
