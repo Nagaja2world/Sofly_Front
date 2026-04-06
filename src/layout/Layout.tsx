@@ -5,9 +5,9 @@ import NavBar from "@/components/common/NavBar";
 import MobileFooter from "@/components/common/MobileFooter";
 
 export default function Layout() {
-  const handleLogin = () => {
-    // TODO: 로그인 모달 또는 페이지 이동
-  };
+  //   const handleLogin = () => {
+  //     // TODO: 로그인 모달 또는 페이지 이동
+  //   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -26,7 +26,7 @@ export default function Layout() {
       {/* ══ 데스크톱 Header (md 이상) ══ */}
       <div className="hidden md:block w-full bg-background">
         <div className="max-w-[1200px] w-full mx-auto px-4">
-          <Header variant="default" onLogin={handleLogin} />
+          <Header variant="default" />
         </div>
       </div>
 

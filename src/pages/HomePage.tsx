@@ -56,14 +56,21 @@ export default function HomePage() {
           ══════════════════════════════════════════ */}
       <div className="hidden md:block">
         {/* ── Hero 이미지 ── */}
-        <img
+        {/* <img
           src={heroSvg}
           alt="Travel Like a Picnic"
           className="w-full h-auto block"
-        />
+        /> */}
+        <div className="w-full h-[400px] overflow-hidden">
+          <img
+            src={heroSvg}
+            alt="Travel Like a Picnic"
+            className="w-full h-full object-cover block"
+          />
+        </div>
 
         {/* ── SearchBar: 고정 음수 마진으로 Hero 하단에 겹침 ── */}
-        <div className="-mt-[3.5vw] z-10 px-4 relative">
+        <div className="-mt-[70px] z-10 px-4 relative">
           <div className="max-w-[1200px] w-full mx-auto">
             <SearchBar onSearch={handleSearch} />
           </div>
