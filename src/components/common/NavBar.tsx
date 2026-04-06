@@ -1,4 +1,9 @@
 import { type ReactNode } from "react";
+import LoginImage from "@/assets/my.svg?react";
+import LogoutImage from "@/assets/logout.svg?react";
+import UserIcon from "@/assets/group.svg?react";
+import NarrowLeftImage from "@/assets/narrow-left.svg?react";
+import ShareImage from "@/assets/share.svg?react";
 
 type NavBarVariant = "default" | "login" | "back";
 
@@ -7,14 +12,8 @@ interface NavBarProps {
   variant?: NavBarVariant;
   /** nav_back일 때 가운데 타이틀 */
   title?: string;
-  /** 유저 아이콘 (src/assets에서 import, default/login용) */
-  userIcon?: ReactNode;
-  /** 로그아웃 아이콘 (src/assets에서 import, login용) */
-  logoutIcon?: ReactNode;
-  /** 뒤로가기 아이콘 (src/assets에서 import, back용) */
-  backIcon?: ReactNode;
-  /** 공유 아이콘 (src/assets에서 import, back용) */
-  shareIcon?: ReactNode;
+  // /** 유저 아이콘 (src/assets에서 import, login용) */
+  // userIcon?: ReactNode;
   /** 뒤로가기 클릭 */
   onBack?: () => void;
   /** 로그아웃 클릭 */
@@ -46,10 +45,7 @@ const IconButton = ({
 export default function NavBar({
   variant = "default",
   title = "",
-  userIcon,
-  logoutIcon,
-  backIcon,
-  shareIcon,
+  // userIcon,
   onBack,
   onLogout,
   onShare,
@@ -61,15 +57,19 @@ export default function NavBar({
       <nav
         className={[
           "flex items-center justify-between px-5 py-4",
-          "bg-white border-b border-gray-300 min-h-12",
+          "bg-background border-b border-gray-300 min-h-12",
           className,
         ].join(" ")}
       >
-        <IconButton onClick={onBack}>{backIcon}</IconButton>
+        <IconButton onClick={onBack}>
+          <NarrowLeftImage />
+        </IconButton>
         <span className="font-pretendard text-body2 font-semibold text-gray-900">
           {title}
         </span>
-        <IconButton onClick={onShare}>{shareIcon}</IconButton>
+        <IconButton onClick={onShare}>
+          <ShareImage />
+        </IconButton>
       </nav>
     );
   }
@@ -78,7 +78,7 @@ export default function NavBar({
     <nav
       className={[
         "flex items-center justify-between px-5 py-4",
-        "bg-white min-h-12",
+        "bg-background min-h-12",
         variant === "login"
           ? "border-b border-gray-300"
           : "border-b border-white",
@@ -91,12 +91,18 @@ export default function NavBar({
       {/* Right Actions */}
       <div className="flex items-center gap-4">
         {variant === "login" && (
-          <IconButton onClick={onUser}>{userIcon}</IconButton>
+          <IconButton onClick={onUser}>
+            <LoginImage />
+          </IconButton>
         )}
         {variant === "login" ? (
-          <IconButton onClick={onLogout}>{logoutIcon}</IconButton>
+          <IconButton onClick={onLogout}>
+            <LogoutImage />
+          </IconButton>
         ) : (
-          <IconButton onClick={onUser}>{userIcon}</IconButton>
+          <IconButton onClick={onUser}>
+            <UserIcon />
+          </IconButton>
         )}
       </div>
     </nav>

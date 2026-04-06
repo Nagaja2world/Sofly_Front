@@ -33,7 +33,12 @@ export default function SearchBar({
   };
 
   return (
-    <section className={["bg-white px-10 py-6", className].join(" ")}>
+    <section
+      className={[
+        "bg-white px-4 pt-4 pb-6 rounded-2xl shadow-[0_0.5rem_1.875rem_0_rgba(0,0,0,0.1)]",
+        className,
+      ].join(" ")}
+    >
       <div className="max-w-[1200px] mx-auto">
         {/* Tab + 직항만 */}
         <div className="flex items-center gap-6 mb-4">
@@ -52,33 +57,33 @@ export default function SearchBar({
         {/* 검색 필드 행 */}
         <div className="flex items-center gap-3">
           <PairSelectField
-            className="flex-[2]"
+            className="flex-[2] min-w-0"
             bg="gray"
             leftPlaceholder="출발지"
             rightPlaceholder="도착지"
             centerIcon={<SwitchIcon />}
           />
           <SelectField
-            className="flex-1"
+            className="flex-1 min-w-0"
             bg="gray"
             placeholder="가는편"
             rightIcon={<CalendarIcon />}
           />
           <SelectField
-            className="flex-1"
+            className="flex-1 min-w-0"
             bg="gray"
             placeholder="오는편"
             rightIcon={<CalendarIcon />}
           />
           <SelectField
-            className="flex-1"
+            className="flex-1 min-w-0"
             bg="gray"
             placeholder="인원/좌석등급"
             leftIcon={<UsersIcon />}
           />
           <Button
             btnType="solid"
-            className="py-4 px-8 text-body2"
+            className="py-4 px-8 text-body2 shrink-0"
             onClick={handleSearch}
           >
             검색하기
