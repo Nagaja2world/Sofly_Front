@@ -108,7 +108,7 @@ export default function LoginPopup({
       role="dialog"
       aria-modal="false"
     >
-      <div className="relative w-[POPUP_WIDTH]">
+      <div className="relative w-[380px]">
         <PopUpBg className="w-full h-auto" />
 
         {/* 컨텐츠 오버레이 */}

@@ -140,7 +140,7 @@ export default function ProfilePage({
 
             {/* 카드 그리드 또는 빈 상태 */}
             {workspaces.length > 0 ? (
-              <div className="grid grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                 {workspaces.map((ws) => (
                   <WorkspaceCard
                     key={ws.id}

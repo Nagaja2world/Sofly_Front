@@ -30,6 +30,8 @@ export default function WorkspaceCard({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick?.(id)}
       className={[
         "flex flex-col rounded-xl overflow-hidden",
@@ -42,6 +44,7 @@ export default function WorkspaceCard({
       <div className="relative w-full aspect-[4/3] overflow-hidden bg-gray-200">
         {imageUrl ? (
           <img
+            loading="lazy"
             src={imageUrl}
             alt={name}
             className="w-full h-full object-cover"
