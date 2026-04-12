@@ -1,9 +1,8 @@
-//import { type ReactNode } from "react";
 import { useState, useRef } from "react";
 import Button from "@/components/common/Button";
 import LoginPopup from "../LoginPopup";
 
-import UserIcon from "@/assets/my.svg?react";
+import UserIcon from "@/assets/group.svg?react";
 
 type HeaderVariant = "default" | "login";
 
@@ -45,9 +44,7 @@ export default function Header({
     <header
       className={[
         "flex items-center justify-between h-20",
-        variant === "login"
-          ? "border-b border-gray-300 bg-white"
-          : "border-b border-white bg-background",
+        variant === "login" ? "bg-white" : "bg-background",
       ].join(" ")}
     >
       {/* Logo */}

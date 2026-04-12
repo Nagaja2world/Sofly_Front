@@ -1,12 +1,16 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import Layout from "@/layout/Layout";
+import NoHeaderLayout from "./layout/NoHeaderLayout";
 import HomePage from "@/pages/HomePage";
+import ProfilePage from "@/pages/ProfilePage";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout />,
-    children: [{ index: true, element: <HomePage /> }],
+    element: <NoHeaderLayout />,
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: "/profile", element: <ProfilePage /> },
+    ],
   },
 
   // TODO: 추가 라우트
