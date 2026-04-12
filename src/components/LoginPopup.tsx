@@ -108,7 +108,7 @@ export default function LoginPopup({
       role="dialog"
       aria-modal="false"
     >
-      <div className="relative w-[380px]">
+      <div className="relative w-[POPUP_WIDTH]">
         <PopUpBg className="w-full h-auto" />
 
         {/* 컨텐츠 오버레이 */}
@@ -145,19 +145,19 @@ export default function LoginPopup({
           {/* 이용약관 안내 */}
           <p className="font-pretendard text-body5 text-gray-500 text-center mt-5 leading-relaxed">
             로그인 시{" "}
-            <a
-              href="#"
-              className="text-[#BA7517] underline hover:text-gray-900"
+            <button
+              type="button"
+              className="inline text-[#BA7517] underline hover:text-gray-900 bg-transparent border-none p-0 cursor-pointer font-inherit text-inherit"
             >
               이용약관
-            </a>{" "}
+            </button>
             및{" "}
-            <a
-              href="#"
-              className="text-[#BA7517] underline hover:text-gray-900"
+            <button
+              type="button"
+              className="inline text-[#BA7517] underline hover:text-gray-900 bg-transparent border-none p-0 cursor-pointer font-inherit text-inherit"
             >
               개인정보 처리방침
-            </a>
+            </button>
             에 동의합니다.
           </p>
         </div>

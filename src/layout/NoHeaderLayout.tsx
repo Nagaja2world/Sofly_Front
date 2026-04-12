@@ -1,27 +1,19 @@
 import { Outlet } from "react-router-dom";
-import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import NavBar from "@/components/common/NavBar";
 import MobileFooter from "@/components/common/MobileFooter";
 
-export default function Layout() {
-  //   const handleLogin = () => {
-  //     // TODO: 로그인 모달 또는 페이지 이동
-  //   };
-
+/**
+ * ProfileLayout
+ * - 데스크톱 Header 없음: ProfilePage가 Hero와 함께 자체 Header를 렌더링
+ * - 모바일 NavBar + Footer 포함
+ */
+export default function NoHeaderLayout() {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* ══ 모바일 Header (md 미만) ══ */}
       <div className="md:hidden">
-        {/* TODO: NavBar 컴포넌트로 교체 */}
-        <NavBar variant="default" />
-      </div>
-
-      {/* ══ 데스크톱 Header (md 이상) ══ */}
-      <div className="hidden md:block w-full bg-background">
-        <div className="max-w-[1200px] w-full mx-auto px-4">
-          <Header variant="default" />
-        </div>
+        <NavBar variant="login" />
       </div>
 
       {/* ── 페이지 콘텐츠 ── */}
@@ -31,7 +23,6 @@ export default function Layout() {
 
       {/* ══ 모바일 Footer (md 미만) ══ */}
       <div className="md:hidden">
-        {/* TODO: MobileFooter 컴포넌트로 교체 */}
         <MobileFooter />
       </div>
 

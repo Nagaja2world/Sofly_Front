@@ -1,7 +1,8 @@
+import Header from "@/components/common/Header";
 import SearchBar from "@/components/SearchBar";
 import FeatureCard from "@/components/homepage/FeatureCard";
 
-import heroSvg from "@/assets/hero.svg";
+import heroSvg from "@/assets/home_hero.svg";
 import HomeCard1Img from "@/assets/home_card_1_img.svg?react";
 import HomeCard2Img from "@/assets/home_card_2_img.svg?react";
 import HomeCard3Img from "@/assets/home_card_3_img.svg?react";
@@ -56,12 +57,7 @@ export default function HomePage() {
           ══════════════════════════════════════════ */}
       <div className="hidden md:block">
         {/* ── Hero 이미지 ── */}
-        {/* <img
-          src={heroSvg}
-          alt="Travel Like a Picnic"
-          className="w-full h-auto block"
-        /> */}
-        <div className="w-full h-[400px] overflow-hidden">
+        <div className="w-full h-[374px] overflow-hidden">
           <img
             src={heroSvg}
             alt="Travel Like a Picnic"
@@ -69,8 +65,15 @@ export default function HomePage() {
           />
         </div>
 
+        {/* ── Header (login 상태, 흰 배경) ── */}
+        <div className="-mt-[374px] w-full bg-background relative z-20">
+          <div className="max-w-[1200px] w-full mx-auto px-4">
+            <Header variant="default" />
+          </div>
+        </div>
+
         {/* ── SearchBar: 고정 음수 마진으로 Hero 하단에 겹침 ── */}
-        <div className="-mt-[70px] z-10 px-4 relative">
+        <div className="mt-[220px] z-10 px-4 relative">
           <div className="max-w-[1200px] w-full mx-auto">
             <SearchBar onSearch={handleSearch} />
           </div>

@@ -16,7 +16,7 @@ const defaultLinks: FooterLink[] = [
 
 export default function Footer({ links = defaultLinks }: FooterProps) {
   return (
-    <footer className="py-8 bg-white border-t border-gray-300">
+    <footer className="py-8 bg-white">
       <div className="mx-auto flex justify-between items-start flex-wrap gap-6">
         {/* 회사 정보 */}
         <div className="flex-1 min-w-[300px]">
