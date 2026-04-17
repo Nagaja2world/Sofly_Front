@@ -39,8 +39,17 @@ export default function AuthCallbackPage() {
     /* 로그인 성공: 토큰 저장 → 프로필 조회 → 이동 */
     const handleLogin = async () => {
       setTokens(accessToken, refreshToken);
-      await fetchUserProfile();
-      navigate("/profile", { replace: true });
+      //   await fetchUserProfile();
+      //   navigate("/profile", { replace: true });
+      try {
+        await fetchUserProfile();
+        navigate("/profile", { replace: true });
+      } catch {
+        console.error("프로필 조회 실패, 로그인 취소");
+        useAuthStore.getState().logout();
+        alert("로그인 처리 중 오류가 발생했습니다. 다시 시도해 주세요.");
+        navigate("/", { replace: true });
+      }
     };
 
     handleLogin();

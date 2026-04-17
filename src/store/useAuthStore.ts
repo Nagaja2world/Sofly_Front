@@ -32,6 +32,9 @@ interface AuthState {
   /* 유저 프로필 */
   user: UserProfile | null;
 
+  /* 로딩 상태 */
+  isProfileLoading: boolean;
+
   /* 로그인 여부 */
   isLoggedIn: boolean;
 
@@ -46,6 +49,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: localStorage.getItem("accessToken"),
   refreshToken: localStorage.getItem("refreshToken"),
   user: null,
+  isProfileLoading: false,
   isLoggedIn: !!localStorage.getItem("accessToken"),
 
   setTokens: (accessToken, refreshToken) => {
@@ -73,6 +77,8 @@ const useAuthStore = create<AuthState>((set, get) => ({
     const { accessToken } = get();
     if (!accessToken) return;
 
+    set({ isProfileLoading: true });
+
     try {
       const res = await fetch(`${API_BASE}/api/users/me/profile`, {
         headers: {
@@ -80,15 +86,24 @@ const useAuthStore = create<AuthState>((set, get) => ({
         },
       });
 
+      if (res.status === 401) {
+        get().logout();
+        return;
+      }
+
       if (!res.ok) throw new Error("프로필 조회 실패");
 
       const json = await res.json();
       // 백엔드 응답: { success, code, message, data: { ... } }
       if (json.success && json.data) {
-        set({ user: json.data });
+        set({ user: json.data, isProfileLoading: false });
+      } else {
+        throw new Error(json.message || "프로필 데이터 없음");
       }
     } catch (error) {
+      set({ isProfileLoading: false });
       console.error("프로필 조회 에러:", error);
+      throw error; // 호출하는 쪽에서 처리할 수 있도록 re-throw
     }
   },
 }));

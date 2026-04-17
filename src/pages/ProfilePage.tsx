@@ -34,7 +34,8 @@ export default function ProfilePage({
   onCreateWorkspace,
 }: ProfilePageProps) {
   const navigate = useNavigate();
-  const { isLoggedIn, user, logout, fetchUserProfile } = useAuthStore();
+  const { isLoggedIn, user, isProfileLoading, logout, fetchUserProfile } =
+    useAuthStore();
 
   /* 비로그인 상태면 홈으로 이동 */
   useEffect(() => {
@@ -42,11 +43,15 @@ export default function ProfilePage({
       navigate("/", { replace: true });
       return;
     }
-    /* 유저 정보가 없으면 조회 */
-    if (!user) {
-      fetchUserProfile();
+    /* 유저 정보가 없고, 로딩 중이 아닐 때만 조회 */
+    if (!user && !isProfileLoading) {
+      fetchUserProfile().catch(() => {
+        /* 프로필 조회 실패 시 로그아웃 처리 */
+        logout();
+        navigate("/", { replace: true });
+      });
     }
-  }, [isLoggedIn, user, navigate, fetchUserProfile]);
+  }, [isLoggedIn, user, isProfileLoading, navigate, fetchUserProfile, logout]);
 
   const userName = user?.nickname ?? "여행자";
 
