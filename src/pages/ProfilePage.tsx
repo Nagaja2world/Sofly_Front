@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
 import Button from "@/components/common/Button";
 import Header from "@/components/common/Header";
+import useAuthStore from "@/store/useAuthStore";
 
 import profileHeroSvg from "@/assets/profile_hero.svg";
 import GroupIcon from "@/assets/group.svg?react";
@@ -28,11 +30,25 @@ interface ProfilePageProps {
 }
 
 export default function ProfilePage({
-  userName = "여행자",
   workspaces = [],
   onCreateWorkspace,
 }: ProfilePageProps) {
   const navigate = useNavigate();
+  const { isLoggedIn, user, logout, fetchUserProfile } = useAuthStore();
+
+  /* 비로그인 상태면 홈으로 이동 */
+  useEffect(() => {
+    if (!isLoggedIn) {
+      navigate("/", { replace: true });
+      return;
+    }
+    /* 유저 정보가 없으면 조회 */
+    if (!user) {
+      fetchUserProfile();
+    }
+  }, [isLoggedIn, user, navigate, fetchUserProfile]);
+
+  const userName = user?.nickname ?? "여행자";
 
   const handleSearch = (params: { tripType: string; directOnly: boolean }) => {
     // TODO: 검색 결과 페이지 이동
@@ -53,6 +69,11 @@ export default function ProfilePage({
 
   const handleConquestMap = () => {
     navigate("/conquest-map");
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
   };
 
   return (
@@ -84,7 +105,7 @@ export default function ProfilePage({
         {/* ── ② Header (login 상태, 흰 배경) ── */}
         <div className="-mt-[374px] w-full bg-white border-b border-gray-300 relative z-20">
           <div className="max-w-[1200px] w-full mx-auto px-4">
-            <Header variant="login" />
+            <Header variant="login" onLogout={handleLogout} />
           </div>
         </div>
 
