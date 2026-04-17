@@ -1,7 +1,9 @@
+import { useNavigate } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import Footer from "@/components/common/Footer";
 import NavBar from "@/components/common/NavBar";
 import MobileFooter from "@/components/common/MobileFooter";
+import useAuthStore from "@/store/useAuthStore";
 
 /**
  * ProfileLayout
@@ -9,11 +11,23 @@ import MobileFooter from "@/components/common/MobileFooter";
  * - 모바일 NavBar + Footer 포함
  */
 export default function NoHeaderLayout() {
+  const navigate = useNavigate();
+  const { isLoggedIn, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* ══ 모바일 Header (md 미만) ══ */}
       <div className="md:hidden">
-        <NavBar variant="login" />
+        {/* <NavBar variant="login" /> */}
+        <NavBar
+          variant={isLoggedIn ? "login" : "default"}
+          onLogout={handleLogout}
+        />
       </div>
 
       {/* ── 페이지 콘텐츠 ── */}

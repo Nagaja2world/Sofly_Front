@@ -1,6 +1,8 @@
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/common/Header";
 import SearchBar from "@/components/SearchBar";
 import FeatureCard from "@/components/homepage/FeatureCard";
+import useAuthStore, { OAUTH_URLS } from "@/store/useAuthStore";
 
 import heroSvg from "@/assets/home_hero.svg";
 import HomeCard1Img from "@/assets/home_card_1_img.svg?react";
@@ -31,9 +33,26 @@ const featureCards = [
 
 /* ── 홈 페이지 ── */
 export default function HomePage() {
+  const navigate = useNavigate();
+  const { isLoggedIn, logout } = useAuthStore();
+
   const handleSearch = (params: { tripType: string; directOnly: boolean }) => {
     // TODO: 검색 결과 페이지 이동
     console.log("search:", params);
+  };
+
+  /* 소셜 로그인: 백엔드 OAuth URL로 리다이렉트 */
+  const handleKakaoLogin = () => {
+    window.location.href = OAUTH_URLS.kakao;
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = OAUTH_URLS.google;
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
   };
 
   return (
@@ -68,7 +87,13 @@ export default function HomePage() {
         {/* ── Header (login 상태, 흰 배경) ── */}
         <div className="-mt-[374px] w-full bg-background relative z-20">
           <div className="max-w-[1200px] w-full mx-auto px-4">
-            <Header variant="default" />
+            {/* <Header variant="default" /> */}
+            <Header
+              variant={isLoggedIn ? "login" : "default"}
+              onKakaoLogin={handleKakaoLogin}
+              onGoogleLogin={handleGoogleLogin}
+              onLogout={handleLogout}
+            />
           </div>
         </div>
 
