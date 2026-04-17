@@ -9,14 +9,17 @@ import CalendarIcon from "@/assets/calendar.svg?react";
 import UsersIcon from "@/assets/users.svg?react";
 import SwitchIcon from "@/assets/switch.svg?react";
 
+const tripTypes = ["편도", "왕복", "다구간"];
+
+/* ══════════════════════════════════════════════
+   SearchBar 메인 컴포넌트
+   ══════════════════════════════════════════════ */
 interface SearchBarProps {
   /** 검색 클릭 시 콜백 */
   onSearch?: (params: { tripType: string; directOnly: boolean }) => void;
   /** 추가 클래스 */
   className?: string;
 }
-
-const tripTypes = ["편도", "왕복", "다구간"];
 
 export default function SearchBar({
   onSearch,
@@ -63,6 +66,7 @@ export default function SearchBar({
             rightPlaceholder="도착지"
             centerIcon={<SwitchIcon />}
           />
+
           <SelectField
             className="flex-1 min-w-0"
             bg="gray"
