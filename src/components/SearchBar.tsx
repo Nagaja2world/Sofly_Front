@@ -1,23 +1,27 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Button from "./common/Button";
 import Tab from "./common/Tab";
 import Checkbox from "./common/Checkbox";
-import SelectField from "./common/SelectField";
-import PairSelectField from "./common/PairSelectField";
 
-import CalendarIcon from "@/assets/calendar.svg?react";
-import UsersIcon from "@/assets/users.svg?react";
-import SwitchIcon from "@/assets/switch.svg?react";
+import AirportSearchDropdown, {
+  type Airport,
+} from "./searchbar/AirportSearchDropdown";
+import CalendarDropdown, { type DateRange } from "./searchbar/CalendarDropdown";
+import PassengerSeatDropdown, {
+  type PassengerSeatData,
+} from "./searchbar/PassengerSeatDropdown";
 
 const tripTypes = ["편도", "왕복", "다구간"];
 
-/* ══════════════════════════════════════════════
-   SearchBar 메인 컴포넌트
-   ══════════════════════════════════════════════ */
 interface SearchBarProps {
-  /** 검색 클릭 시 콜백 */
-  onSearch?: (params: { tripType: string; directOnly: boolean }) => void;
-  /** 추가 클래스 */
+  onSearch?: (params: {
+    tripType: string;
+    directOnly: boolean;
+    departure: Airport | null;
+    arrival: Airport | null;
+    dateRange: DateRange;
+    passenger: PassengerSeatData;
+  }) => void;
   className?: string;
 }
 
@@ -27,11 +31,54 @@ export default function SearchBar({
 }: SearchBarProps) {
   const [tabIndex, setTabIndex] = useState(0);
   const [directOnly, setDirectOnly] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const [activePanel, setActivePanel] = useState<string | null>(null);
+
+  const [departure, setDeparture] = useState<Airport | null>(null);
+  const [arrival, setArrival] = useState<Airport | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>({
+    start: null,
+    end: null,
+  });
+  const [passenger, setPassenger] = useState<PassengerSeatData>({
+    adults: 1,
+    children: 0,
+    seatClass: "일반석",
+  });
+
+  const closeAll = useCallback(() => setActivePanel(null), []);
 
   const handleSearch = () => {
+    setSearchError(null);
+
+    /* 유효성 검사 */
+    if (!departure) {
+      setSearchError("출발지를 선택해주세요");
+      return;
+    }
+    if (!arrival) {
+      setSearchError("도착지를 선택해주세요");
+      return;
+    }
+    if (!dateRange.start) {
+      setSearchError("출발일을 선택해주세요");
+      return;
+    }
+    const isRoundTrip = tabIndex === 1;
+    if (isRoundTrip && !dateRange.end) {
+      setSearchError("돌아오는 날짜를 선택해주세요");
+      return;
+    }
+
+    /* 부모에게 검색 파라미터 전달 — navigate는 부모가 담당 */
     onSearch?.({
       tripType: tripTypes[tabIndex],
       directOnly,
+      departure,
+      arrival,
+      dateRange,
+      passenger,
     });
   };
 
@@ -59,32 +106,49 @@ export default function SearchBar({
 
         {/* 검색 필드 행 */}
         <div className="flex items-center gap-3">
-          <PairSelectField
-            className="flex-[2] min-w-0"
-            bg="gray"
-            leftPlaceholder="출발지"
-            rightPlaceholder="도착지"
-            centerIcon={<SwitchIcon />}
+          {/* 출발지 / 도착지 */}
+          <AirportSearchDropdown
+            departure={departure}
+            arrival={arrival}
+            activePanel={activePanel}
+            onOpenDep={() => setActivePanel("dep")}
+            onOpenArr={() => setActivePanel("arr")}
+            onSelectDep={(a) => {
+              setDeparture(a);
+              setActivePanel("arr");
+            }}
+            onSelectArr={(a) => {
+              setArrival(a);
+              setActivePanel(null);
+            }}
+            onSwap={() => {
+              setDeparture(arrival);
+              setArrival(departure);
+            }}
+            onClose={closeAll}
           />
 
-          <SelectField
-            className="flex-1 min-w-0"
-            bg="gray"
-            placeholder="가는편"
-            rightIcon={<CalendarIcon />}
+          {/* 가는편 / 오는편 */}
+          <CalendarDropdown
+            dateRange={dateRange}
+            activePanel={activePanel}
+            onOpen={(type) =>
+              setActivePanel(type === "start" ? "cal-start" : "cal-end")
+            }
+            onChange={setDateRange}
+            onClose={closeAll}
           />
-          <SelectField
-            className="flex-1 min-w-0"
-            bg="gray"
-            placeholder="오는편"
-            rightIcon={<CalendarIcon />}
+
+          {/* 여행자 및 좌석 등급 */}
+          <PassengerSeatDropdown
+            value={passenger}
+            activePanel={activePanel}
+            onOpen={() => setActivePanel("pax")}
+            onChange={setPassenger}
+            onClose={closeAll}
           />
-          <SelectField
-            className="flex-1 min-w-0"
-            bg="gray"
-            placeholder="인원/좌석등급"
-            leftIcon={<UsersIcon />}
-          />
+
+          {/* 검색 버튼 */}
           <Button
             btnType="solid"
             className="py-4 px-8 text-body2 shrink-0"
@@ -93,6 +157,13 @@ export default function SearchBar({
             검색하기
           </Button>
         </div>
+
+        {/* 에러 메시지 */}
+        {searchError && (
+          <p className="mt-3 font-pretendard text-body4 text-red-500">
+            {searchError}
+          </p>
+        )}
       </div>
     </section>
   );

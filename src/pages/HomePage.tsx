@@ -1,8 +1,12 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/common/Header";
 import SearchBar from "@/components/SearchBar";
 import FeatureCard from "@/components/homepage/FeatureCard";
 import useAuthStore, { OAUTH_URLS } from "@/store/useAuthStore";
+import type { Airport } from "@/components/searchbar/AirportSearchDropdown";
+import type { DateRange } from "@/components/searchbar/CalendarDropdown";
+import type { PassengerSeatData } from "@/components/searchbar/PassengerSeatDropdown";
 
 import heroSvg from "@/assets/home_hero.svg";
 import HomeCard1Img from "@/assets/home_card_1_img.svg?react";
@@ -31,14 +35,69 @@ const featureCards = [
   },
 ];
 
+/* ── Date → "yyyy-MM-dd" 포맷 ── */
+function formatDate(date: Date | null): string | null {
+  if (!date) return null;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/* ── SearchBar 파라미터 → URL 쿼리스트링 변환 ── */
+function buildFlightSearchQuery(params: {
+  tripType: string;
+  directOnly: boolean;
+  departure: Airport | null;
+  arrival: Airport | null;
+  dateRange: DateRange;
+  passenger: PassengerSeatData;
+}): string {
+  const sp = new URLSearchParams();
+  sp.set("tripType", params.tripType);
+  sp.set("directOnly", String(params.directOnly));
+  if (params.departure) {
+    sp.set("fromId", params.departure.id);
+    sp.set("fromCode", params.departure.code);
+    sp.set("fromCity", params.departure.cityName);
+  }
+  if (params.arrival) {
+    sp.set("toId", params.arrival.id);
+    sp.set("toCode", params.arrival.code);
+    sp.set("toCity", params.arrival.cityName);
+  }
+  const departStr = formatDate(params.dateRange.start);
+  const returnStr = formatDate(params.dateRange.end);
+  if (departStr) sp.set("departDate", departStr);
+  if (returnStr) sp.set("returnDate", returnStr);
+  sp.set("adults", String(params.passenger.adults));
+  sp.set("children", String(params.passenger.children));
+  sp.set("seatClass", params.passenger.seatClass);
+  return sp.toString();
+}
+
 /* ── 홈 페이지 ── */
 export default function HomePage() {
   const navigate = useNavigate();
   const { isLoggedIn, logout } = useAuthStore();
 
-  const handleSearch = (params: { tripType: string; directOnly: boolean }) => {
-    // TODO: 검색 결과 페이지 이동
-    console.log("search:", params);
+  /* 🌟로그인 상태면 프로필 페이지로 이동 */
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate("/profile", { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
+
+  const handleSearch = (params: {
+    tripType: string;
+    directOnly: boolean;
+    departure: Airport | null;
+    arrival: Airport | null;
+    dateRange: DateRange;
+    passenger: PassengerSeatData;
+  }) => {
+    const qs = buildFlightSearchQuery(params);
+    navigate(`/flight-search?${qs}`);
   };
 
   /* 소셜 로그인: 백엔드 OAuth URL로 리다이렉트 */

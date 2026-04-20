@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import NoHeaderLayout from "./layout/NoHeaderLayout";
 import HomePage from "@/pages/HomePage";
 import ProfilePage from "@/pages/ProfilePage";
+import FlightSearchPage from "@/pages/FlightSearchPage";
 
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 
@@ -12,6 +13,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: "/profile", element: <ProfilePage /> },
+      { path: "/flight-search", element: <FlightSearchPage /> },
     ],
   },
 

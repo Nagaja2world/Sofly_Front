@@ -1,53 +1,37 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import PairSelectField from "@/components/common/PairSelectField";
 import SwitchIcon from "@/assets/switch.svg?react";
+import { searchDestination, type AirportResult } from "@/api/flightApi";
 
 /* ── 타입 ── */
 export interface Airport {
-  code: string;
+  id: string; // "ICN.AIRPORT" — searchFlights에 사용
+  code: string; // "ICN"
   name: string;
-  country: string;
+  cityName: string;
+  countryName: string;
 }
 
-/* ── 공항 데이터 (추후 백엔드 연동) ── */
-const AIRPORTS: Airport[] = [
-  { code: "ICN", name: "인천국제공항", country: "대한민국" },
-  { code: "GMP", name: "김포국제공항", country: "대한민국" },
-  { code: "NRT", name: "나리타국제공항", country: "일본" },
-  { code: "HND", name: "하네다공항", country: "일본" },
-  { code: "KIX", name: "간사이국제공항", country: "일본" },
-  { code: "PVG", name: "푸둥국제공항", country: "중국" },
-  { code: "PEK", name: "베이징캐피탈", country: "중국" },
-  { code: "BKK", name: "수완나품공항", country: "태국" },
-  { code: "SIN", name: "창이공항", country: "싱가포르" },
-  { code: "HKG", name: "홍콩국제공항", country: "홍콩" },
-  { code: "FRA", name: "프랑크푸르트암마인", country: "독일" },
-  { code: "CDG", name: "샤를드골공항", country: "프랑스" },
-  { code: "LHR", name: "히드로공항", country: "영국" },
-  { code: "LAX", name: "로스앤젤레스공항", country: "미국" },
-  { code: "JFK", name: "존에프케네디공항", country: "미국" },
-];
+function toAirport(r: AirportResult): Airport {
+  return {
+    id: r.id,
+    code: r.code,
+    name: r.name,
+    cityName: r.cityName,
+    countryName: r.countryName,
+  };
+}
 
 interface AirportSearchDropdownProps {
-  /** 선택된 출발 공항 */
   departure: Airport | null;
-  /** 선택된 도착 공항 */
   arrival: Airport | null;
-  /** 현재 열린 패널: "dep" | "arr" | null */
   activePanel: string | null;
-  /** 출발지 클릭 */
   onOpenDep: () => void;
-  /** 도착지 클릭 */
   onOpenArr: () => void;
-  /** 출발 공항 선택 */
   onSelectDep: (airport: Airport) => void;
-  /** 도착 공항 선택 */
   onSelectArr: (airport: Airport) => void;
-  /** 출발↔도착 스왑 */
   onSwap: () => void;
-  /** 드롭다운 닫기 */
   onClose: () => void;
-  /** 추가 클래스 */
   className?: string;
 }
 
@@ -66,6 +50,10 @@ export default function AirportSearchDropdown({
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Airport[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDepOpen = activePanel === "dep";
   const isArrOpen = activePanel === "arr";
@@ -81,21 +69,42 @@ export default function AirportSearchDropdown({
     return () => document.removeEventListener("mousedown", handler);
   }, [isOpen, onClose]);
 
-  /* 열릴 때 포커스 */
+  /* 열릴 때 포커스 + 쿼리 초기화 */
   useEffect(() => {
     if (isOpen) {
-      inputRef.current?.focus();
+      setQuery("");
+      setResults([]);
+      setError(null);
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
 
-  const filtered = query.trim()
-    ? AIRPORTS.filter(
-        (a) =>
-          a.name.includes(query) ||
-          a.code.toLowerCase().includes(query.toLowerCase()) ||
-          a.country.includes(query),
-      )
-    : [];
+  /* 디바운스 검색 */
+  const handleQueryChange = useCallback((value: string) => {
+    setQuery(value);
+    setError(null);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (!value.trim()) {
+      setResults([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const data = await searchDestination(value.trim());
+        setResults(data.map(toAirport));
+      } catch {
+        setError("검색 중 오류가 발생했습니다");
+        setResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 350);
+  }, []);
 
   const currentLabel = isDepOpen ? "출발지" : "도착지";
 
@@ -108,20 +117,16 @@ export default function AirportSearchDropdown({
       <PairSelectField
         bg="gray"
         leftValue={
-          departure ? `${departure.name} (${departure.code})` : undefined
+          departure ? `${departure.cityName} (${departure.code})` : undefined
         }
         leftPlaceholder="출발지"
-        rightValue={arrival ? `${arrival.name} (${arrival.code})` : undefined}
+        rightValue={
+          arrival ? `${arrival.cityName} (${arrival.code})` : undefined
+        }
         rightPlaceholder="도착지"
         centerIcon={<SwitchIcon />}
-        onLeftClick={() => {
-          setQuery("");
-          onOpenDep();
-        }}
-        onRightClick={() => {
-          setQuery("");
-          onOpenArr();
-        }}
+        onLeftClick={onOpenDep}
+        onRightClick={onOpenArr}
         onCenterClick={onSwap}
         isOpen={isOpen}
       />
@@ -138,22 +143,23 @@ export default function AirportSearchDropdown({
           {/* 검색 입력 */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200">
             <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
               fill="none"
               className="shrink-0 text-gray-500"
             >
-              <path
-                d="M17.5 10L11.25 3.75V7.5L5 10L11.25 12.5V16.25L17.5 10Z"
+              <circle
+                cx="11"
+                cy="11"
+                r="7"
                 stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
+                strokeWidth="2"
               />
               <path
-                d="M2.5 10H5"
+                d="M16.5 16.5L21 21"
                 stroke="currentColor"
-                strokeWidth="1.5"
+                strokeWidth="2"
                 strokeLinecap="round"
               />
             </svg>
@@ -161,8 +167,8 @@ export default function AirportSearchDropdown({
               ref={inputRef}
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`${currentLabel} 검색`}
+              onChange={(e) => handleQueryChange(e.target.value)}
+              placeholder={`${currentLabel} 검색 (공항명, 도시, 국가)`}
               className={[
                 "flex-1 border-none outline-none bg-transparent",
                 "font-pretendard text-body2 text-gray-900",
@@ -172,7 +178,7 @@ export default function AirportSearchDropdown({
             {query && (
               <button
                 type="button"
-                onClick={() => setQuery("")}
+                onClick={() => handleQueryChange("")}
                 className={[
                   "shrink-0 w-5 h-5 rounded-full bg-gray-300",
                   "text-gray-600 flex items-center justify-center",
@@ -185,24 +191,35 @@ export default function AirportSearchDropdown({
             )}
           </div>
 
-          {/* 검색 결과 */}
+          {/* 결과 목록 */}
           <div className="max-h-[260px] overflow-y-auto py-1">
-            {query.trim() === "" ? (
+            {!query.trim() ? (
               <p className="px-4 py-6 text-center font-pretendard text-body3 text-gray-500">
-                공항명, 도시명 또는 공항 코드를 입력하세요
+                공항명, 도시명 또는 국가를 입력하세요
               </p>
-            ) : filtered.length === 0 ? (
+            ) : isLoading ? (
+              <div className="flex items-center justify-center py-8 gap-2">
+                <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
+                <p className="font-pretendard text-body3 text-gray-500">
+                  검색 중...
+                </p>
+              </div>
+            ) : error ? (
+              <p className="px-4 py-6 text-center font-pretendard text-body3 text-red-500">
+                {error}
+              </p>
+            ) : results.length === 0 ? (
               <p className="px-4 py-6 text-center font-pretendard text-body3 text-gray-500">
                 검색 결과가 없습니다
               </p>
             ) : (
-              filtered.map((airport) => {
+              results.map((airport) => {
                 const selected = isDepOpen
-                  ? departure?.code === airport.code
-                  : arrival?.code === airport.code;
+                  ? departure?.id === airport.id
+                  : arrival?.id === airport.id;
                 return (
                   <button
-                    key={airport.code}
+                    key={airport.id}
                     type="button"
                     onClick={() => {
                       if (isDepOpen) onSelectDep(airport);
@@ -212,6 +229,7 @@ export default function AirportSearchDropdown({
                       "flex items-center gap-3 w-full px-4 py-3",
                       "bg-transparent border-none cursor-pointer",
                       "hover:bg-gray-100 transition-colors text-left",
+                      selected ? "bg-gray-50" : "",
                     ].join(" ")}
                   >
                     <span
@@ -240,14 +258,13 @@ export default function AirportSearchDropdown({
                         </svg>
                       )}
                     </span>
-
                     <div className="flex-1 min-w-0">
-                      <p className="font-pretendard text-body2 text-gray-900 m-0">
+                      <p className="font-pretendard text-body2 text-gray-900 m-0 truncate">
                         {airport.name}{" "}
-                        <span className="text-gray-600">({airport.code})</span>
+                        <span className="text-gray-500">({airport.code})</span>
                       </p>
                       <p className="font-pretendard text-body4 text-gray-500 m-0 mt-0.5">
-                        {airport.country}
+                        {airport.cityName} · {airport.countryName}
                       </p>
                     </div>
                   </button>

@@ -36,7 +36,7 @@ export default function FeatureCard({
       style={isGradient ? { background: bg } : { backgroundColor: bg }}
     >
       {/* 텍스트 */}
-      <div className="relative z-10 min-w-0">
+      <div className="relative min-w-0">
         <h3 className="font-montserrat text-[20px] font-bold text-gray-900 mb-2 truncate">
           {title}
         </h3>
@@ -49,7 +49,7 @@ export default function FeatureCard({
       <div className="absolute bottom-0 right-0">{illustration}</div>
 
       {/* CTA */}
-      <div className="relative z-10 mt-15">
+      <div className="relative mt-15">
         <Button btnType="text" icon={<NarrowRightIcon />}>
           Get Started
         </Button>
