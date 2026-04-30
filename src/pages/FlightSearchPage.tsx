@@ -13,6 +13,7 @@ import {
 } from "@/api/flightMapper";
 import type { SearchFlightsFullResponse } from "@/types/flightOffersType";
 import type { FilterState, SortOption, FlightItem } from "@/types/flightType";
+import { parseFlightSearchParams } from "@/utils/flightSearchQuery";
 
 /**
  * FlightSearchPage
@@ -103,6 +104,12 @@ export default function FlightSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const debugMode = searchParams.get("debug") === "true";
+
+  /* ── URL 쿼리스트링 → SearchBar 초기값 ── */
+  const searchBarInitialValues = useMemo(
+    () => parseFlightSearchParams(searchParams),
+    [searchParams],
+  );
 
   /* ── URL 쿼리스트링 → 검색 input ── */
   const searchInput = useMemo<FlightSearchInput | null>(() => {
@@ -357,7 +364,10 @@ export default function FlightSearchPage() {
 
         {/* ── SearchBar (재검색용) ── */}
         <section className="mb-8">
-          <SearchBar onSearch={handleReSearch} />
+          <SearchBar
+            onSearch={handleReSearch}
+            initialValues={searchBarInitialValues}
+          />
         </section>
 
         {/* ── 입력값 없을 때 안내 ── */}
