@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import Button from "@/components/common/Button";
 import LoginPopup from "../LoginPopup";
 
@@ -48,9 +49,20 @@ export default function Header({
       ].join(" ")}
     >
       {/* Logo */}
-      <span className="font-montserrat text-[32px] font-semibold tracking-tight">
+      {/* <span className="font-montserrat text-[32px] font-semibold tracking-tight">
         Sofly
-      </span>
+      </span> */}
+      <Link
+        to="/"
+        className={[
+          "font-montserrat text-[32px] font-semibold tracking-tight",
+          "bg-transparent border-none p-0 cursor-pointer",
+          "text-gray-900 hover:opacity-80 transition-opacity",
+        ].join(" ")}
+        aria-label="홈으로 이동"
+      >
+        Sofly
+      </Link>
 
       {/* Right Actions */}
       {variant === "default" ? (

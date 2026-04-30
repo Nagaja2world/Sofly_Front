@@ -11,41 +11,61 @@ import PassengerSeatDropdown, {
   type PassengerSeatData,
 } from "./searchbar/PassengerSeatDropdown";
 
+import { type FlightSearchParams } from "@/utils/flightSearchQuery";
+
 const tripTypes = ["편도", "왕복", "다구간"];
 
+/** SearchBar 초기값 (URL 파싱 등 외부에서 주입) */
+export interface SearchBarInitialValues {
+  tripType?: string;
+  directOnly?: boolean;
+  departure?: Airport | null;
+  arrival?: Airport | null;
+  dateRange?: DateRange;
+  passenger?: PassengerSeatData;
+}
+
 interface SearchBarProps {
-  onSearch?: (params: {
-    tripType: string;
-    directOnly: boolean;
-    departure: Airport | null;
-    arrival: Airport | null;
-    dateRange: DateRange;
-    passenger: PassengerSeatData;
-  }) => void;
+  onSearch?: (params: FlightSearchParams) => void;
+  /** 초기값 — FlightSearchPage 등에서 URL 쿼리스트링 파싱 후 주입 */
+  initialValues?: SearchBarInitialValues;
   className?: string;
 }
 
 export default function SearchBar({
   onSearch,
+  initialValues,
   className = "",
 }: SearchBarProps) {
-  const [tabIndex, setTabIndex] = useState(0);
+  /* ── 초기값 계산: tripType은 인덱스로 변환 ── */
+  const initialTabIndex = (() => {
+    if (!initialValues?.tripType) return 0;
+    const idx = tripTypes.indexOf(initialValues.tripType);
+    return idx >= 0 ? idx : 0;
+  })();
+
+  const [tabIndex, setTabIndex] = useState(initialTabIndex);
   const [directOnly, setDirectOnly] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const [activePanel, setActivePanel] = useState<string | null>(null);
 
-  const [departure, setDeparture] = useState<Airport | null>(null);
-  const [arrival, setArrival] = useState<Airport | null>(null);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    start: null,
-    end: null,
-  });
-  const [passenger, setPassenger] = useState<PassengerSeatData>({
-    adults: 1,
-    children: 0,
-    seatClass: "일반석",
-  });
+  const [departure, setDeparture] = useState<Airport | null>(
+    initialValues?.departure ?? null,
+  );
+  const [arrival, setArrival] = useState<Airport | null>(
+    initialValues?.arrival ?? null,
+  );
+  const [dateRange, setDateRange] = useState<DateRange>(
+    initialValues?.dateRange ?? { start: null, end: null },
+  );
+  const [passenger, setPassenger] = useState<PassengerSeatData>(
+    initialValues?.passenger ?? {
+      adults: 1,
+      children: 0,
+      seatClass: "일반석",
+    },
+  );
 
   const closeAll = useCallback(() => setActivePanel(null), []);
 

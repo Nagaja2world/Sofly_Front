@@ -5,16 +5,25 @@ import ProfilePage from "@/pages/ProfilePage";
 import FlightSearchPage from "@/pages/FlightSearchPage";
 
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
+import Layout from "./layout/Layout";
 
 const router = createBrowserRouter([
+  /* Hero가 있는 페이지 (자체 Header) */
   {
     path: "/",
     element: <NoHeaderLayout />,
     children: [
       { index: true, element: <HomePage /> },
       { path: "/profile", element: <ProfilePage /> },
-      { path: "/flight-search", element: <FlightSearchPage /> },
+      // { path: "/flight-search", element: <FlightSearchPage /> },
     ],
+  },
+
+  /* 일반 페이지 (Header 포함 Layout) */
+  {
+    path: "/",
+    element: <Layout />,
+    children: [{ path: "flight-search", element: <FlightSearchPage /> }],
   },
 
   /* OAuth 콜백 (레이아웃 없이 단독 렌더링) */

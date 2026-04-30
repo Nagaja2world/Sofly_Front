@@ -77,7 +77,7 @@ export default function AirportSearchDropdown({
       setError(null);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [isOpen]);
+  }, [isOpen, activePanel]);
 
   /* 디바운스 검색 */
   const handleQueryChange = useCallback((value: string) => {

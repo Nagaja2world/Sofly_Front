@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import LoginImage from "@/assets/my.svg?react";
 import LogoutImage from "@/assets/logout.svg?react";
 import UserIcon from "@/assets/group.svg?react";
@@ -86,7 +87,18 @@ export default function NavBar({
       ].join(" ")}
     >
       {/* Logo */}
-      <span className="font-montserrat text-[20px] font-semibold">Sofly</span>
+      {/* <span className="font-montserrat text-[20px] font-semibold">Sofly</span> */}
+      <Link
+        to="/"
+        className={[
+          "font-montserrat text-[20px] font-semibold",
+          "text-gray-900 no-underline",
+          "hover:opacity-80 transition-opacity",
+        ].join(" ")}
+        aria-label="홈으로 이동"
+      >
+        Sofly
+      </Link>
 
       {/* Right Actions */}
       <div className="flex items-center gap-4">
