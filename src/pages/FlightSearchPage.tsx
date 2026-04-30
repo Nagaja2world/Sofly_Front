@@ -108,6 +108,27 @@ export default function FlightSearchPage() {
     [searchParams],
   );
 
+  /* ── SearchBar 강제 리마운트용 key ──
+     URL의 검색 조건이 바뀔 때(예: 브라우저 뒤로/앞으로 가기)
+     SearchBar 내부 상태를 최신 URL과 동기화하기 위해 컴포넌트를 리마운트한다.
+     검색 조건과 무관한 쿼리스트링 변경(향후 추가될 정렬/필터 등)으로
+     불필요하게 리마운트되지 않도록 관련 필드만 추려서 안정적인 키를 구성. */
+  const searchBarKey = useMemo(
+    () =>
+      [
+        searchParams.get("fromId"),
+        searchParams.get("toId"),
+        searchParams.get("departDate"),
+        searchParams.get("returnDate"),
+        searchParams.get("tripType"),
+        searchParams.get("directOnly"),
+        searchParams.get("adults"),
+        searchParams.get("children"),
+        searchParams.get("seatClass"),
+      ].join("|"),
+    [searchParams],
+  );
+
   /* ── URL 쿼리스트링 → 검색 input ── */
   const searchInput = useMemo<FlightSearchInput | null>(() => {
     const fromCity = searchParams.get("fromCity") ?? "";
@@ -310,6 +331,7 @@ export default function FlightSearchPage() {
           {/* ── SearchBar (재검색용) ── */}
           <section className="mb-10">
             <SearchBar
+              key={searchBarKey}
               onSearch={handleReSearch}
               initialValues={searchBarInitialValues}
             />

@@ -1,6 +1,5 @@
 import type { Airport } from "@/components/searchbar/AirportSearchDropdown";
 import type { DateRange } from "@/components/searchbar/CalendarDropdown";
-//import type { PassengerSeatData } from "@/components/searchbar/PassengerSeatDropdown";
 import type {
   PassengerSeatData,
   SeatClass,

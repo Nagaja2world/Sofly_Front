@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import Button from "@/components/common/Button";
 import LoginPopup from "../LoginPopup";
 
@@ -30,7 +30,6 @@ export default function Header({
   onGoogleLogin,
   //userIcon,
 }: HeaderProps) {
-  const navigate = useNavigate();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const loginBtnRef = useRef<HTMLDivElement>(null);
 
@@ -40,10 +39,6 @@ export default function Header({
     } else {
       setIsLoginOpen((prev) => !prev);
     }
-  };
-
-  const handleLogoClick = () => {
-    navigate("/");
   };
 
   return (
@@ -57,9 +52,8 @@ export default function Header({
       {/* <span className="font-montserrat text-[32px] font-semibold tracking-tight">
         Sofly
       </span> */}
-      <button
-        type="button"
-        onClick={handleLogoClick}
+      <Link
+        to="/"
         className={[
           "font-montserrat text-[32px] font-semibold tracking-tight",
           "bg-transparent border-none p-0 cursor-pointer",
@@ -68,7 +62,7 @@ export default function Header({
         aria-label="홈으로 이동"
       >
         Sofly
-      </button>
+      </Link>
 
       {/* Right Actions */}
       {variant === "default" ? (
