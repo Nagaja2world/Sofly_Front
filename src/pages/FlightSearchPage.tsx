@@ -300,10 +300,10 @@ export default function FlightSearchPage() {
           데스크톱 (md 이상)
           ══════════════════════════════════════════ */}
 
-      <div className="hidden md:block">
+      <div className="hidden md:block bg-background">
         <div className="max-w-[1200px] w-full mx-auto px-4 py-10">
           {/* ── 페이지 타이틀 ── */}
-          <h1 className="font-pretendard text-title2 font-semibold text-gray-900 m-0">
+          <h1 className="font-pretendard text-title2 font-semibold text-gray-900 mb-6">
             항공편 검색
           </h1>
 
