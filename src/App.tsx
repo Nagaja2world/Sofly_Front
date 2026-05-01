@@ -3,6 +3,7 @@ import NoHeaderLayout from "./layout/NoHeaderLayout";
 import HomePage from "@/pages/HomePage";
 import ProfilePage from "@/pages/ProfilePage";
 import FlightSearchPage from "@/pages/FlightSearchPage";
+import FlightDetailPage from "@/pages/FlightDetailPage";
 
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import Layout from "./layout/Layout";
@@ -23,7 +24,10 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <Layout />,
-    children: [{ path: "flight-search", element: <FlightSearchPage /> }],
+    children: [
+      { path: "flight-search", element: <FlightSearchPage /> },
+      { path: "flight-detail/:id", element: <FlightDetailPage /> },
+    ],
   },
 
   /* OAuth 콜백 (레이아웃 없이 단독 렌더링) */
