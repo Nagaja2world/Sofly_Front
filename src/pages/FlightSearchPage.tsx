@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
 import FilterSidebar from "@/components/flightSearch/FilterSidebar";
 import FlightResultList from "@/components/flightSearch/FlightResultList";
@@ -100,6 +100,7 @@ function totalMinutes(item: FlightItem): number {
    ══════════════════════════════════════════ */
 
 export default function FlightSearchPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   /* ── URL 쿼리스트링 → SearchBar 초기값 ── */
@@ -299,6 +300,10 @@ export default function FlightSearchPage() {
   const handleCardClick = (id: string) => {
     console.log("[FlightCard] clicked id:", id);
     /* TODO: 상세 페이지 이동 또는 상세 조회 (getFlightDetails) */
+    const offer = offerMap.get(id);
+    navigate(`/flight-detail/${encodeURIComponent(id)}`, {
+      state: { offer },
+    });
   };
 
   /* ══════════════════════════════════════════
