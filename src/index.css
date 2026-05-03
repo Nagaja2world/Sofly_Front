@@ -1,70 +1,40 @@
+/* @import url("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css"); */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap");
 @import "tailwindcss";
+@import "swiper/css";
+@import "swiper/css/pagination";
+@theme {
+  /* ── Colors ── */
+  --color-primary: #f5d15a;
+  --color-primary-hover: #d4b23e;
+  --color-background: #fcf9ef;
+  --color-secondary: #a0c1d5;
+  --color-white: #ffffff;
+  --color-gray-100: #fafafa;
+  --color-gray-200: #f2f2f2;
+  --color-gray-300: #e1e1e1;
+  --color-gray-400: #c4c4c4;
+  --color-gray-500: #9a9a9a;
+  --color-gray-600: #757575;
+  --color-gray-700: #5b5b5b;
+  --color-gray-800: #404040;
+  --color-gray-900: #2b2b2b;
 
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /* ── Font Family ── */
+  --font-pretendard:
+    "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-montserrat: "Montserrat", sans-serif;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* ── Font Size ── */
+  --text-title1: 40px;
+  --text-title2: 24px;
+  --text-body1: 18px;
+  --text-body2: 16px;
+  --text-body3: 14px;
+  --text-body4: 13px;
+  --text-body5: 11px;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+@layer utilities {
 }

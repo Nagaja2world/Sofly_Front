@@ -1,35 +1,47 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import NoHeaderLayout from "./layout/NoHeaderLayout";
+import HomePage from "@/pages/HomePage";
+import ProfilePage from "@/pages/ProfilePage";
+import FlightSearchPage from "@/pages/FlightSearchPage";
+import FlightDetailPage from "@/pages/FlightDetailPage";
 
-function App() {
-  const [count, setCount] = useState(0)
+import AuthCallbackPage from "@/pages/AuthCallbackPage";
+import Layout from "./layout/Layout";
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+const router = createBrowserRouter([
+  /* Hero가 있는 페이지 (자체 Header) */
+  {
+    path: "/",
+    element: <NoHeaderLayout />,
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: "/profile", element: <ProfilePage /> },
+      // { path: "/flight-search", element: <FlightSearchPage /> },
+    ],
+  },
+
+  /* 일반 페이지 (Header 포함 Layout) */
+  {
+    path: "/",
+    element: <Layout />,
+    children: [
+      { path: "flight-search", element: <FlightSearchPage /> },
+      { path: "flight-detail/:id", element: <FlightDetailPage /> },
+    ],
+  },
+
+  /* OAuth 콜백 (레이아웃 없이 단독 렌더링) */
+  { path: "/auth/callback", element: <AuthCallbackPage /> },
+
+  // TODO: 추가 라우트
+  // { path: "/login", element: <LoginPage /> },
+  // {
+  //   path: "/search",
+  //   element: <SearchLayout />,
+  //   children: [{ index: true, element: <SearchResultPage /> }],
+  // },
+]);
+
+export default function App() {
+  return <RouterProvider router={router} />;
 }
-
-export default App
