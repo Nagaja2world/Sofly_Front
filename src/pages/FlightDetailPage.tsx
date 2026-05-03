@@ -71,7 +71,9 @@ export default function FlightDetailPage() {
   const stateOffer = (location.state as FlightDetailLocationState | null)
     ?.offer;
 
-  /* offer를 로컬 상태로 유지 — state가 사라지면 (새로고침) null */
+  /* offer를 로컬 상태로 유지 — state가 사라지면 (새로고침) null 
+    TODO(API 연결 시): id로 getFlightDetails 재조회하여 offer 복원
+    현재는 안내 화면(아래 if (!offer))으로 fallback */
   const [offer] = useState<FlightOffer | null>(stateOffer ?? null);
 
   /* 판매처 정보 — getFlightDetails 응답 받아서 채울 예정, 현재는 목업 */

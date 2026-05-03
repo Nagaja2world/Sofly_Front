@@ -37,16 +37,32 @@ export default function ProviderCard({
   onClick,
   className = "",
 }: ProviderCardProps) {
+  const isInteractive = Boolean(onClick);
+
+  const handleClick = () => onClick?.(id);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (!onClick) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick(id);
+    }
+  };
+
   return (
     <article
-      onClick={() => onClick?.(id)}
+      onClick={isInteractive ? handleClick : undefined}
+      onKeyDown={isInteractive ? handleKeyDown : undefined}
+      role={isInteractive ? "button" : undefined}
+      tabIndex={isInteractive ? 0 : undefined}
+      aria-label={isInteractive ? `${name} 판매처로 이동` : undefined}
       className={[
         "bg-white rounded-xl border border-gray-300",
         "px-5 py-4",
         "flex items-center justify-between gap-4",
         "transition-all duration-200",
-        onClick
-          ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:border-gray-400"
+        isInteractive
+          ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:border-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           : "",
         className,
       ].join(" ")}
