@@ -44,7 +44,7 @@ export async function searchDestination(
 ): Promise<AirportResult[]> {
   const params = new URLSearchParams({
     query,
-    languageCode: "en-us",
+    languageCode: "ko",
   });
   const res = await fetch(`${API_BASE}/api/v1/flights/destinations?${params}`, {
     headers: authHeaders(),
