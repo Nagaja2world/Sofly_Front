@@ -15,7 +15,7 @@ import {
   type WorkspaceConquest,
   type VisitStatus,
 } from "@/api/conquestApi";
-import { A2_A3, A3_A2, WV_FILTER, BULK_TEMPLATE, C, STATUS_COLOR, panelBase } from "@/components/conquestMap/constants";
+import { A3_A2, WV_FILTER, BULK_TEMPLATE, C, STATUS_COLOR, panelBase } from "@/components/conquestMap/constants";
 import { genArc } from "@/components/conquestMap/utils";
 import type { RouteFilter, ModalCtx } from "@/components/conquestMap/types";
 import { MapHeader } from "@/components/conquestMap/MapHeader";

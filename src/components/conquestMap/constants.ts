@@ -1,5 +1,4 @@
 import type { VisitStatus } from "@/api/conquestApi";
-import type mapboxgl from "mapbox-gl";
 
 // ── ISO alpha-2 ↔ alpha-3 ─────────────────────────────────────────────
 export const A2_A3: Record<string, string> = {
