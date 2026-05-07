@@ -77,9 +77,6 @@ function genArc(from: [number, number], to: [number, number], n = 80): [number, 
 const STATUS_LABEL: Record<VisitStatus, string> = {
   VISITED: "방문 완료", PLANNED: "방문 예정", UNVISITED: "미방문",
 };
-const STATUS_COLOR: Record<VisitStatus, string> = {
-  VISITED: "#8b5cf6", PLANNED: "#f59e0b", UNVISITED: "#374151",
-};
 
 const BULK_TEMPLATE = `{
   "countries": [
@@ -98,22 +95,39 @@ type ModalCtx = {
   type: "city"; id: number; name: string; status: VisitStatus;
 };
 
-// ── CSS-in-JS theme tokens ─────────────────────────────────────────────
+// ── sofly light theme tokens ──────────────────────────────────────────
 const C = {
-  bg: "#0a0c14",
-  surface: "rgba(15,18,30,0.96)",
-  border: "rgba(255,255,255,0.08)",
-  text: "#e2e8f0",
-  muted: "#718096",
-  accent: "#7c3aed",
-  visited: "#8b5cf6",
-  planned: "#f59e0b",
+  bg: "#fcf9ef",
+  white: "#ffffff",
+  surface: "rgba(255,255,255,0.95)",
+  border: "#f2f2f2",
+  borderMid: "#e1e1e1",
+  text: "#2b2b2b",
+  muted: "#9a9a9a",
+  subtle: "#757575",
+  primary: "#f5d15a",
+  primaryHover: "#d4b23e",
+  secondary: "#a0c1d5",
+  visited: "#f5d15a",
+  planned: "#a0c1d5",
+  unvisited: "#e1e1e1",
+};
+
+const STATUS_COLOR: Record<VisitStatus, string> = {
+  VISITED: C.visited,
+  PLANNED: C.planned,
+  UNVISITED: C.unvisited,
 };
 
 // ── Shared panel style ─────────────────────────────────────────────────
-const panelStyle: React.CSSProperties = {
-  position: "absolute", background: C.surface, border: `1px solid ${C.border}`,
-  borderRadius: 12, backdropFilter: "blur(16px)", zIndex: 10,
+const panelBase: React.CSSProperties = {
+  position: "absolute",
+  background: C.surface,
+  border: `1px solid ${C.border}`,
+  borderRadius: 16,
+  backdropFilter: "blur(12px)",
+  boxShadow: "0 8px 24px rgba(43,43,43,0.06)",
+  zIndex: 10,
   fontFamily: "Pretendard, -apple-system, sans-serif",
 };
 
@@ -123,7 +137,6 @@ export default function ConquestMapPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
 
-  // Mutable callback ref (avoids stale closures in mapbox event handlers)
   const cbRef = useRef({
     loadWorkspaces: (_iso2: string) => {},
     openCityModal: (_id: number, _status: VisitStatus, _name: string) => {},
@@ -200,7 +213,6 @@ export default function ConquestMapPage() {
     }
   }, []);
 
-  // Keep cbRef up-to-date
   cbRef.current.loadWorkspaces = loadWorkspaces;
   cbRef.current.openCityModal = (id, status, name) => {
     setModalCtx({ type: "city", id, name, status });
@@ -214,16 +226,15 @@ export default function ConquestMapPage() {
     mapboxgl.accessToken = mbToken;
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
+      style: "mapbox://styles/mapbox/light-v11",
       center: [20, 15],
       zoom: 1.6,
-    projection: "mercator" as unknown as mapboxgl.ProjectionSpecification,
+      projection: "mercator" as unknown as mapboxgl.ProjectionSpecification,
     });
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
 
     map.on("load", () => {
-      // Sources
       map.addSource("cb", { type: "vector", url: "mapbox://mapbox.country-boundaries-v1" });
       map.addSource("cities", {
         type: "geojson",
@@ -232,7 +243,6 @@ export default function ConquestMapPage() {
       });
       map.addSource("routes", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
 
-      // Layers
       map.addLayer({
         id: "c-hit", type: "fill", source: "cb", "source-layer": "country_boundaries",
         filter: ["has", "iso_3166_1_alpha_3"],
@@ -241,57 +251,64 @@ export default function ConquestMapPage() {
       map.addLayer({
         id: "c-fill", type: "fill", source: "cb", "source-layer": "country_boundaries",
         filter: WV_FILTER,
-        paint: { "fill-color": "#1e293b", "fill-opacity": 0 },
+        paint: { "fill-color": C.unvisited, "fill-opacity": 0 },
       });
       map.addLayer({
         id: "c-line", type: "line", source: "cb", "source-layer": "country_boundaries",
         filter: WV_FILTER,
-        paint: { "line-color": "rgba(255,255,255,0.07)", "line-width": 0.5 },
+        paint: { "line-color": "rgba(43,43,43,0.12)", "line-width": 0.5 },
       });
       map.addLayer({
         id: "c-hover", type: "fill", source: "cb", "source-layer": "country_boundaries",
         filter: ["==", ["get", "iso_3166_1_alpha_3"], ""],
-        paint: { "fill-color": "rgba(255,255,255,0.08)", "fill-opacity": 1 },
+        paint: { "fill-color": "rgba(43,43,43,0.06)", "fill-opacity": 1 },
       });
       map.addLayer({
         id: "c-sel", type: "line", source: "cb", "source-layer": "country_boundaries",
         filter: ["==", ["get", "iso_3166_1_alpha_3"], ""],
-        paint: { "line-color": "#a78bfa", "line-width": 2 },
+        paint: { "line-color": C.text, "line-width": 2.5 },
       });
       map.addLayer({
         id: "rt-line", type: "line", source: "routes",
-        paint: { "line-color": ["get", "color"], "line-width": 1.5, "line-opacity": 0.65 },
+        paint: { "line-color": C.muted, "line-width": 1.5, "line-opacity": 0.55, "line-dasharray": [2, 2] },
         layout: { "line-cap": "round", "line-join": "round" },
       });
       map.addLayer({
         id: "rt-glow", type: "line", source: "routes",
-        paint: { "line-color": ["get", "color"], "line-width": 4, "line-opacity": 0.12, "line-blur": 3 },
+        paint: { "line-color": C.muted, "line-width": 4, "line-opacity": 0.1, "line-blur": 3 },
       });
       map.addLayer({
         id: "cl-circle", type: "circle", source: "cities",
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": "#7c3aed", "circle-opacity": 0.85,
+          "circle-color": C.visited,
+          "circle-opacity": 0.9,
           "circle-radius": ["step", ["get", "point_count"], 13, 5, 17, 10, 21],
-          "circle-stroke-width": 2, "circle-stroke-color": "rgba(167,139,250,0.35)",
+          "circle-stroke-width": 2,
+          "circle-stroke-color": C.white,
         },
       });
       map.addLayer({
-        id: "cl-count", type: "symbol", source: "cities",
-        filter: ["has", "point_count"],
-        layout: { "text-field": "{point_count_abbreviated}", "text-size": 11, "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"] },
-        paint: { "text-color": "#fff" },
+        id: "city-halo", type: "circle", source: "cities",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": ["get", "color"],
+          "circle-radius": 12,
+          "circle-opacity": 0.20,
+          "circle-blur": 1.0,
+        },
       });
       map.addLayer({
         id: "city-pt", type: "circle", source: "cities",
         filter: ["!", ["has", "point_count"]],
         paint: {
-          "circle-color": ["get", "color"], "circle-radius": 6, "circle-opacity": 0.9,
-          "circle-stroke-width": 2, "circle-stroke-color": ["get", "stroke"],
+          "circle-color": ["get", "color"],
+          "circle-radius": 5,
+          "circle-stroke-color": C.white,
+          "circle-stroke-width": 2,
         },
       });
 
-      // Events
       map.on("mousemove", "c-hit", (e) => {
         if (!e.features?.length) return;
         map.getCanvas().style.cursor = "pointer";
@@ -364,12 +381,19 @@ export default function ConquestMapPage() {
 
     const expr: (string | string[])[] = ["match", ["get", "iso_3166_1"]];
     for (const c of mapData.countries) {
-      if (c.status === "VISITED") { expr.push(c.countryCode, "#8b5cf6"); }
-      else if (c.status === "PLANNED") { expr.push(c.countryCode, "#f59e0b"); }
+      if (c.status === "VISITED") expr.push(c.countryCode, C.visited);
+      else if (c.status === "PLANNED") expr.push(c.countryCode, C.planned);
     }
     expr.push("transparent");
     map.setPaintProperty("c-fill", "fill-color", expr as any);
-    map.setPaintProperty("c-fill", "fill-opacity", 0.72);
+
+    const opacityExpr: unknown[] = ["match", ["get", "iso_3166_1"]];
+    const visitedCodes = mapData.countries.filter(c => c.status === "VISITED").map(c => c.countryCode);
+    const plannedCodes = mapData.countries.filter(c => c.status === "PLANNED").map(c => c.countryCode);
+    if (visitedCodes.length) opacityExpr.push(visitedCodes, 0.55);
+    if (plannedCodes.length) opacityExpr.push(plannedCodes, 0.40);
+    opacityExpr.push(0);
+    map.setPaintProperty("c-fill", "fill-opacity", opacityExpr as any);
 
     const features = mapData.cities
       .filter((c) => c.latitude && c.longitude)
@@ -377,9 +401,8 @@ export default function ConquestMapPage() {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [c.longitude, c.latitude] },
         properties: {
-          id: c.id, name: c.cityName, cc: c.countryCode, status: c.status, vc: c.visitCount ?? 0,
+          id: c.id, name: c.cityName, cc: c.countryCode, status: c.status,
           color: STATUS_COLOR[c.status],
-          stroke: c.status === "VISITED" ? "rgba(167,139,250,.5)" : c.status === "PLANNED" ? "rgba(251,191,36,.5)" : "rgba(107,114,128,.3)",
         },
       }));
     (map.getSource("cities") as mapboxgl.GeoJSONSource).setData({ type: "FeatureCollection", features });
@@ -396,7 +419,7 @@ export default function ConquestMapPage() {
       .map((r) => ({
         type: "Feature" as const,
         geometry: { type: "LineString" as const, coordinates: genArc([r.departureLng, r.departureLat], [r.arrivalLng, r.arrivalLat]) },
-        properties: { color: routeFilter === "all" ? "#a78bfa" : "#f59e0b" },
+        properties: {},
       }));
     (map.getSource("routes") as mapboxgl.GeoJSONSource).setData({ type: "FeatureCollection", features });
   }, [mapReady, allRoutes, routeFilter]);
@@ -460,51 +483,94 @@ export default function ConquestMapPage() {
     setModalStatus(ctx.status);
   };
 
-  // ── Badge helper ──
-  const StatusBadge = ({ status }: { status: VisitStatus }) => {
-    const bgs: Record<VisitStatus, string> = {
-      VISITED: "rgba(139,92,246,.2)", PLANNED: "rgba(245,158,11,.2)", UNVISITED: "rgba(107,114,128,.2)",
+  // ── StatusPill ──
+  const StatusPill = ({ status }: { status: VisitStatus }) => {
+    const bgMap: Record<VisitStatus, string> = {
+      VISITED: `${C.visited}33`, PLANNED: `${C.planned}33`, UNVISITED: "#f2f2f2",
     };
-    const colors: Record<VisitStatus, string> = {
-      VISITED: "#a78bfa", PLANNED: "#fbbf24", UNVISITED: "#9ca3af",
-    };
-    const borders: Record<VisitStatus, string> = {
-      VISITED: "rgba(139,92,246,.3)", PLANNED: "rgba(245,158,11,.3)", UNVISITED: "rgba(107,114,128,.2)",
+    const colorMap: Record<VisitStatus, string> = {
+      VISITED: "#caa12d", PLANNED: "#3f7396", UNVISITED: C.muted,
     };
     return (
       <span style={{
-        display: "inline-flex", alignItems: "center", padding: "2px 7px",
-        borderRadius: 10, fontSize: 10, fontWeight: 600,
-        background: bgs[status], color: colors[status], border: `1px solid ${borders[status]}`,
+        display: "inline-flex", alignItems: "center", gap: 6,
+        padding: "4px 10px", borderRadius: 99,
+        fontSize: 11, fontWeight: 600,
+        background: bgMap[status], color: colorMap[status],
       }}>
+        <span style={{ width: 6, height: 6, borderRadius: 99, background: STATUS_COLOR[status], flexShrink: 0 }} />
         {STATUS_LABEL[status]}
       </span>
     );
   };
 
+  // ── LegendDot ──
+  const LegendDot = ({ color, label, outline }: { color: string; label: string; outline?: boolean }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: C.subtle }}>
+      <div style={{
+        width: 10, height: 10, borderRadius: 99,
+        background: outline ? "transparent" : color,
+        border: outline ? `1.5px solid ${color}` : "none",
+        flexShrink: 0,
+      }} />
+      {label}
+    </div>
+  );
+
+  // ── Pill button ──
+  const pillBtn = (primary = false): React.CSSProperties => ({
+    padding: "8px 14px", fontSize: 12, fontWeight: 600,
+    fontFamily: "Pretendard, -apple-system, sans-serif",
+    background: primary ? C.text : C.white,
+    color: primary ? C.white : C.subtle,
+    border: primary ? "none" : `1px solid ${C.borderMid}`,
+    borderRadius: 99, cursor: "pointer",
+  });
+
   // ══════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════
   return (
-    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: C.bg, color: C.text, fontFamily: "Pretendard, -apple-system, sans-serif", overflow: "hidden" }}>
+    <div style={{
+      height: "100dvh", display: "flex", flexDirection: "column",
+      background: C.bg, color: C.text,
+      fontFamily: "Pretendard, -apple-system, sans-serif", overflow: "hidden",
+    }}>
 
       {/* ── Header ─────────────────────────────────── */}
-      <header style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "0 14px", height: 52, display: "flex", alignItems: "center", gap: 10, flexShrink: 0, backdropFilter: "blur(10px)", zIndex: 200, flexWrap: "wrap" }}>
-        {/* Logo / back */}
+      <header style={{
+        height: 64, background: C.white,
+        borderBottom: `1px solid ${C.border}`,
+        padding: "0 24px", display: "flex", alignItems: "center", gap: 16,
+        flexShrink: 0, zIndex: 200,
+      }}>
+        {/* Logo */}
         <button
           onClick={() => navigate("/")}
-          style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#a78bfa", fontSize: 15, fontWeight: 700, padding: "4px 0", fontFamily: "inherit" }}
+          style={{
+            display: "flex", alignItems: "center", gap: 10,
+            background: "none", border: "none", cursor: "pointer", padding: 0,
+          }}
         >
-          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <circle cx={12} cy={12} r={10} /><line x1={2} y1={12} x2={22} y2={12} />
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-          </svg>
-          Sofly
+          <div style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: `linear-gradient(135deg, ${C.primary}, #f0c043)`,
+            display: "grid", placeItems: "center",
+            boxShadow: `0 2px 8px rgba(245,209,90,0.35)`,
+            flexShrink: 0,
+          }}>
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth={2.2}>
+              <circle cx={12} cy={12} r={9} />
+              <path d="M3 12h18 M12 3a14 14 0 0 1 4 9 14 14 0 0 1-4 9 14 14 0 0 1-4-9 14 14 0 0 1 4-9z" />
+            </svg>
+          </div>
+          <span style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 700, fontSize: 18, color: C.text }}>
+            sofly
+          </span>
         </button>
 
-        <div style={{ width: 1, height: 22, background: C.border }} />
-
-        <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Conquest Map</span>
+        <div style={{ width: 1, height: 20, background: C.borderMid }} />
+        <span style={{ fontSize: 14, fontWeight: 600, color: C.subtle }}>Conquest Map</span>
 
         <div style={{ flex: 1 }} />
 
@@ -515,7 +581,12 @@ export default function ConquestMapPage() {
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
               placeholder="Mapbox Token (pk.eyJ1...)"
-              style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px 9px", color: C.text, fontSize: 12, fontFamily: "monospace", width: 200, outline: "none" }}
+              style={{
+                background: C.bg, border: `1px solid ${C.borderMid}`,
+                borderRadius: 8, padding: "6px 10px",
+                color: C.text, fontSize: 12, fontFamily: "monospace",
+                width: 200, outline: "none",
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && tokenInput.trim()) {
                   localStorage.setItem("cq_mb", tokenInput.trim());
@@ -526,25 +597,25 @@ export default function ConquestMapPage() {
             <button
               onClick={() => { if (tokenInput.trim()) { localStorage.setItem("cq_mb", tokenInput.trim()); setMbToken(tokenInput.trim()); } }}
               disabled={!tokenInput.trim()}
-              style={{ padding: "6px 13px", borderRadius: 6, fontSize: 12, fontWeight: 600, border: "none", cursor: tokenInput.trim() ? "pointer" : "not-allowed", background: C.accent, color: "#fff", opacity: tokenInput.trim() ? 1 : 0.45 }}
+              style={{ ...pillBtn(true), opacity: tokenInput.trim() ? 1 : 0.4 }}
             >
               지도 로드
             </button>
-            <div style={{ width: 1, height: 22, background: C.border }} />
+            <div style={{ width: 1, height: 20, background: C.borderMid }} />
           </>
         )}
 
         <button
-          onClick={() => setStatsOpen((o) => !o)}
-          style={{ padding: "6px 13px", borderRadius: 6, fontSize: 12, fontWeight: 600, border: `1px solid ${C.border}`, cursor: "pointer", background: "rgba(255,255,255,0.06)", color: C.text }}
+          onClick={() => setBulkOpen(true)}
+          style={pillBtn()}
         >
-          {statsOpen ? "통계 숨김" : "통계 보기"}
+          일괄 등록
         </button>
 
         <button
           onClick={loadAll}
           disabled={!mbToken || dataLoading}
-          style={{ padding: "6px 13px", borderRadius: 6, fontSize: 12, fontWeight: 600, border: "none", cursor: mbToken && !dataLoading ? "pointer" : "not-allowed", background: "#059669", color: "#fff", opacity: mbToken && !dataLoading ? 1 : 0.45 }}
+          style={{ ...pillBtn(true), background: "#059669", opacity: mbToken && !dataLoading ? 1 : 0.4 }}
         >
           {dataLoading ? "로딩 중..." : "데이터 로드"}
         </button>
@@ -552,175 +623,314 @@ export default function ConquestMapPage() {
 
       {/* ── Map area ──────────────────────────────── */}
       <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
-        {/* Map container */}
         <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
 
         {/* Init overlay (no token) */}
         {!mbToken && (
-          <div style={{ position: "absolute", inset: 0, background: C.bg, zIndex: 5, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
-            <svg width={52} height={52} viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth={1.5}>
-              <circle cx={12} cy={12} r={10} /><line x1={2} y1={12} x2={22} y2={12} />
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: "#a78bfa" }}>Conquest Map</h2>
-            <p style={{ fontSize: 13, color: C.muted, textAlign: "center", maxWidth: 340, lineHeight: 1.6 }}>
+          <div style={{
+            position: "absolute", inset: 0, background: C.bg, zIndex: 5,
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", gap: 16,
+          }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: 20,
+              background: `linear-gradient(135deg, ${C.primary}, #f0c043)`,
+              display: "grid", placeItems: "center",
+              boxShadow: `0 4px 20px rgba(245,209,90,0.40)`,
+            }}>
+              <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={C.text} strokeWidth={1.8}>
+                <circle cx={12} cy={12} r={9} />
+                <path d="M3 12h18 M12 3a14 14 0 0 1 4 9 14 14 0 0 1-4 9 14 14 0 0 1-4-9 14 14 0 0 1 4-9z" />
+              </svg>
+            </div>
+            <h2 style={{ fontFamily: "Montserrat, sans-serif", fontSize: 22, fontWeight: 700, color: C.text, margin: 0 }}>
+              Conquest Map
+            </h2>
+            <p style={{ fontSize: 13, color: C.muted, textAlign: "center", maxWidth: 340, lineHeight: 1.6, margin: 0 }}>
               상단의 Mapbox 토큰을 입력하고<br />
               <strong style={{ color: C.text }}>지도 로드</strong> 버튼을 눌러 시작하세요.
             </p>
           </div>
         )}
 
-        {/* ── Stats Panel ──────────────────────────── */}
+        {/* ── Stats Panel (top-left) ──────────────── */}
         {mbToken && (
-          <div style={{ ...panelStyle, top: 14, left: 14, width: 252, transition: "transform 0.3s", transform: statsOpen ? "translateX(0)" : "translateX(-280px)" }}>
-            <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#a78bfa" }}>📊 여행 통계</span>
-              <button onClick={() => setStatsOpen(false)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 4 }}>✕</button>
-            </div>
-            <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-              {!stats ? (
-                <div style={{ textAlign: "center", padding: "14px 0", color: C.muted, fontSize: 12 }}>데이터를 로드해주세요</div>
-              ) : (
-                <>
+          <>
+            {statsOpen ? (
+              <div style={{
+                ...panelBase,
+                top: 24, left: 24, width: 300,
+                transform: "translateX(0)", transition: "transform .25s ease",
+              }}>
+                {/* Panel header */}
+                <div style={{
+                  padding: "16px 18px", borderBottom: `1px solid ${C.border}`,
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                }}>
                   <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                      <span style={{ fontSize: 11, color: C.muted }}>방문 국가</span>
-                      <span style={{ fontSize: 15, fontWeight: 700 }}>
-                        {stats.visitedCountryCount}
-                        <span style={{ fontSize: 10, color: C.muted, fontWeight: 400 }}> / {stats.totalCountryCount}</span>
-                      </span>
+                    <div style={{ fontFamily: "Montserrat", fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.08em" }}>
+                      YOUR JOURNEY
                     </div>
-                    <div style={{ height: 3, background: "rgba(255,255,255,0.07)", borderRadius: 2, marginTop: 4, overflow: "hidden" }}>
-                      <div style={{ height: "100%", background: "linear-gradient(90deg, #7c3aed, #a78bfa)", width: `${stats.visitedCountryPercentage}%`, transition: "width .5s", borderRadius: 2 }} />
-                    </div>
-                    <div style={{ fontSize: 10, color: C.muted, textAlign: "right", marginTop: 2 }}>{stats.visitedCountryPercentage?.toFixed(1)}%</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginTop: 2 }}>여행 기록</div>
                   </div>
-                  {[
-                    { label: "방문 도시", val: stats.visitedCityCount, unit: "" },
-                    { label: "총 여행일", val: stats.totalTravelDays, unit: "일" },
-                    { label: "총 이동거리", val: Math.round(stats.totalDistanceKm ?? 0).toLocaleString(), unit: "km" },
-                  ].map((r) => (
-                    <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                      <span style={{ fontSize: 11, color: C.muted }}>{r.label}</span>
-                      <span style={{ fontSize: 15, fontWeight: 700 }}>{r.val}<span style={{ fontSize: 10, color: C.muted, fontWeight: 400 }}>{r.unit}</span></span>
+                  <button
+                    onClick={() => setStatsOpen(false)}
+                    style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, width: 28, height: 28, borderRadius: 8, display: "grid", placeItems: "center" }}
+                  >✕</button>
+                </div>
+
+                {!stats ? (
+                  <div style={{ padding: "20px 18px", textAlign: "center", fontSize: 12, color: C.muted }}>
+                    데이터를 로드해주세요
+                  </div>
+                ) : (
+                  <>
+                    {/* Big country count */}
+                    <div style={{ padding: "18px 18px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                        <div style={{ fontFamily: "Montserrat", fontSize: 44, fontWeight: 700, color: C.text, lineHeight: 1 }}>
+                          {stats.visitedCountryCount}
+                        </div>
+                        <div style={{ fontSize: 13, color: C.muted }}>/ {stats.totalCountryCount} 개국</div>
+                      </div>
+                      <div style={{ marginTop: 10, height: 6, background: C.border, borderRadius: 999, overflow: "hidden" }}>
+                        <div style={{
+                          width: `${stats.visitedCountryPercentage}%`, height: "100%",
+                          background: `linear-gradient(90deg, ${C.primary}, #ffd966)`,
+                          borderRadius: 999,
+                        }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted, marginTop: 6 }}>
+                        <span>전 세계</span>
+                        <span>{stats.visitedCountryPercentage?.toFixed(1)}%</span>
+                      </div>
                     </div>
-                  ))}
-                  {stats.continentStats?.length > 0 && (
-                    <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 9 }}>
-                      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".07em", color: C.muted, marginBottom: 6 }}>대륙별 방문</div>
-                      {(() => {
-                        const maxC = Math.max(...stats.continentStats.map((c) => c.visitedCountryCount), 1);
-                        return stats.continentStats.map((c) => (
-                          <div key={c.continent} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
-                            <div style={{ fontSize: 11, color: C.text, width: 70, flexShrink: 0 }}>{c.continentName}</div>
-                            <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
-                              <div style={{ height: "100%", background: "#8b5cf6", borderRadius: 3, width: `${c.visitedCountryCount > 0 ? Math.max((c.visitedCountryCount / maxC) * 100, 6) : 0}%` }} />
-                            </div>
-                            <div style={{ fontSize: 10, color: C.muted, width: 18, textAlign: "right" }}>{c.visitedCountryCount}</div>
+
+                    {/* Mini stats grid */}
+                    <div style={{ padding: "0 18px 14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {[
+                        { label: "방문 도시", val: stats.visitedCityCount, unit: "곳" },
+                        { label: "여행 일수", val: stats.totalTravelDays, unit: "일" },
+                        { label: "이동 거리", val: Math.round((stats.totalDistanceKm ?? 0) / 1000), unit: "천km" },
+                        { label: "여행 횟수", val: allRoutes.length || "—", unit: "" },
+                      ].map((m) => (
+                        <div key={m.label} style={{ background: C.bg, borderRadius: 10, padding: "10px 12px" }}>
+                          <div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>{m.label}</div>
+                          <div style={{ fontFamily: "Montserrat", fontSize: 18, fontWeight: 700, color: C.text }}>
+                            {typeof m.val === "number" ? m.val.toLocaleString() : m.val}
+                            <span style={{ fontSize: 10, color: C.muted, fontWeight: 400, marginLeft: 3 }}>{m.unit}</span>
                           </div>
-                        ));
-                      })()}
+                        </div>
+                      ))}
                     </div>
-                  )}
-                  <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 9, display: "flex", gap: 5 }}>
-                    <button onClick={() => setBulkOpen(true)} style={{ flex: 1, padding: "4px 9px", borderRadius: 6, fontSize: 11, fontWeight: 600, border: `1px solid ${C.border}`, cursor: "pointer", background: "rgba(255,255,255,0.06)", color: C.text }}>일괄 등록</button>
-                    <button onClick={loadAll} disabled={dataLoading} style={{ flex: 1, padding: "4px 9px", borderRadius: 6, fontSize: 11, fontWeight: 600, border: `1px solid ${C.border}`, cursor: "pointer", background: "rgba(255,255,255,0.06)", color: C.text }}>새로고침</button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
 
-        {/* ── Legend ──────────────────────────────── */}
-        {mbToken && (
-          <div style={{ ...panelStyle, bottom: 60, left: 14, padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
-            <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: ".07em", color: C.muted, marginBottom: 3 }}>방문 상태</div>
-            {[
-              { color: "#8b5cf6", label: "방문 완료" },
-              { color: "#f59e0b", label: "방문 예정" },
-              { color: "#374151", label: "미방문" },
-            ].map((l) => (
-              <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: l.color, flexShrink: 0 }} />
-                {l.label}
+                    {/* Continent bars */}
+                    {stats.continentStats?.length > 0 && (
+                      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${C.border}` }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.07em", marginBottom: 10 }}>
+                          대륙별
+                        </div>
+                        {(() => {
+                          const max = Math.max(...stats.continentStats.map((c) => c.visitedCountryCount), 1);
+                          return stats.continentStats.map((c) => (
+                            <div key={c.continent} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <div style={{ fontSize: 11, color: C.subtle, width: 60 }}>{c.continentName}</div>
+                              <div style={{ flex: 1, height: 6, background: C.border, borderRadius: 99, overflow: "hidden" }}>
+                                <div style={{
+                                  height: "100%",
+                                  width: `${c.visitedCountryCount > 0 ? Math.max((c.visitedCountryCount / max) * 100, 8) : 0}%`,
+                                  background: c.visitedCountryCount > 0 ? C.primary : C.borderMid,
+                                  borderRadius: 99,
+                                }} />
+                              </div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: C.subtle, width: 18, textAlign: "right" }}>
+                                {c.visitedCountryCount}
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            ))}
-            <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, marginTop: 4 }}>
-              <div style={{ width: 10, height: 3, borderRadius: 1, background: "rgba(167,139,250,.5)", flexShrink: 0 }} />
-              항공 경로
+            ) : (
+              /* Stats toggle button */
+              <button
+                onClick={() => setStatsOpen(true)}
+                style={{
+                  position: "absolute", top: 24, left: 24,
+                  width: 44, height: 44, borderRadius: 14,
+                  border: "none", background: C.surface,
+                  boxShadow: "0 4px 16px rgba(43,43,43,0.08)",
+                  cursor: "pointer", fontSize: 18,
+                  display: "grid", placeItems: "center",
+                  zIndex: 10,
+                }}
+              >
+                📊
+              </button>
+            )}
+          </>
+        )}
+
+        {/* ── Legend (bottom-left) ─────────────────── */}
+        {mbToken && (
+          <div style={{
+            ...panelBase,
+            bottom: 56, left: 24,
+            padding: "12px 14px",
+            display: "flex", flexDirection: "column", gap: 7,
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.07em" }}>범례</div>
+            <LegendDot color={C.visited} label="방문 완료" />
+            <LegendDot color={C.planned} label="방문 예정" />
+            <LegendDot color={C.unvisited} label="미방문" outline />
+            <div style={{ height: 1, background: C.border, margin: "2px 0" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 16, borderTop: `1.5px dashed ${C.muted}` }} />
+              <span style={{ fontSize: 11, color: C.subtle }}>항공 경로</span>
             </div>
           </div>
         )}
 
-        {/* ── Route bar ───────────────────────────── */}
-        {mbToken && allRoutes.length > 0 && (
-          <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, backdropFilter: "blur(16px)", zIndex: 10, display: "flex", alignItems: "center", gap: 3, padding: "4px 6px" }}>
-            {(["all", "none"] as RouteFilter[]).map((f) => (
+        {/* ── Route Filter Bar (bottom-center) ────── */}
+        {mbToken && (
+          <div style={{
+            position: "absolute", bottom: 24, left: "50%",
+            transform: "translateX(-50%)",
+            background: C.surface, backdropFilter: "blur(12px)",
+            border: `1px solid ${C.border}`, borderRadius: 999,
+            padding: 4, display: "flex", gap: 2,
+            boxShadow: "0 4px 16px rgba(43,43,43,0.08)", zIndex: 10,
+          }}>
+            {([
+              { v: "all" as const, label: "전체 경로" },
+              { v: "none" as const, label: "경로 숨김" },
+            ]).map((o) => (
               <button
-                key={String(f)}
-                onClick={() => handleRouteFilter(f)}
-                style={{ padding: "5px 13px", borderRadius: 16, fontSize: 11, fontWeight: 500, border: "none", cursor: "pointer", transition: "all .15s", color: routeFilter === f ? "#a78bfa" : C.muted, background: routeFilter === f ? "rgba(124,58,237,0.2)" : "transparent" }}
+                key={o.v}
+                onClick={() => handleRouteFilter(o.v)}
+                style={{
+                  padding: "8px 18px", border: "none", borderRadius: 999,
+                  fontSize: 12, fontWeight: 600,
+                  fontFamily: "Pretendard, -apple-system, sans-serif",
+                  cursor: "pointer",
+                  background: routeFilter === o.v ? C.text : "transparent",
+                  color: routeFilter === o.v ? C.white : C.subtle,
+                  transition: "all .15s",
+                }}
               >
-                {f === "all" ? "전체 경로" : "경로 숨김"}
+                {o.label}
               </button>
             ))}
           </div>
         )}
 
-        {/* ── Workspace Sidebar ────────────────────── */}
-        <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 310, background: C.surface, borderLeft: `1px solid ${C.border}`, backdropFilter: "blur(16px)", zIndex: 20, transform: sidebarOpen ? "translateX(0)" : "translateX(310px)", transition: "transform .3s ease", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {/* Sidebar head */}
-          <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 700 }}>
-                {countryInfo?.countryName || (selCountry ? A3_A2[selCountry] || selCountry : "—")}
+        {/* ── Country Sidebar (right slide-in) ────── */}
+        <div style={{
+          position: "absolute", top: 0, right: 0, bottom: 0, width: 340,
+          background: C.white, borderLeft: `1px solid ${C.border}`,
+          display: "flex", flexDirection: "column",
+          boxShadow: "-4px 0 16px rgba(43,43,43,0.04)",
+          transform: sidebarOpen ? "translateX(0)" : "translateX(340px)",
+          transition: "transform .3s ease",
+          zIndex: 20,
+        }}>
+          {/* Sidebar header */}
+          <div style={{ padding: "20px 22px 16px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                {countryInfo && (
+                  <div style={{ fontFamily: "Montserrat", fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.08em" }}>
+                    {countryInfo.continentName?.toUpperCase()}
+                  </div>
+                )}
+                <div style={{ fontSize: 24, fontWeight: 700, color: C.text, marginTop: 4 }}>
+                  {countryInfo?.countryName || (selCountry ? A3_A2[selCountry] || selCountry : "—")}
+                </div>
+                {countryInfo && (
+                  <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>{countryInfo.countryCode}</div>
+                )}
               </div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 5, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                {countryInfo && <StatusBadge status={countryInfo.status} />}
-                {countryInfo?.continentName && <span>{countryInfo.continentName}</span>}
-                {countryInfo && countryInfo.visitCount > 0 && <span>{countryInfo.visitCount}회 방문</span>}
-              </div>
+              <button
+                onClick={() => { setSidebarOpen(false); setSelCountry(null); }}
+                style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, width: 28, height: 28, borderRadius: 8, display: "grid", placeItems: "center" }}
+              >✕</button>
             </div>
-            <button onClick={() => { setSidebarOpen(false); setSelCountry(null); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 4 }}>✕</button>
+
+            {countryInfo && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+                <StatusPill status={countryInfo.status} />
+                <div style={{ fontSize: 12, color: C.muted }}>
+                  {countryInfo.visitCount > 0 ? `${countryInfo.visitCount}회 방문` : "기록 없음"}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Sidebar actions */}
-          <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, display: "flex", gap: 6 }}>
+          {/* Quick actions */}
+          <div style={{ padding: "12px 18px", display: "flex", gap: 8, borderBottom: `1px solid ${C.border}` }}>
             {selCountry && countryInfo && (
               <button
                 onClick={() => openModal({ type: "country", id: A3_A2[selCountry] || selCountry, name: countryInfo.countryName, status: countryInfo.status })}
-                style={{ flex: 1, padding: "4px 9px", borderRadius: 6, fontSize: 11, fontWeight: 600, border: `1px solid ${C.border}`, cursor: "pointer", background: "rgba(255,255,255,0.06)", color: C.text }}
+                style={{ ...pillBtn(), flex: 1, padding: "8px 10px" }}
               >
                 상태 변경
               </button>
             )}
             <button
-              onClick={() => { handleRouteFilter("all"); }}
-              style={{ flex: 1, padding: "4px 9px", borderRadius: 6, fontSize: 11, fontWeight: 600, border: `1px solid ${C.border}`, cursor: "pointer", background: "rgba(255,255,255,0.06)", color: C.text }}
+              onClick={() => handleRouteFilter("all")}
+              style={{ ...pillBtn(), flex: 1, padding: "8px 10px" }}
             >
               전체 경로
             </button>
           </div>
 
-          {/* Workspace list */}
-          <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
+          {/* Trips list */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.07em", marginBottom: 10 }}>
+              관련 여행 · {workspaces.length}
+            </div>
             {wsLoading ? (
               <div style={{ textAlign: "center", padding: 28 }}>
-                <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,.1)", borderTopColor: C.accent, borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto" }} />
+                <div style={{
+                  width: 18, height: 18,
+                  border: `2px solid ${C.border}`,
+                  borderTopColor: C.text,
+                  borderRadius: "50%",
+                  animation: "spin .7s linear infinite",
+                  margin: "0 auto",
+                }} />
               </div>
             ) : workspaces.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "28px 14px", color: C.muted, fontSize: 12 }}>이 국가와 연결된 워크스페이스가 없습니다</div>
+              <div style={{
+                background: C.bg, borderRadius: 12, padding: 20,
+                textAlign: "center", fontSize: 12, color: C.muted,
+              }}>
+                아직 이 국가의 여행이 없어요
+              </div>
             ) : (
               workspaces.map((w) => (
                 <div
                   key={w.id}
-                  onClick={() => { handleRouteFilter(w.id); }}
-                  style={{ background: hlWsId === w.id ? "rgba(139,92,246,.1)" : "rgba(255,255,255,0.03)", border: `1px solid ${hlWsId === w.id ? "rgba(139,92,246,.5)" : C.border}`, borderRadius: 8, padding: 11, marginBottom: 7, cursor: "pointer", transition: "all .15s" }}
+                  onClick={() => handleRouteFilter(w.id)}
+                  style={{
+                    background: hlWsId === w.id ? `${C.primary}1a` : C.bg,
+                    border: `1px solid ${hlWsId === w.id ? C.primary : C.border}`,
+                    borderRadius: 12, padding: 14, marginBottom: 8,
+                    cursor: "pointer", transition: "all .15s",
+                  }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{w.title}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{w.destination} · 멤버 {w.memberCount}명</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{w.startDate} ~ {w.endDate}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>{w.title}</div>
+                  <div style={{ fontSize: 12, color: C.subtle }}>📍 {w.destination}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                    <div style={{ fontSize: 11, color: C.muted }}>{w.startDate} – {w.endDate}</div>
+                    <div style={{ fontSize: 11, color: C.muted, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ width: 5, height: 5, borderRadius: 99, background: C.borderMid, display: "inline-block" }} />
+                      멤버 {w.memberCount}
+                    </div>
+                  </div>
                 </div>
               ))
             )}
@@ -732,35 +942,55 @@ export default function ConquestMapPage() {
       {modalCtx && (
         <div
           onClick={(e) => { if (e.target === e.currentTarget) setModalCtx(null); }}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(43,43,43,0.4)",
+            zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center",
+          }}
         >
-          <div style={{ background: "#1a1d2e", border: `1px solid ${C.border}`, borderRadius: 12, padding: 22, width: 300, display: "flex", flexDirection: "column", gap: 14, fontFamily: "Pretendard, -apple-system, sans-serif" }}>
+          <div style={{
+            background: C.white, borderRadius: 16,
+            border: `1px solid ${C.border}`, padding: 24,
+            width: 320, display: "flex", flexDirection: "column", gap: 16,
+            boxShadow: "0 20px 60px rgba(43,43,43,0.12)",
+            fontFamily: "Pretendard, -apple-system, sans-serif",
+          }}>
             <div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, color: C.text }}>
                 {modalCtx.name} 상태 변경
               </h3>
               <p style={{ fontSize: 12, color: C.muted }}>현재: {STATUS_LABEL[modalCtx.status]}</p>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {(["VISITED", "PLANNED", "UNVISITED"] as VisitStatus[]).map((s) => (
                 <div
                   key={s}
                   onClick={() => setModalStatus(s)}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: `2px solid ${modalStatus === s ? C.accent : "transparent"}`, cursor: "pointer", background: modalStatus === s ? "rgba(124,58,237,.1)" : "rgba(255,255,255,0.03)", transition: "all .15s" }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "10px 14px", borderRadius: 10,
+                    border: `2px solid ${modalStatus === s ? C.text : C.border}`,
+                    cursor: "pointer",
+                    background: modalStatus === s ? `${C.text}08` : C.bg,
+                    transition: "all .15s",
+                  }}
                 >
                   <div style={{ width: 9, height: 9, borderRadius: "50%", background: STATUS_COLOR[s], flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 500 }}>{STATUS_LABEL[s]}</div>
-                    <div style={{ fontSize: 10, color: C.muted }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{STATUS_LABEL[s]}</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>
                       {s === "VISITED" ? "이미 방문한 곳" : s === "PLANNED" ? "항공권 보유 또는 계획 중" : "아직 방문하지 않은 곳"}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ display: "flex", gap: 7, justifyContent: "flex-end" }}>
-              <button onClick={() => setModalCtx(null)} style={{ padding: "6px 13px", borderRadius: 6, fontSize: 12, fontWeight: 600, border: `1px solid ${C.border}`, cursor: "pointer", background: "rgba(255,255,255,0.06)", color: C.text }}>취소</button>
-              <button onClick={confirmStatus} disabled={modalLoading} style={{ padding: "6px 13px", borderRadius: 6, fontSize: 12, fontWeight: 600, border: "none", cursor: modalLoading ? "not-allowed" : "pointer", background: C.accent, color: "#fff", opacity: modalLoading ? 0.6 : 1 }}>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setModalCtx(null)} style={pillBtn()}>취소</button>
+              <button
+                onClick={confirmStatus}
+                disabled={modalLoading}
+                style={{ ...pillBtn(true), opacity: modalLoading ? 0.6 : 1 }}
+              >
                 {modalLoading ? "처리 중..." : "변경"}
               </button>
             </div>
@@ -772,21 +1002,39 @@ export default function ConquestMapPage() {
       {bulkOpen && (
         <div
           onClick={(e) => { if (e.target === e.currentTarget) setBulkOpen(false); }}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(43,43,43,0.4)",
+            zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center",
+          }}
         >
-          <div style={{ background: "#1a1d2e", border: `1px solid ${C.border}`, borderRadius: 12, padding: 22, width: 460, display: "flex", flexDirection: "column", gap: 14, fontFamily: "Pretendard, -apple-system, sans-serif" }}>
+          <div style={{
+            background: C.white, borderRadius: 16,
+            border: `1px solid ${C.border}`, padding: 24,
+            width: 480, display: "flex", flexDirection: "column", gap: 16,
+            boxShadow: "0 20px 60px rgba(43,43,43,0.12)",
+            fontFamily: "Pretendard, -apple-system, sans-serif",
+          }}>
             <div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>과거 방문 일괄 등록</h3>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, color: C.text }}>과거 방문 일괄 등록</h3>
               <p style={{ fontSize: 12, color: C.muted }}>JSON 형식으로 국가/도시를 한번에 등록합니다</p>
             </div>
             <textarea
               value={bulkJson}
               onChange={(e) => setBulkJson(e.target.value)}
-              style={{ background: "rgba(0,0,0,.3)", border: `1px solid ${C.border}`, borderRadius: 6, padding: 10, color: C.text, fontSize: 11, fontFamily: "monospace", resize: "vertical", minHeight: 200, width: "100%", outline: "none" }}
+              style={{
+                background: C.bg, border: `1px solid ${C.borderMid}`,
+                borderRadius: 8, padding: 12, color: C.text,
+                fontSize: 11, fontFamily: "monospace",
+                resize: "vertical", minHeight: 200, width: "100%", outline: "none",
+              }}
             />
-            <div style={{ display: "flex", gap: 7, justifyContent: "flex-end" }}>
-              <button onClick={() => setBulkOpen(false)} style={{ padding: "6px 13px", borderRadius: 6, fontSize: 12, fontWeight: 600, border: `1px solid ${C.border}`, cursor: "pointer", background: "rgba(255,255,255,0.06)", color: C.text }}>취소</button>
-              <button onClick={submitBulk} disabled={bulkLoading} style={{ padding: "6px 13px", borderRadius: 6, fontSize: 12, fontWeight: 600, border: "none", cursor: bulkLoading ? "not-allowed" : "pointer", background: C.accent, color: "#fff", opacity: bulkLoading ? 0.6 : 1 }}>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setBulkOpen(false)} style={pillBtn()}>취소</button>
+              <button
+                onClick={submitBulk}
+                disabled={bulkLoading}
+                style={{ ...pillBtn(true), opacity: bulkLoading ? 0.6 : 1 }}
+              >
                 {bulkLoading ? "등록 중..." : "등록"}
               </button>
             </div>
@@ -798,16 +1046,18 @@ export default function ConquestMapPage() {
       {toast && (
         <div style={{
           position: "fixed", bottom: 70, left: "50%", transform: "translateX(-50%)",
-          background: "#1e2235", border: `1px solid ${toast.type === "ok" ? "rgba(16,185,129,.45)" : "rgba(239,68,68,.4)"}`,
-          borderRadius: 8, padding: "9px 15px", fontSize: 12, zIndex: 300,
-          color: toast.type === "ok" ? "#6ee7b7" : "#fca5a5",
-          fontFamily: "Pretendard, -apple-system, sans-serif", whiteSpace: "nowrap",
+          background: C.white,
+          border: `1px solid ${toast.type === "ok" ? "rgba(5,150,105,0.3)" : "rgba(239,68,68,0.3)"}`,
+          borderRadius: 10, padding: "10px 16px", fontSize: 12, zIndex: 300,
+          color: toast.type === "ok" ? "#059669" : "#dc2626",
+          fontFamily: "Pretendard, -apple-system, sans-serif",
+          boxShadow: "0 4px 16px rgba(43,43,43,0.08)",
+          whiteSpace: "nowrap",
         }}>
           {toast.msg}
         </div>
       )}
 
-      {/* Cluster spin animation */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
