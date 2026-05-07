@@ -217,7 +217,7 @@ export default function ConquestMapPage() {
       style: "mapbox://styles/mapbox/dark-v11",
       center: [20, 15],
       zoom: 1.6,
-      projection: "mercator" as mapboxgl.ProjectionSpecification,
+    projection: "mercator" as unknown as mapboxgl.ProjectionSpecification,
     });
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
@@ -362,13 +362,13 @@ export default function ConquestMapPage() {
     const map = mapRef.current;
     if (!map || !mapReady || !mapData) return;
 
-    const expr: unknown[] = ["match", ["get", "iso_3166_1"]];
+    const expr: (string | string[])[] = ["match", ["get", "iso_3166_1"]];
     for (const c of mapData.countries) {
       if (c.status === "VISITED") { expr.push(c.countryCode, "#8b5cf6"); }
       else if (c.status === "PLANNED") { expr.push(c.countryCode, "#f59e0b"); }
     }
     expr.push("transparent");
-    map.setPaintProperty("c-fill", "fill-color", expr);
+    map.setPaintProperty("c-fill", "fill-color", expr as any);
     map.setPaintProperty("c-fill", "fill-opacity", 0.72);
 
     const features = mapData.cities
