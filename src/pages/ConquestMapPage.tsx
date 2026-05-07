@@ -153,8 +153,11 @@ export default function ConquestMapPage() {
       });
       map.addLayer({
         id: "c-hover", type: "fill", source: "cb", "source-layer": "country_boundaries",
-        filter: ["==", ["get", "iso_3166_1_alpha_3"], ""],
-        paint: { "fill-color": "rgba(43,43,43,0.06)", "fill-opacity": 1 },
+        paint: {
+          "fill-color": "rgba(43,43,43,0.06)",
+          // filter 대신 feature-state로 opacity 제어
+          "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, 0],
+        },
       });
       map.addLayer({
         id: "c-sel", type: "line", source: "cb", "source-layer": "country_boundaries",
@@ -202,15 +205,39 @@ export default function ConquestMapPage() {
         },
       });
 
+      let hoveredFeatureId: string | number | null = null;
+
       map.on("mousemove", "c-hit", (e) => {
         if (!e.features?.length) return;
         map.getCanvas().style.cursor = "pointer";
+
         const f = e.features.find((f) => f.properties?.iso_3166_1_alpha_3?.length === 3);
-        map.setFilter("c-hover", ["==", ["get", "iso_3166_1_alpha_3"], f?.properties?.iso_3166_1_alpha_3 || ""]);
+        if (!f?.id) return;
+
+        // 이전 hover 해제
+        if (hoveredFeatureId !== null && hoveredFeatureId !== f.id) {
+          map.setFeatureState(
+            { source: "cb", sourceLayer: "country_boundaries", id: hoveredFeatureId },
+            { hover: false }
+          );
+        }
+
+        hoveredFeatureId = f.id;
+        map.setFeatureState(
+          { source: "cb", sourceLayer: "country_boundaries", id: hoveredFeatureId },
+          { hover: true }
+        );
       });
+
       map.on("mouseleave", "c-hit", () => {
         map.getCanvas().style.cursor = "";
-        map.setFilter("c-hover", ["==", ["get", "iso_3166_1_alpha_3"], ""]);
+        if (hoveredFeatureId !== null) {
+          map.setFeatureState(
+            { source: "cb", sourceLayer: "country_boundaries", id: hoveredFeatureId },
+            { hover: false }
+          );
+          hoveredFeatureId = null;
+        }
       });
 
       map.on("click", "c-hit", (e) => {
