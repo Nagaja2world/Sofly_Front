@@ -6,6 +6,7 @@ import FlightSearchPage from "@/pages/FlightSearchPage";
 import FlightDetailPage from "@/pages/FlightDetailPage";
 
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
+import ConquestMapPage from "@/pages/ConquestMapPage";
 import Layout from "./layout/Layout";
 
 const router = createBrowserRouter([
@@ -32,6 +33,9 @@ const router = createBrowserRouter([
 
   /* OAuth 콜백 (레이아웃 없이 단독 렌더링) */
   { path: "/auth/callback", element: <AuthCallbackPage /> },
+
+  /* Conquest Map (풀스크린, 자체 헤더) */
+  { path: "/conquest-map", element: <ConquestMapPage /> },
 
   // TODO: 추가 라우트
   // { path: "/login", element: <LoginPage /> },
