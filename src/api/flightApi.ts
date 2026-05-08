@@ -103,7 +103,8 @@ export async function getFlightDetails(token: string, currencyCode = "KRW") {
   const res = await fetch(`${API_BASE}/api/v1/flights/details?${params}`, {
     headers: authHeaders(),
   });
-  return unwrap<FlightDetailsResponse>(res);
+  const wrapper = await unwrap<{ data: FlightDetailsResponse }>(res);
+  return wrapper.data;
 }
 
 /* ── searchFlightsFull: destinations → offers 순서로 호출 ── */
