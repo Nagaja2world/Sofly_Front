@@ -2,6 +2,7 @@ import { useState } from "react";
 import PinIcon from "@/assets/pin.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
+import MapIcon from "@/assets/map.svg?react";
 
 /* ══════════════════════════════════════════
    타입
@@ -37,6 +38,12 @@ interface ItineraryDayCardProps {
    * (API 연결 시: 여기서 PATCH/PUT 호출 후 성공 시 state 갱신)
    */
   onSave?: (rows: ItineraryRow[]) => void;
+  /**
+   * 지도 버튼 클릭 콜백.
+   * 보기 모드 헤더 오른쪽 끝의 "지도" 버튼을 누르면 호출됨.
+   * 부모는 이 일정의 장소들을 지도에 표시하는 모달/페이지를 띄우는 등의 처리를 할 수 있음.
+   */
+  onMapClick?: (dayNumber: number) => void;
   /** 추가 클래스 */
   className?: string;
 }
@@ -382,6 +389,7 @@ export default function ItineraryDayCard({
   dayNumber,
   rows,
   onSave,
+  onMapClick,
   className = "",
 }: ItineraryDayCardProps) {
   /** 편집 모드 여부 */
@@ -488,20 +496,39 @@ export default function ItineraryDayCard({
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={enterEditMode}
-            aria-label={`${dayNumber}일차 편집`}
-            className={[
-              "ml-1 p-1 rounded",
-              "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-              "transition-colors cursor-pointer",
-              "border-none bg-transparent",
-              "inline-flex items-center justify-center",
-            ].join(" ")}
-          >
-            <Edit2Icon className="w-4 h-4" />
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={enterEditMode}
+              aria-label={`${dayNumber}일차 편집`}
+              className={[
+                "ml-1 p-1 rounded",
+                "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+                "transition-colors cursor-pointer",
+                "border-none bg-transparent",
+                "inline-flex items-center justify-center",
+              ].join(" ")}
+            >
+              <Edit2Icon className="w-4 h-4" />
+            </button>
+
+            {/* 지도 버튼 — 헤더 맨 오른쪽 끝, 편집 모드 시 사라지고 취소/저장 버튼이 그 자리에 옴 */}
+            <button
+              type="button"
+              onClick={() => onMapClick?.(dayNumber)}
+              aria-label={`${dayNumber}일차 지도 보기`}
+              className={[
+                "ml-auto",
+                "inline-flex items-center gap-1 px-3 py-1.5 rounded-md",
+                "border border-gray-300 bg-white",
+                "font-pretendard text-body4 text-gray-700",
+                "hover:border-gray-700 hover:text-gray-900 transition-colors cursor-pointer",
+              ].join(" ")}
+            >
+              <MapIcon className="w-4 h-4 shrink-0" />
+              <span>지도</span>
+            </button>
+          </>
         )}
       </header>
 
