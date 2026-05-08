@@ -64,6 +64,8 @@ export default function ChatInput({
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Enter 단독: 전송 / Shift+Enter: 줄바꿈
     if (e.key === "Enter" && !e.shiftKey) {
+      // 한글 등 IME 조합 중에는 Enter를 무시 (조합 완료용 Enter가 전송으로 이어지는 것을 방지)
+      if (e.nativeEvent.isComposing) return;
       e.preventDefault();
       handleSend();
     }

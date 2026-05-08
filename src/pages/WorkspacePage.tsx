@@ -301,6 +301,14 @@ export default function WorkspacePage() {
     // TODO(API): PATCH /workspaces/:id/travel-log/:day { ...data }
   };
 
+  /** 특정 일차의 지도 보기
+   *  ItineraryDayCard 헤더 오른쪽 "지도" 버튼 클릭 시 호출됨.
+   *  추후 지도 모달/페이지를 띄워 해당 일차의 장소들을 표시할 예정. */
+  const handleMapClick = (dayNumber: number) => {
+    // TODO: 해당 일차의 장소들을 지도에 표시하는 모달/페이지 띄우기
+    console.log("[Workspace] open map for day:", dayNumber);
+  };
+
   /* ── 메시지 전송 (목업: 1초 뒤 가짜 AI 응답) ── */
   const handleSend = (text: string) => {
     const userMsg: ChatMessageData = {
@@ -468,6 +476,7 @@ export default function WorkspacePage() {
                       onSave={(rows) =>
                         handleSaveItineraryDay(d.dayNumber, rows)
                       }
+                      onMapClick={handleMapClick}
                     />
                   ))}
                 </div>
