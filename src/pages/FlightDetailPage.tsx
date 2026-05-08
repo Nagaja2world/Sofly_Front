@@ -107,7 +107,7 @@ export default function FlightDetailPage() {
 
   /* ── 가격 분해 ── */
   const priceBreakdown = useMemo(() => {
-    if (!detailsData) return null;
+    if (!detailsData?.priceBreakdown) return null;
     const pb = detailsData.priceBreakdown;
     return {
       baseFare: toKrwInt(pb.baseFare),
