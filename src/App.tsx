@@ -4,6 +4,7 @@ import HomePage from "@/pages/HomePage";
 import ProfilePage from "@/pages/ProfilePage";
 import FlightSearchPage from "@/pages/FlightSearchPage";
 import FlightDetailPage from "@/pages/FlightDetailPage";
+import WorkspacePage from "@/pages/WorkspacePage";
 
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import ConquestMapPage from "@/pages/ConquestMapPage";
@@ -16,8 +17,8 @@ const router = createBrowserRouter([
     element: <NoHeaderLayout />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: "/profile", element: <ProfilePage /> },
-      // { path: "/flight-search", element: <FlightSearchPage /> },
+      { path: "profile", element: <ProfilePage /> },
+      { path: "workspace/:id", element: <WorkspacePage /> },
     ],
   },
 

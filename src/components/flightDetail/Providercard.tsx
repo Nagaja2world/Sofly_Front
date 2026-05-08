@@ -49,19 +49,34 @@ export default function BrandedFareCard({
   onClick,
   className = "",
 }: BrandedFareCardProps) {
+  const isInteractive = Boolean(onClick);
   const visibleFeatures = includedFeatures.slice(0, 3);
+
+  const handleClick = () => onClick?.(token);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (!onClick) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick(token);
+    }
+  };
 
   return (
     <article
-      onClick={() => onClick?.(token)}
+      onClick={isInteractive ? handleClick : undefined}
+      onKeyDown={isInteractive ? handleKeyDown : undefined}
+      role={isInteractive ? "button" : undefined}
+      tabIndex={isInteractive ? 0 : undefined}
+      aria-label={isInteractive ? `${fareName} 운임 선택` : undefined}
       className={[
         "bg-white rounded-xl border",
         isSelected ? "border-blue-500 ring-1 ring-blue-400" : "border-gray-300",
         "px-5 py-4",
         "flex items-center justify-between gap-4",
         "transition-all duration-200",
-        onClick
-          ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:border-gray-400"
+        isInteractive
+          ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:border-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           : "",
         className,
       ].join(" ")}
