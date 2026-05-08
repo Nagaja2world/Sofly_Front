@@ -56,6 +56,7 @@ export default function FlightDetailPage() {
     const run = async () => {
       try {
         const data = await getFlightDetails(offer.token);
+        console.log("[FlightDetail] raw detailsData:", JSON.stringify(data).slice(0, 500));
         if (!cancelled) {
           setDetailsData(data);
           /* 첫 번째 brandedFareOffer를 기본 선택 */
@@ -80,14 +81,14 @@ export default function FlightDetailPage() {
 
   /* ── 일정 카드 데이터: 상세 API가 로드되면 상세 데이터 사용, 아니면 offer 사용 ── */
   const itineraries = useMemo(() => {
-    if (detailsData) return mapDetailsToItinerarySummaries(detailsData);
+    if (detailsData?.segments?.length) return mapDetailsToItinerarySummaries(detailsData);
     if (offer) return mapOfferToItinerarySummaries(offer);
     return [];
   }, [detailsData, offer]);
 
   /* ── 우측 헤더용: 도착지 도시명 ── */
   const destinationCity = useMemo(() => {
-    if (detailsData && detailsData.segments.length > 0) {
+    if (detailsData?.segments?.[0]) {
       return detailsData.segments[0].arrivalAirport.cityName;
     }
     if (!offer || offer.segments.length === 0) return "";
@@ -202,9 +203,9 @@ export default function FlightDetailPage() {
                     운임 정보를 불러오는 중...
                   </p>
                 </div>
-              ) : detailsData && detailsData.brandedFareOffers.length > 0 ? (
+              ) : detailsData && (detailsData.brandedFareOffers?.length ?? 0) > 0 ? (
                 <ul className="flex flex-col gap-3 list-none p-0 m-0">
-                  {detailsData.brandedFareOffers.map((fareOffer) => {
+                  {(detailsData.brandedFareOffers ?? []).map((fareOffer) => {
                     const includedFeatures = fareOffer.brandedFareInfo.features
                       .filter((f) => f.availability === "INCLUDED")
                       .map((f) => f.label);

@@ -432,6 +432,7 @@ function mapDetailsSegmentToItineraryLegs(
 export function mapDetailsToItinerarySummaries(
   details: FlightDetailsResponse,
 ): ItinerarySummaryData[] {
+  if (!details?.segments) return [];
   return details.segments.map((segment, i) => ({
     direction: i === 0 ? "가는편" : ("오는편" as "가는편" | "오는편"),
     date: formatDateKR(segment.departureTime),
