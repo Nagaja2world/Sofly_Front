@@ -64,37 +64,12 @@ function mapSeatClassToCabin(
   }
 }
 
-/** FlightItem 정렬 */
-function sortFlights(items: FlightItem[], sort: SortOption): FlightItem[] {
-  const copy = [...items];
-  switch (sort) {
-    case "cheapest":
-      return copy.sort((a, b) => a.price - b.price);
-    case "fastest":
-      return copy.sort((a, b) => totalMinutes(a) - totalMinutes(b));
-    case "best":
-    default:
-      return copy.sort(
-        (a, b) =>
-          a.price / 10000 +
-          totalMinutes(a) / 60 -
-          (b.price / 10000 + totalMinutes(b) / 60),
-      );
-  }
-}
-
-/** FlightItem의 총 비행시간 (분) - "2시간 20분" 파싱 */
-function totalMinutes(item: FlightItem): number {
-  const parse = (s: string) => {
-    const h = s.match(/(\d+)시간/);
-    const m = s.match(/(\d+)분/);
-    return (h ? Number(h[1]) * 60 : 0) + (m ? Number(m[1]) : 0);
-  };
-  return (
-    parse(item.outbound.duration) +
-    (item.inbound ? parse(item.inbound.duration) : 0)
-  );
-}
+/** UI SortOption → API sort 파라미터 매핑 */
+const SORT_TO_API: Record<SortOption, "BEST" | "CHEAPEST" | "FASTEST"> = {
+  best: "BEST",
+  cheapest: "CHEAPEST",
+  fastest: "FASTEST",
+};
 
 /* ══════════════════════════════════════════
    컴포넌트
@@ -207,9 +182,10 @@ export default function FlightSearchPage() {
       setIsLoading(true);
 
       try {
-        const response = (await searchFlightsFull(
-          searchInput,
-        )) as SearchFlightsFullResponse;
+        const response = (await searchFlightsFull({
+          ...searchInput,
+          sort: SORT_TO_API[sort],
+        })) as SearchFlightsFullResponse;
 
         if (cancelled || searchKeyRef.current !== currentKey) return;
 
@@ -234,7 +210,7 @@ export default function FlightSearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [searchInput]);
+  }, [searchInput, sort]);
 
   /* ══════════════════════════════════════════
      다음 페이지 로드
@@ -264,7 +240,7 @@ export default function FlightSearchPage() {
         adults: searchInput.adults,
         children: searchInput.children,
         stops: searchInput.stops,
-        sort: searchInput.sort,
+        sort: SORT_TO_API[sort],
         cabinClass: searchInput.cabinClass,
         pageNo: nextPage,
       })) as FlightOffersResult;
@@ -289,7 +265,7 @@ export default function FlightSearchPage() {
         setIsFetchingMore(false);
       }
     }
-  }, [searchIds, hasMore, isLoading, pageNo, searchInput]);
+  }, [searchIds, hasMore, isLoading, pageNo, searchInput, sort]);
 
   /* ══════════════════════════════════════════
      IntersectionObserver — sentinel 감지
@@ -367,11 +343,6 @@ export default function FlightSearchPage() {
     });
   }, [accItems, filter, accOfferMap]);
 
-  const sortedItems = useMemo(
-    () => sortFlights(filteredItems, sort),
-    [filteredItems, sort],
-  );
-
   /* ══════════════════════════════════════════
      핸들러
      ══════════════════════════════════════════ */
@@ -439,7 +410,7 @@ export default function FlightSearchPage() {
                 airlineList={airlineList}
               />
               <FlightResultList
-                flights={sortedItems}
+                flights={filteredItems}
                 isLoading={isLoading}
                 error={error}
                 sort={sort}
