@@ -7,7 +7,6 @@ interface Props {
   tokenInput: string;
   onTokenInputChange: (val: string) => void;
   onTokenSubmit: () => void;
-  mbToken: string;
 }
 
 export function MapHeader({
@@ -15,7 +14,6 @@ export function MapHeader({
   tokenInput,
   onTokenInputChange,
   onTokenSubmit,
-  mbToken,
 }: Props) {
   const navigate = useNavigate();
 

@@ -44,7 +44,6 @@ export default function ConquestMapPage() {
   const [mapData, setMapData] = useState<ConquestMapData | null>(null);
   const [stats, setStats] = useState<ConquestStats | null>(null);
   const [allRoutes, setAllRoutes] = useState<TripRoute[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
   // ── UI ──
@@ -77,7 +76,6 @@ export default function ConquestMapPage() {
 
   // ── Data loading ──
   const loadAll = useCallback(async () => {
-    setDataLoading(true);
     try {
       const [md, st, rt] = await Promise.all([
         getConquestMap(), getConquestStats(), getConquestRoutes(),
@@ -87,8 +85,6 @@ export default function ConquestMapPage() {
       setAllRoutes(rt);
     } catch (e: unknown) {
       showToast("로드 실패: " + (e instanceof Error ? e.message : "오류"), "err");
-    } finally {
-      setDataLoading(false);
     }
   }, [showToast]);
 
@@ -421,7 +417,6 @@ export default function ConquestMapPage() {
         tokenInput={tokenInput}
         onTokenInputChange={setTokenInput}
         onTokenSubmit={handleTokenSubmit}
-        mbToken={mbToken}
       />
 
       {/* ── Map area ──────────────────────────────── */}
