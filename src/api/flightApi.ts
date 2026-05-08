@@ -1,4 +1,6 @@
 // auth require
+import type { FlightDetailsResponse } from "../types/flightOffersType";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL; // https://api.sofly.co.kr
 
 /* ── 인증 헤더 ── */
@@ -101,7 +103,7 @@ export async function getFlightDetails(token: string, currencyCode = "KRW") {
   const res = await fetch(`${API_BASE}/api/v1/flights/details?${params}`, {
     headers: authHeaders(),
   });
-  return unwrap<unknown>(res);
+  return unwrap<FlightDetailsResponse>(res);
 }
 
 /* ── searchFlightsFull: destinations → offers 순서로 호출 ── */
