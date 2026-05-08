@@ -1,12 +1,16 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import ReadGuideBox from "@/components/flightDetail/Readguidebox";
-import ProviderCard from "@/components/flightDetail/Providercard";
+import BrandedFareCard from "@/components/flightDetail/Providercard";
 import ItinerarySummaryCard from "@/components/flightDetail/Itinerarysummarycard";
 import Button from "@/components/common/Button";
 import { getFlightDetails } from "@/api/flightApi";
-import { mapOfferToItinerarySummaries, toKrwInt } from "@/api/flightMapper";
-import type { FlightOffer } from "@/types/flightOffersType";
+import {
+  mapOfferToItinerarySummaries,
+  mapDetailsToItinerarySummaries,
+  toKrwInt,
+} from "@/api/flightMapper";
+import type { FlightOffer, FlightDetailsResponse } from "@/types/flightOffersType";
 
 import FlowerImage from "@/assets/flower.svg?react";
 
@@ -17,45 +21,6 @@ import FlowerImage from "@/assets/flower.svg?react";
 /** 라우터 state로 전달되는 데이터 (FlightSearchPage → 이 페이지) */
 interface FlightDetailLocationState {
   offer?: FlightOffer;
-}
-
-/** 판매처 카드 데이터 (백엔드 응답 구조 확정 시 mapper에 추가 예정) */
-interface ProviderItem {
-  id: string;
-  name: string;
-  logoUrl?: string;
-  description: string;
-  price: number;
-}
-
-/* ══════════════════════════════════════════
-   목업: 판매처 데이터
-   - getFlightDetails 응답 구조가 확정되면 mapper로 대체
-   - 현재는 offer.price 기준으로 약간씩 변동만 줘서 11개 생성
-   ══════════════════════════════════════════ */
-
-const PROVIDER_TEMPLATES = [
-  { id: "myrealtrip", name: "Myrealtrip" },
-  { id: "ctrip", name: "Trip.com" },
-  { id: "wetour", name: "위투어" },
-  { id: "jinair", name: "Jin Air" },
-  { id: "myrealtrip-2", name: "Myrealtrip" },
-  { id: "ctrip-2", name: "Trip.com" },
-  { id: "wetour-2", name: "위투어" },
-  { id: "jinair-2", name: "Jin Air" },
-  { id: "myrealtrip-3", name: "Myrealtrip" },
-  { id: "ctrip-3", name: "Trip.com" },
-  { id: "wetour-3", name: "위투어" },
-];
-
-function generateMockProviders(basePrice: number): ProviderItem[] {
-  return PROVIDER_TEMPLATES.map((tpl, i) => ({
-    id: `${tpl.id}-${i}`,
-    name: tpl.name,
-    description: "서브 텍스트입니다",
-    /* 가격은 base ± 5% 범위에서 살짝씩만 변동 */
-    price: Math.round(basePrice * (0.97 + (i % 5) * 0.015)),
-  }));
 }
 
 /* ══════════════════════════════════════════
@@ -76,34 +41,37 @@ export default function FlightDetailPage() {
     현재는 안내 화면(아래 if (!offer))으로 fallback */
   const [offer] = useState<FlightOffer | null>(stateOffer ?? null);
 
-  /* 판매처 정보 — getFlightDetails 응답 받아서 채울 예정, 현재는 목업 */
-  const [providers, setProviders] = useState<ProviderItem[]>([]);
-  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
+  /* 상세 API 응답 */
+  const [detailsData, setDetailsData] = useState<FlightDetailsResponse | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
-  /* ── getFlightDetails 호출 (token이 있을 때만) ──
-     응답 구조가 미정이라 결과는 사용하지 않고, 호출만 시도해서
-     실패해도 목업으로 fallback */
+  /* 선택된 branded fare 토큰 */
+  const [selectedToken, setSelectedToken] = useState<string | null>(null);
+
+  /* ── getFlightDetails 호출 ── */
   useEffect(() => {
-    if (!offer?.token) {
-      /* offer 없으면 목업도 만들 수 없음 */
-      return;
-    }
+    if (!offer?.token) return;
 
     let cancelled = false;
-    setIsLoadingProviders(true);
+    setIsLoadingDetails(true);
 
     const run = async () => {
       try {
-        await getFlightDetails(offer.token);
-        /* TODO: 응답 구조 확정 시 mapDetailsToProviders로 변환
-           현재는 응답 무시하고 목업 사용 */
+        const data = await getFlightDetails(offer.token);
+        if (!cancelled) {
+          setDetailsData(data);
+          /* 첫 번째 brandedFareOffer를 기본 선택, 없으면 기본 토큰 사용 */
+          if (data.brandedFareOffers && data.brandedFareOffers.length > 0) {
+            setSelectedToken(data.brandedFareOffers[0].token);
+          } else {
+            setSelectedToken(data.token);
+          }
+        }
       } catch (err) {
-        console.warn("[FlightDetail] getFlightDetails 실패, 목업 사용:", err);
+        console.warn("[FlightDetail] getFlightDetails 실패:", err);
       } finally {
         if (!cancelled) {
-          const basePrice = toKrwInt(offer.price.total);
-          setProviders(generateMockProviders(basePrice));
-          setIsLoadingProviders(false);
+          setIsLoadingDetails(false);
         }
       }
     };
@@ -114,29 +82,49 @@ export default function FlightDetailPage() {
     };
   }, [offer]);
 
-  /* ── 일정 카드 데이터 (편도 1장, 왕복 2장) ── */
-  const itineraries = useMemo(
-    () => (offer ? mapOfferToItinerarySummaries(offer) : []),
-    [offer],
-  );
+  /* ── 일정 카드 데이터: 상세 API가 로드되면 상세 데이터 사용, 아니면 offer 사용 ── */
+  const itineraries = useMemo(() => {
+    if (detailsData?.segments?.length) return mapDetailsToItinerarySummaries(detailsData);
+    if (offer) return mapOfferToItinerarySummaries(offer);
+    return [];
+  }, [detailsData, offer]);
 
-  /* ── 우측 헤더용: 도착지 도시명 + 인원/등급 요약 ──
-     URL 쿼리스트링이나 offer에서 가져오기 — 현재는 마지막 segment의 도착지 사용 */
+  /* ── 우측 헤더용: 도착지 도시명 ── */
   const destinationCity = useMemo(() => {
+    if (detailsData?.segments?.[0]) {
+      return detailsData.segments[0].arrivalAirport.cityName;
+    }
     if (!offer || offer.segments.length === 0) return "";
-    /* 가는편의 도착지가 진짜 목적지 */
     return offer.segments[0].arrivalAirport.cityName;
-  }, [offer]);
+  }, [detailsData, offer]);
 
   const passengerSummary = useMemo(() => {
-    /* TODO: SearchBar에서 넘어온 인원/등급 정보 활용
-       현재 offer에는 인원 정보가 없어서 기본값 표시 */
     const cabin =
+      detailsData?.brandedFareInfo?.cabinClass ||
       offer?.brandedFareInfo?.cabinClass ||
       offer?.segments?.[0]?.legs?.[0]?.cabinClass;
     const cabinLabel = cabin === "ECONOMY" ? "일반석" : cabin || "일반석";
     return `여행객 1명 ㅣ 편도 ㅣ ${cabinLabel}`;
-  }, [offer]);
+  }, [detailsData, offer]);
+
+  /* ── 가격 분해 ── */
+  const priceBreakdown = useMemo(() => {
+    if (!detailsData) return null;
+    const pb = detailsData.priceBreakdown;
+    return {
+      baseFare: toKrwInt(pb.baseFare),
+      tax: toKrwInt(pb.tax),
+      total: toKrwInt(pb.total),
+    };
+  }, [detailsData]);
+
+  /* ── 잔여 좌석 경고 ── */
+  const seatsLeft = detailsData?.seatAvailability?.numberOfSeatsAvailable ?? null;
+
+  /* ── 운임 규정 ── */
+  const fareRuleFeatures = useMemo(() => {
+    return detailsData?.fareRules?.featuresDisplay?.features?.slice(0, 3) ?? [];
+  }, [detailsData]);
 
   /* ══════════════════════════════════════════
      offer 없음 → 안내 화면
@@ -177,9 +165,9 @@ export default function FlightDetailPage() {
      렌더
      ══════════════════════════════════════════ */
 
-  const handleProviderClick = (providerId: string) => {
-    /* TODO: 판매처별 외부 링크로 이동 (window.open) */
-    console.log("[Provider] clicked:", providerId, "for offer:", id);
+  const handleFareClick = (token: string) => {
+    setSelectedToken(token);
+    console.log("[BrandedFare] selected token:", token, "for offer:", id);
   };
 
   return (
@@ -210,34 +198,60 @@ export default function FlightDetailPage() {
               {/* 안내 박스 */}
               <ReadGuideBox />
 
-              {/* 판매처 카드 리스트 */}
-              {isLoadingProviders ? (
+              {/* 브랜디드 운임 카드 리스트 */}
+              {isLoadingDetails ? (
                 <div className="flex items-center justify-center py-10 gap-2">
                   <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
                   <p className="font-pretendard text-body3 text-gray-500 m-0">
-                    판매처 정보를 불러오는 중...
+                    운임 정보를 불러오는 중...
                   </p>
                 </div>
-              ) : providers.length === 0 ? (
-                <p className="font-pretendard text-body3 text-gray-500 text-center py-8 m-0">
-                  판매처 정보를 불러올 수 없어요
-                </p>
-              ) : (
+              ) : detailsData && (detailsData.brandedFareOffers?.length ?? 0) > 0 ? (
                 <ul className="flex flex-col gap-3 list-none p-0 m-0">
-                  {providers.map((p) => (
-                    <li key={p.id}>
-                      <ProviderCard
-                        id={p.id}
-                        name={p.name}
-                        logoUrl={p.logoUrl}
-                        description={p.description}
-                        price={p.price}
-                        onClick={handleProviderClick}
-                      />
-                    </li>
-                  ))}
+                  {(detailsData.brandedFareOffers ?? []).map((fareOffer) => {
+                    const includedFeatures = fareOffer.brandedFareInfo.features
+                      .filter((f) => f.availability === "INCLUDED")
+                      .map((f) => f.label);
+                    return (
+                      <li key={fareOffer.token}>
+                        <BrandedFareCard
+                          token={fareOffer.token}
+                          fareName={fareOffer.brandedFareInfo.fareName}
+                          cabinClass={fareOffer.brandedFareInfo.cabinClass}
+                          fareTag={fareOffer.brandedFareInfo.fareTag}
+                          includedFeatures={includedFeatures}
+                          price={toKrwInt(fareOffer.priceBreakdown.total)}
+                          isSelected={selectedToken === fareOffer.token}
+                          onClick={handleFareClick}
+                        />
+                      </li>
+                    );
+                  })}
                 </ul>
-              )}
+              ) : detailsData?.brandedFareInfo ? (
+                <ul className="flex flex-col gap-3 list-none p-0 m-0">
+                  <li>
+                    <BrandedFareCard
+                      token={detailsData.token}
+                      fareName={detailsData.brandedFareInfo.fareName}
+                      cabinClass={detailsData.brandedFareInfo.cabinClass}
+                      fareTag={detailsData.brandedFareInfo.fareTag}
+                      includedFeatures={
+                        (detailsData.brandedFareInfo.features ?? [])
+                          .filter((f) => f.availability === "INCLUDED")
+                          .map((f) => f.label)
+                      }
+                      price={toKrwInt(detailsData.priceBreakdown.total)}
+                      isSelected
+                      onClick={handleFareClick}
+                    />
+                  </li>
+                </ul>
+              ) : !isLoadingDetails && !detailsData ? (
+                <p className="font-pretendard text-body3 text-gray-500 text-center py-8 m-0">
+                  운임 정보를 불러올 수 없어요
+                </p>
+              ) : null}
             </main>
 
             {/* ══ 우측 사이드 (sticky) ══ */}
@@ -252,6 +266,15 @@ export default function FlightDetailPage() {
                 </span>
               </div>
 
+              {/* 잔여 좌석 경고 */}
+              {seatsLeft !== null && seatsLeft <= 3 && (
+                <div className="px-1">
+                  <span className="inline-block px-2.5 py-1 rounded-full bg-red-50 border border-red-200 font-pretendard text-body5 font-medium text-red-600">
+                    잔여 {seatsLeft}석
+                  </span>
+                </div>
+              )}
+
               {/* 일정 카드 (가는편 / 오는편) */}
               {itineraries.map((itin, i) => (
                 <ItinerarySummaryCard
@@ -262,12 +285,52 @@ export default function FlightDetailPage() {
                   legs={itin.legs}
                 />
               ))}
+
+              {/* 가격 분해 */}
+              {priceBreakdown && (
+                <div className="bg-white rounded-xl border border-gray-300 px-5 py-4 flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-pretendard text-body4 text-gray-600">기본 운임</span>
+                    <span className="font-pretendard text-body4 text-gray-900">
+                      ₩{priceBreakdown.baseFare.toLocaleString("ko-KR")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-pretendard text-body4 text-gray-600">세금 및 수수료</span>
+                    <span className="font-pretendard text-body4 text-gray-900">
+                      ₩{priceBreakdown.tax.toLocaleString("ko-KR")}
+                    </span>
+                  </div>
+                  <div className="border-t border-gray-200 pt-2 mt-1 flex justify-between items-center">
+                    <span className="font-pretendard text-body3 font-semibold text-gray-900">합계</span>
+                    <span className="font-pretendard text-body3 font-semibold text-gray-900">
+                      ₩{priceBreakdown.total.toLocaleString("ko-KR")}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* 운임 규정 */}
+              {fareRuleFeatures.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-300 px-5 py-4 flex flex-col gap-2">
+                  <span className="font-pretendard text-body3 font-semibold text-gray-900">
+                    운임 규정
+                  </span>
+                  <ul className="list-none p-0 m-0 flex flex-col gap-1">
+                    {fareRuleFeatures.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-gray-400 mt-0.5">•</span>
+                        <span className="font-pretendard text-body4 text-gray-600">
+                          {f.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </aside>
           </div>
-          {/* ── 데코레이션: 콘텐츠 영역 우측 하단 (Footer 바로 위) ──
-             absolute로 컨테이너 우측 하단에 배치.
-             콘텐츠 끝나는 지점 = Footer 시작 직전이므로
-             스크롤하다 페이지 끝에 도달했을 때 Footer 위에 자연스럽게 보임 */}
+          {/* ── 데코레이션 ── */}
           <div
             aria-hidden="true"
             className={[

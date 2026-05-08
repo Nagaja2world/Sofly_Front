@@ -1,51 +1,64 @@
 import RightIcon from "@/assets/right.svg?react";
 
-interface ProviderCardProps {
-  /** 판매처 고유 id (선택 시 콜백 인자) */
-  id: string;
-  /** 판매처 이름 (예: "Myrealtrip") */
-  name: string;
-  /** 판매처 로고 URL */
-  logoUrl?: string;
-  /** 서브 텍스트 (예: "서브 텍스트입니다") */
-  description?: string;
-  /** 가격 (KRW, 숫자) */
-  price: number;
-  /** 카드 클릭 시 (외부 사이트 이동 등) */
-  onClick?: (id: string) => void;
-  /** 추가 클래스 */
-  className?: string;
-}
-
 /** 가격 포맷 "₩984,000" */
 function formatPrice(price: number): string {
   return `₩${price.toLocaleString("ko-KR")}`;
 }
 
+/** fareTag → 한국어 배지 라벨 */
+function fareTagLabel(fareTag: string): string {
+  if (fareTag === "BAGGAGE") return "수하물 포함";
+  if (fareTag === "COMFORT") return "비즈니스";
+  if (fareTag === "REFUNDABLE") return "환불 가능";
+  return fareTag;
+}
+
+interface BrandedFareCardProps {
+  /** 운임 토큰 (선택 시 콜백 인자) */
+  token: string;
+  /** 운임 이름 "ECONOMY SAVER" */
+  fareName: string;
+  /** 좌석 등급 "ECONOMY" | "BUSINESS" */
+  cabinClass: string;
+  /** 운임 태그 "BAGGAGE" | "COMFORT" | "REFUNDABLE" */
+  fareTag?: string;
+  /** INCLUDED 기능 레이블 목록 */
+  includedFeatures: string[];
+  /** 가격 (KRW, 숫자) */
+  price: number;
+  /** 현재 선택된 운임 여부 */
+  isSelected?: boolean;
+  /** 카드 클릭 시 (token 전달) */
+  onClick?: (token: string) => void;
+  /** 추가 클래스 */
+  className?: string;
+}
+
 /**
- * 판매처(공급사) 카드
- * - 좌측: 로고 + 서브 텍스트
- * - 우측: 가격 + 이동 화살표 (right.svg)
- * - 카드 전체 클릭 가능 (호버 시 살짝 들림)
+ * 브랜디드 운임 카드
+ * - 상단: 운임 이름 + fareTag 배지 | 우측 가격
+ * - 하단: INCLUDED 기능 레이블 칩 (최대 3개)
  */
-export default function ProviderCard({
-  id,
-  name,
-  logoUrl,
-  description,
+export default function BrandedFareCard({
+  token,
+  fareName,
+  fareTag,
+  includedFeatures,
   price,
+  isSelected = false,
   onClick,
   className = "",
-}: ProviderCardProps) {
+}: BrandedFareCardProps) {
   const isInteractive = Boolean(onClick);
+  const visibleFeatures = includedFeatures.slice(0, 3);
 
-  const handleClick = () => onClick?.(id);
+  const handleClick = () => onClick?.(token);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (!onClick) return;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      onClick(id);
+      onClick(token);
     }
   };
 
@@ -55,9 +68,10 @@ export default function ProviderCard({
       onKeyDown={isInteractive ? handleKeyDown : undefined}
       role={isInteractive ? "button" : undefined}
       tabIndex={isInteractive ? 0 : undefined}
-      aria-label={isInteractive ? `${name} 판매처로 이동` : undefined}
+      aria-label={isInteractive ? `${fareName} 운임 선택` : undefined}
       className={[
-        "bg-white rounded-xl border border-gray-300",
+        "bg-white rounded-xl border",
+        isSelected ? "border-blue-500 ring-1 ring-blue-400" : "border-gray-300",
         "px-5 py-4",
         "flex items-center justify-between gap-4",
         "transition-all duration-200",
@@ -67,37 +81,47 @@ export default function ProviderCard({
         className,
       ].join(" ")}
     >
-      {/* ── 좌측: 로고 + 서브 텍스트 ── */}
-      <div className="flex flex-col gap-1.5 min-w-0">
-        {/* 로고 */}
-        <div className="h-6 flex items-center">
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={name}
-              className="max-h-6 w-auto object-contain"
-            />
-          ) : (
-            <span className="font-pretendard text-body2 font-semibold text-gray-900 truncate">
-              {name}
+      {/* ── 좌측: 운임명 + fareTag + 기능 칩 ── */}
+      <div className="flex flex-col gap-2 min-w-0">
+        {/* 상단 줄: 운임명 + 태그 배지 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-pretendard text-body2 font-semibold text-gray-900 truncate">
+            {fareName}
+          </span>
+          {fareTag && (
+            <span
+              className={[
+                "px-1.5 py-0.5 rounded font-pretendard text-body5 font-medium shrink-0",
+                fareTag === "COMFORT"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-primary text-gray-900",
+              ].join(" ")}
+            >
+              {fareTagLabel(fareTag)}
             </span>
           )}
         </div>
 
-        {/* 서브 텍스트 */}
-        {description && (
-          <p className="font-pretendard text-body4 text-gray-500 m-0 truncate">
-            {description}
-          </p>
+        {/* 기능 칩 목록 */}
+        {visibleFeatures.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {visibleFeatures.map((label, i) => (
+              <span
+                key={i}
+                className="px-2 py-0.5 rounded-full bg-gray-100 font-pretendard text-body5 text-gray-600 whitespace-nowrap"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* ── 우측: 가격 + 화살표 (right.svg) ── */}
+      {/* ── 우측: 가격 + 화살표 ── */}
       <div className="flex items-center gap-3 shrink-0">
         <span className="font-pretendard text-body2 font-semibold text-gray-900 whitespace-nowrap">
           {formatPrice(price)}
         </span>
-
         <RightIcon className="shrink-0" aria-hidden="true" />
       </div>
     </article>

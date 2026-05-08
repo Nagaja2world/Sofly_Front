@@ -1,4 +1,6 @@
 // auth require
+import type { FlightDetailsResponse } from "../types/flightOffersType";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL; // https://api.sofly.co.kr
 
 /* ── 인증 헤더 ── */
@@ -101,7 +103,8 @@ export async function getFlightDetails(token: string, currencyCode = "KRW") {
   const res = await fetch(`${API_BASE}/api/v1/flights/details?${params}`, {
     headers: authHeaders(),
   });
-  return unwrap<unknown>(res);
+  const wrapper = await unwrap<{ data: FlightDetailsResponse }>(res);
+  return wrapper.data;
 }
 
 /* ── searchFlightsFull: destinations → offers 순서로 호출 ── */
@@ -115,6 +118,7 @@ export interface FlightSearchInput {
   stops?: SearchFlightsParams["stops"];
   sort?: SearchFlightsParams["sort"];
   cabinClass?: SearchFlightsParams["cabinClass"];
+  pageNo?: number;
 }
 
 export async function searchFlightsFull(input: FlightSearchInput) {
@@ -140,6 +144,7 @@ export async function searchFlightsFull(input: FlightSearchInput) {
     stops: input.stops,
     sort: input.sort,
     cabinClass: input.cabinClass,
+    pageNo: input.pageNo,
   });
 
   return { result, fromId: dep.id, toId: arr.id };
