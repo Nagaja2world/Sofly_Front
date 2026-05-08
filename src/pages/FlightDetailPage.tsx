@@ -58,9 +58,11 @@ export default function FlightDetailPage() {
         const data = await getFlightDetails(offer.token);
         if (!cancelled) {
           setDetailsData(data);
-          /* 첫 번째 brandedFareOffer를 기본 선택 */
+          /* 첫 번째 brandedFareOffer를 기본 선택, 없으면 기본 토큰 사용 */
           if (data.brandedFareOffers && data.brandedFareOffers.length > 0) {
             setSelectedToken(data.brandedFareOffers[0].token);
+          } else {
+            setSelectedToken(data.token);
           }
         }
       } catch (err) {
@@ -223,6 +225,25 @@ export default function FlightDetailPage() {
                       </li>
                     );
                   })}
+                </ul>
+              ) : detailsData?.brandedFareInfo ? (
+                <ul className="flex flex-col gap-3 list-none p-0 m-0">
+                  <li>
+                    <BrandedFareCard
+                      token={detailsData.token}
+                      fareName={detailsData.brandedFareInfo.fareName}
+                      cabinClass={detailsData.brandedFareInfo.cabinClass}
+                      fareTag={detailsData.brandedFareInfo.fareTag}
+                      includedFeatures={
+                        (detailsData.brandedFareInfo.features ?? [])
+                          .filter((f) => f.availability === "INCLUDED")
+                          .map((f) => f.label)
+                      }
+                      price={toKrwInt(detailsData.priceBreakdown.total)}
+                      isSelected
+                      onClick={handleFareClick}
+                    />
+                  </li>
                 </ul>
               ) : !isLoadingDetails && !detailsData ? (
                 <p className="font-pretendard text-body3 text-gray-500 text-center py-8 m-0">
