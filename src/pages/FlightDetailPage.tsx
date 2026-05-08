@@ -56,7 +56,6 @@ export default function FlightDetailPage() {
     const run = async () => {
       try {
         const data = await getFlightDetails(offer.token);
-        console.log("[FlightDetail] raw detailsData:", JSON.stringify(data).slice(0, 500));
         if (!cancelled) {
           setDetailsData(data);
           /* 첫 번째 brandedFareOffer를 기본 선택 */
