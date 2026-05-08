@@ -85,7 +85,6 @@ export default function ConquestMapPage() {
       setMapData(md);
       setStats(st);
       setAllRoutes(rt);
-      showToast("데이터 로드 완료", "ok");
     } catch (e: unknown) {
       showToast("로드 실패: " + (e instanceof Error ? e.message : "오류"), "err");
     } finally {
@@ -294,6 +293,11 @@ export default function ConquestMapPage() {
     };
   }, [mbToken]);
 
+  // ── Auto-load data when map is ready ──
+  useEffect(() => {
+    if (mapReady) loadAll();
+  }, [mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Update country colors ──
   useEffect(() => {
     const map = mapRef.current;
@@ -418,9 +422,6 @@ export default function ConquestMapPage() {
         onTokenInputChange={setTokenInput}
         onTokenSubmit={handleTokenSubmit}
         mbToken={mbToken}
-        dataLoading={dataLoading}
-        onLoadData={loadAll}
-        onBulkOpen={() => setBulkOpen(true)}
       />
 
       {/* ── Map area ──────────────────────────────── */}

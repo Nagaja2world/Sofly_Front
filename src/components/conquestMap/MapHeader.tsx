@@ -8,9 +8,6 @@ interface Props {
   onTokenInputChange: (val: string) => void;
   onTokenSubmit: () => void;
   mbToken: string;
-  dataLoading: boolean;
-  onLoadData: () => void;
-  onBulkOpen: () => void;
 }
 
 export function MapHeader({
@@ -19,9 +16,6 @@ export function MapHeader({
   onTokenInputChange,
   onTokenSubmit,
   mbToken,
-  dataLoading,
-  onLoadData,
-  onBulkOpen,
 }: Props) {
   const navigate = useNavigate();
 
@@ -90,17 +84,6 @@ export function MapHeader({
         </>
       )}
 
-      <button onClick={onBulkOpen} style={pillBtn()}>
-        일괄 등록
-      </button>
-
-      <button
-        onClick={onLoadData}
-        disabled={!mbToken || dataLoading}
-        style={{ ...pillBtn(true), background: "#059669", opacity: mbToken && !dataLoading ? 1 : 0.4 }}
-      >
-        {dataLoading ? "로딩 중..." : "데이터 로드"}
-      </button>
     </header>
   );
 }
