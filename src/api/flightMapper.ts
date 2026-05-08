@@ -4,6 +4,9 @@ import type {
   FlightLeg,
   FlightOffersResult,
   MoneyAmount,
+  FlightDetailsResponse,
+  FlightDetailsSegment,
+  FlightDetailsLeg,
 } from "../types/flightOffersType";
 import type { FlightItem, FlightLegData, TimeSlot } from "@/types/flightType";
 import type {
@@ -337,5 +340,103 @@ export function mapOfferToItinerarySummaries(
     date: formatDateKR(segment.departureTime),
     routePath: buildRoutePath(segment),
     legs: mapSegmentToItineraryLegs(segment),
+  }));
+}
+
+/* ══════════════════════════════════════════
+   FlightDetails (상세 API) → ItinerarySummaryCard 변환
+   ══════════════════════════════════════════ */
+
+/** FlightDetailsSegment → 경로 도시명 배열 */
+export function buildDetailsRoutePath(segment: FlightDetailsSegment): string[] {
+  const { legs } = segment;
+  if (!legs || legs.length === 0) {
+    return [segment.departureAirport.cityName, segment.arrivalAirport.cityName];
+  }
+  /* 첫 leg의 출발지 + 모든 leg의 도착지 */
+  const cities: string[] = [legs[0].departureAirport.cityName];
+  for (const leg of legs) {
+    cities.push(leg.arrivalAirport.cityName);
+  }
+  return cities;
+}
+
+/** FlightDetailsLeg 사이의 layover 시간(초) 계산 */
+function calcDetailsLayoverSeconds(
+  currLeg: FlightDetailsLeg,
+  nextLeg: FlightDetailsLeg,
+): number {
+  const currEnd = new Date(currLeg.arrivalTime).getTime();
+  const nextStart = new Date(nextLeg.departureTime).getTime();
+  if (isNaN(currEnd) || isNaN(nextStart)) return 0;
+  return Math.max(0, Math.round((nextStart - currEnd) / 1000));
+}
+
+/** FlightDetailsSegment → ItineraryLegDetail[] */
+function mapDetailsSegmentToItineraryLegs(
+  segment: FlightDetailsSegment,
+): ItineraryLegDetail[] {
+  const { legs } = segment;
+  if (!legs || legs.length === 0) return [];
+
+  return legs.map((leg: FlightDetailsLeg, i: number) => {
+    const isLast = i === legs.length - 1;
+    const carrier = leg.carriersData[0];
+    const airline = carrier
+      ? { name: carrier.name, logo: carrier.logo }
+      : { name: leg.flightInfo.carrierInfo.marketingCarrier };
+
+    /* 부가정보 배지 */
+    const badges: import("@/components/flightDetail/Itinerarysummarycard").FlightBadge[] = [];
+    const flightNum = `${leg.flightInfo.carrierInfo.marketingCarrier}${leg.flightInfo.flightNumber}`;
+    badges.push({ label: flightNum });
+    if (leg.flightInfo.planeType) {
+      badges.push({ label: leg.flightInfo.planeType });
+    }
+    if (leg.departureTerminal) {
+      badges.push({ label: `출발 ${leg.departureTerminal}번 터미널` });
+    }
+    if (leg.arrivalTerminal) {
+      badges.push({ label: `도착 ${leg.arrivalTerminal}번 터미널` });
+    }
+
+    /* layover 계산 */
+    let layoverAfter: LayoverInfo | undefined;
+    if (!isLast) {
+      const layoverSec = calcDetailsLayoverSeconds(leg, legs[i + 1]);
+      if (layoverSec > 0) {
+        layoverAfter = {
+          count: 1,
+          waitDuration: formatDuration(layoverSec),
+        };
+      }
+    }
+
+    return {
+      airline: airline.name,
+      airlineLogo: airline.logo,
+      departTimeLabel: formatTimeKR(leg.departureTime),
+      departCode: leg.departureAirport.code,
+      departAirport: leg.departureAirport.cityName,
+      arriveTimeLabel: formatTimeKR(leg.arrivalTime),
+      arriveCode: leg.arrivalAirport.code,
+      arriveAirport: leg.arrivalAirport.cityName,
+      duration: formatDuration(leg.totalTime),
+      badges,
+      layoverAfter,
+    };
+  });
+}
+
+/** FlightDetailsResponse → ItinerarySummaryData[] */
+export function mapDetailsToItinerarySummaries(
+  details: FlightDetailsResponse,
+): ItinerarySummaryData[] {
+  if (!details?.segments) return [];
+  return details.segments.map((segment, i) => ({
+    direction: i === 0 ? "가는편" : ("오는편" as "가는편" | "오는편"),
+    date: formatDateKR(segment.departureTime),
+    routePath: buildDetailsRoutePath(segment),
+    legs: mapDetailsSegmentToItineraryLegs(segment),
   }));
 }

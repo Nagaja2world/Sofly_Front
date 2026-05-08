@@ -100,3 +100,103 @@ export interface SearchFlightsFullResponse {
   fromId: string;
   toId: string;
 }
+
+/* ══════════════════════════════════════════
+   /api/v1/flights/details 응답 타입
+   ══════════════════════════════════════════ */
+
+export interface FlightDetailsAirport {
+  code: string;
+  name: string;
+  cityName: string;
+  countryName?: string;
+}
+
+export interface LuggageAllowance {
+  luggageType: string;
+  ruleType?: string;
+  maxPiece: number;
+  maxWeightPerPiece?: number;
+  massUnit?: string;
+}
+
+export interface TravellerLuggage {
+  travellerReference: string;
+  luggageAllowance: LuggageAllowance;
+}
+
+export interface FlightDetailsLeg {
+  departureTime: string;
+  arrivalTime: string;
+  departureAirport: FlightDetailsAirport;
+  arrivalAirport: FlightDetailsAirport;
+  cabinClass: string;
+  flightInfo: {
+    flightNumber: number;
+    planeType: string;
+    carrierInfo: {
+      operatingCarrier: string;
+      marketingCarrier: string;
+    };
+  };
+  carriersData: FlightCarrier[];
+  totalTime: number;
+  departureTerminal?: string;
+  arrivalTerminal?: string;
+}
+
+export interface FlightDetailsSegment {
+  departureAirport: FlightDetailsAirport;
+  arrivalAirport: FlightDetailsAirport;
+  departureTime: string;
+  arrivalTime: string;
+  legs: FlightDetailsLeg[];
+  totalTime: number;
+  travellerCheckedLuggage: TravellerLuggage[];
+  travellerCabinLuggage: TravellerLuggage[];
+}
+
+export interface BrandedFareFeature {
+  featureName: string;
+  label: string;
+  availability: "INCLUDED" | "SELLABLE" | "NOT_OFFERED";
+}
+
+export interface BrandedFareInfoDetail {
+  fareName: string;
+  cabinClass: string;
+  features: BrandedFareFeature[];
+  fareTag?: string;
+  sellableFeatures?: BrandedFareFeature[];
+}
+
+export interface PriceBreakdownDetail {
+  total: MoneyAmount;
+  baseFare: MoneyAmount;
+  fee?: MoneyAmount;
+  tax: MoneyAmount;
+}
+
+export interface BrandedFareOffer {
+  brandedFareInfo: BrandedFareInfoDetail;
+  token: string;
+  offerReference?: string;
+  priceBreakdown: PriceBreakdownDetail;
+}
+
+export interface FareRules {
+  featuresDisplay: {
+    features: Array<{ featureName: string; label: string }>;
+  };
+}
+
+export interface FlightDetailsResponse {
+  token: string;
+  segments: FlightDetailsSegment[];
+  priceBreakdown: PriceBreakdownDetail;
+  brandedFareInfo: BrandedFareInfoDetail;
+  brandedFareOffers: BrandedFareOffer[];
+  fareRules: FareRules;
+  tripType?: string;
+  seatAvailability: { numberOfSeatsAvailable: number };
+}

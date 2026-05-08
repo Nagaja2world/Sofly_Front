@@ -1,16 +1,24 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
 import FilterSidebar from "@/components/flightSearch/FilterSidebar";
 import FlightResultList from "@/components/flightSearch/FlightResultList";
-import { searchFlightsFull, type FlightSearchInput } from "@/api/flightApi";
+import {
+  searchFlightsFull,
+  searchFlights,
+  type FlightSearchInput,
+} from "@/api/flightApi";
 import {
   mapOffersToFlightItems,
   extractAirlineList,
   buildOfferMap,
   getTimeSlot,
 } from "@/api/flightMapper";
-import type { SearchFlightsFullResponse } from "@/types/flightOffersType";
+import type {
+  FlightOffer,
+  FlightOffersResult,
+  SearchFlightsFullResponse,
+} from "@/types/flightOffersType";
 import type { FilterState, SortOption, FlightItem } from "@/types/flightType";
 import {
   parseFlightSearchParams,
@@ -25,18 +33,12 @@ import {
  * - 상단 SearchBar로 재검색 가능
  * - 좌측 FilterSidebar + 우측 FlightResultList 구조
  * - 필터링 & 정렬은 클라이언트에서 수행
- *
+ * - 무한 스크롤로 다음 페이지 자동 로드
  */
 
 /* ══════════════════════════════════════════
-   타입 & 헬퍼
+   헬퍼
    ══════════════════════════════════════════ */
-
-interface ApiCallState {
-  status: "idle" | "loading" | "success" | "error";
-  response?: SearchFlightsFullResponse;
-  error?: string;
-}
 
 const DEFAULT_FILTER: FilterState = {
   stops: { direct: false, oneStop: false, twoPlusStops: false },
@@ -62,38 +64,12 @@ function mapSeatClassToCabin(
   }
 }
 
-/** FlightItem 정렬 */
-function sortFlights(items: FlightItem[], sort: SortOption): FlightItem[] {
-  const copy = [...items];
-  switch (sort) {
-    case "cheapest":
-      return copy.sort((a, b) => a.price - b.price);
-    case "fastest":
-      return copy.sort((a, b) => totalMinutes(a) - totalMinutes(b));
-    case "best":
-    default:
-      /* 가격 + 시간을 간단히 합산 (필요 시 가중치 조정) */
-      return copy.sort(
-        (a, b) =>
-          a.price / 10000 +
-          totalMinutes(a) / 60 -
-          (b.price / 10000 + totalMinutes(b) / 60),
-      );
-  }
-}
-
-/** FlightItem의 총 비행시간 (분) - "2시간 20분" 파싱 */
-function totalMinutes(item: FlightItem): number {
-  const parse = (s: string) => {
-    const h = s.match(/(\d+)시간/);
-    const m = s.match(/(\d+)분/);
-    return (h ? Number(h[1]) * 60 : 0) + (m ? Number(m[1]) : 0);
-  };
-  return (
-    parse(item.outbound.duration) +
-    (item.inbound ? parse(item.inbound.duration) : 0)
-  );
-}
+/** UI SortOption → API sort 파라미터 매핑 */
+const SORT_TO_API: Record<SortOption, "BEST" | "CHEAPEST" | "FASTEST"> = {
+  best: "BEST",
+  cheapest: "CHEAPEST",
+  fastest: "FASTEST",
+};
 
 /* ══════════════════════════════════════════
    컴포넌트
@@ -109,11 +85,7 @@ export default function FlightSearchPage() {
     [searchParams],
   );
 
-  /* ── SearchBar 강제 리마운트용 key ──
-     URL의 검색 조건이 바뀔 때(예: 브라우저 뒤로/앞으로 가기)
-     SearchBar 내부 상태를 최신 URL과 동기화하기 위해 컴포넌트를 리마운트한다.
-     검색 조건과 무관한 쿼리스트링 변경(향후 추가될 정렬/필터 등)으로
-     불필요하게 리마운트되지 않도록 관련 필드만 추려서 안정적인 키를 구성. */
+  /* ── SearchBar 강제 리마운트용 key ── */
   const searchBarKey = useMemo(
     () =>
       [
@@ -140,7 +112,6 @@ export default function FlightSearchPage() {
     const departureQuery = fromCity || fromCode;
     const arrivalQuery = toCity || toCode;
 
-    /* 필수값 하나라도 없으면 자동 호출 안 함 */
     if (!departureQuery || !arrivalQuery || !departDate) return null;
 
     return {
@@ -156,86 +127,180 @@ export default function FlightSearchPage() {
     };
   }, [searchParams]);
 
-  /* ── API 호출 상태 ── */
-  const [apiState, setApiState] = useState<ApiCallState>({ status: "idle" });
+  /* ── 무한 스크롤 상태 ── */
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [accItems, setAccItems] = useState<FlightItem[]>([]);
+  const [accOfferMap, setAccOfferMap] = useState<Map<string, FlightOffer>>(
+    new Map(),
+  );
+  const [pageNo, setPageNo] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [searchIds, setSearchIds] = useState<{
+    fromId: string;
+    toId: string;
+  } | null>(null);
 
-  /* ── 재호출 트리거 (디버그 패널 재호출 버튼용) ── */
-  //const [retryKey, setRetryKey] = useState(0);
+  /* 검색이 바뀔 때 stale 결과 무시용 */
+  const searchKeyRef = useRef(0);
+  /* IntersectionObserver 콜백의 중복 호출 방지 */
+  const isFetchingMoreRef = useRef(false);
 
   /* ── 필터 & 정렬 상태 ── */
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
-  const [sort, setSort] = useState<SortOption>("best");
+  const [sort, setSort] = useState<SortOption>(() => {
+    const raw = searchParams.get("sort");
+    return (raw === "cheapest" || raw === "fastest" || raw === "best") ? raw : "best";
+  });
 
-  /* ── URL 변경 시 자동 호출 ──
-     setState를 useEffect 본체가 아닌, async 함수 내부(= 다음 마이크로태스크)에서만 호출해
-     cascading render 경고 회피 + 언마운트 시 결과 폐기로 race condition 방지 */
+  /* sentinel ref — FlightResultList 하단에 마운트 */
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  /* ══════════════════════════════════════════
+     초기 검색 (searchInput 변경 시)
+     ══════════════════════════════════════════ */
   useEffect(() => {
+    const currentKey = ++searchKeyRef.current;
     let cancelled = false;
-    const input = searchInput;
+
+    /* 상태 초기화 */
+    setAccItems([]);
+    setAccOfferMap(new Map());
+    setPageNo(1);
+    setHasMore(true);
+    setSearchIds(null);
+    setError(null);
+    isFetchingMoreRef.current = false;
+
+    if (!searchInput) {
+      setIsLoading(false);
+      return;
+    }
 
     const run = async () => {
-      /* 첫 setState가 effect 경계 밖(await 이후)에서 일어나도록
-         await Promise.resolve() 한 번 거쳐서 미룸 */
       await Promise.resolve();
-      if (cancelled) return;
+      if (cancelled || searchKeyRef.current !== currentKey) return;
 
-      /* 검색 조건이 비어있으면 idle 상태로 리셋만 */
-      if (!input) {
-        setApiState({ status: "idle" });
-        return;
-      }
-
-      setApiState({
-        status: "loading",
-      });
+      setIsLoading(true);
 
       try {
-        const response = (await searchFlightsFull(
-          input,
-        )) as SearchFlightsFullResponse;
-        if (cancelled) return;
-        setApiState({
-          status: "success",
-          response,
-        });
+        const response = (await searchFlightsFull({
+          ...searchInput,
+          sort: SORT_TO_API[sort],
+        })) as SearchFlightsFullResponse;
+
+        if (cancelled || searchKeyRef.current !== currentKey) return;
+
+        const items = mapOffersToFlightItems(response.result);
+        const map = buildOfferMap(response.result);
+
+        setAccItems(items);
+        setAccOfferMap(map);
+        setSearchIds({ fromId: response.fromId, toId: response.toId });
+        setHasMore(items.length > 0);
       } catch (err) {
-        if (cancelled) return;
-        setApiState({
-          status: "error",
-          error: err instanceof Error ? err.message : String(err),
-        });
+        if (cancelled || searchKeyRef.current !== currentKey) return;
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled && searchKeyRef.current === currentKey) {
+          setIsLoading(false);
+        }
       }
     };
 
     run();
-
     return () => {
       cancelled = true;
     };
-  }, [searchInput]);
+  }, [searchInput, sort]);
+
+  /* ══════════════════════════════════════════
+     다음 페이지 로드
+     ══════════════════════════════════════════ */
+  const loadMore = useCallback(async () => {
+    if (
+      !searchIds ||
+      !hasMore ||
+      isFetchingMoreRef.current ||
+      isLoading ||
+      !searchInput
+    )
+      return;
+
+    const currentKey = searchKeyRef.current;
+    isFetchingMoreRef.current = true;
+    setIsFetchingMore(true);
+
+    const nextPage = pageNo + 1;
+
+    try {
+      const result = (await searchFlights({
+        fromId: searchIds.fromId,
+        toId: searchIds.toId,
+        departDate: searchInput.departDate,
+        returnDate: searchInput.returnDate,
+        adults: searchInput.adults,
+        children: searchInput.children,
+        stops: searchInput.stops,
+        sort: SORT_TO_API[sort],
+        cabinClass: searchInput.cabinClass,
+        pageNo: nextPage,
+      })) as FlightOffersResult;
+
+      if (searchKeyRef.current !== currentKey) return;
+
+      const newItems = mapOffersToFlightItems(result);
+      const newMap = buildOfferMap(result);
+
+      if (newItems.length === 0) {
+        setHasMore(false);
+      } else {
+        setAccItems((prev) => [...prev, ...newItems]);
+        setAccOfferMap((prev) => new Map([...prev, ...newMap]));
+        setPageNo(nextPage);
+      }
+    } catch {
+      /* 페이지네이션 오류는 조용히 처리 */
+    } finally {
+      if (searchKeyRef.current === currentKey) {
+        isFetchingMoreRef.current = false;
+        setIsFetchingMore(false);
+      }
+    }
+  }, [searchIds, hasMore, isLoading, pageNo, searchInput, sort]);
+
+  /* ══════════════════════════════════════════
+     IntersectionObserver — sentinel 감지
+     ══════════════════════════════════════════ */
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   /* ══════════════════════════════════════════
      매핑 & 필터 & 정렬
      ══════════════════════════════════════════ */
 
-  const allItems = useMemo<FlightItem[]>(() => {
-    if (apiState.status !== "success" || !apiState.response) return [];
-    return mapOffersToFlightItems(apiState.response.result);
-  }, [apiState]);
-
-  const airlineList = useMemo(() => extractAirlineList(allItems), [allItems]);
-
-  /* 필터 적용 후 FlightItem[] — offer 원본이 필요한 필터(시간대)는 offerMap 활용 */
-  const offerMap = useMemo(
-    () =>
-      apiState.status === "success" && apiState.response
-        ? buildOfferMap(apiState.response.result)
-        : new Map(),
-    [apiState],
+  const airlineList = useMemo(
+    () => extractAirlineList(accItems),
+    [accItems],
   );
 
   const filteredItems = useMemo(() => {
-    return allItems.filter((item) => {
+    return accItems.filter((item) => {
       /* ── 경유 필터 ── */
       const { direct, oneStop, twoPlusStops } = filter.stops;
       const anyStopFilterOn = direct || oneStop || twoPlusStops;
@@ -251,8 +316,8 @@ export default function FlightSearchPage() {
         if (!matchStop) return false;
       }
 
-      /* ── 시간대 필터 (원본 offer의 ISO 시간 필요) ── */
-      const offer = offerMap.get(item.id);
+      /* ── 시간대 필터 ── */
+      const offer = accOfferMap.get(item.id);
       if (filter.outboundTime.length > 0 && offer) {
         const slot = getTimeSlot(offer.segments[0].departureTime);
         if (!slot || !filter.outboundTime.includes(slot)) return false;
@@ -262,7 +327,7 @@ export default function FlightSearchPage() {
         if (!slot || !filter.inboundTime.includes(slot)) return false;
       }
 
-      /* ── 항공사 필터 (빈 배열 = 전체) ── */
+      /* ── 항공사 필터 ── */
       if (
         filter.airlines.length > 0 &&
         !filter.airlines.includes(item.airline)
@@ -279,12 +344,7 @@ export default function FlightSearchPage() {
 
       return true;
     });
-  }, [allItems, filter, offerMap]);
-
-  const sortedItems = useMemo(
-    () => sortFlights(filteredItems, sort),
-    [filteredItems, sort],
-  );
+  }, [accItems, filter, accOfferMap]);
 
   /* ══════════════════════════════════════════
      핸들러
@@ -292,15 +352,22 @@ export default function FlightSearchPage() {
 
   const handleReSearch = (params: FlightSearchParams) => {
     const sp = buildFlightSearchParams(params, searchParams);
+    sp.set("sort", sort);
     setSearchParams(sp);
-    /* 검색 조건이 바뀌면 필터 초기화 */
     setFilter(DEFAULT_FILTER);
   };
 
+  const handleSortChange = (next: SortOption) => {
+    setSort(next);
+    setSearchParams((prev) => {
+      const sp = new URLSearchParams(prev);
+      sp.set("sort", next);
+      return sp;
+    }, { replace: true });
+  };
+
   const handleCardClick = (id: string) => {
-    console.log("[FlightCard] clicked id:", id);
-    /* TODO: 상세 페이지 이동 또는 상세 조회 (getFlightDetails) */
-    const offer = offerMap.get(id);
+    const offer = accOfferMap.get(id);
     navigate(`/flight-detail/${encodeURIComponent(id)}`, {
       state: { offer },
     });
@@ -312,28 +379,20 @@ export default function FlightSearchPage() {
 
   return (
     <>
-      {/* ══════════════════════════════════════════
-          모바일 (md 미만)
-          ══════════════════════════════════════════ */}
+      {/* 모바일 */}
       <div className="md:hidden px-4 py-6">
-        {/* TODO: 모바일 항공편 검색 화면 */}
         <p className="text-gray-500 text-center text-body3">
           모바일 화면은 준비 중입니다.
         </p>
       </div>
 
-      {/* ══════════════════════════════════════════
-          데스크톱 (md 이상)
-          ══════════════════════════════════════════ */}
-
+      {/* 데스크톱 */}
       <div className="hidden md:block bg-background">
         <div className="max-w-[1200px] w-full mx-auto px-4 py-10">
-          {/* ── 페이지 타이틀 ── */}
           <h1 className="font-pretendard text-title2 font-semibold text-gray-900 mb-6">
             항공편 검색
           </h1>
 
-          {/* ── SearchBar (재검색용) ── */}
           <section className="mb-10">
             <SearchBar
               key={searchBarKey}
@@ -342,7 +401,6 @@ export default function FlightSearchPage() {
             />
           </section>
 
-          {/* ── 입력값 없을 때 안내 ── */}
           {!searchInput ? (
             <div
               className={[
@@ -358,7 +416,6 @@ export default function FlightSearchPage() {
               </p>
             </div>
           ) : (
-            /* ── 결과 영역: FilterSidebar + FlightResultList ── */
             <section className="flex gap-6 items-start">
               <FilterSidebar
                 value={filter}
@@ -366,12 +423,15 @@ export default function FlightSearchPage() {
                 airlineList={airlineList}
               />
               <FlightResultList
-                flights={sortedItems}
-                isLoading={apiState.status === "loading"}
-                error={apiState.status === "error" ? apiState.error : null}
+                flights={filteredItems}
+                isLoading={isLoading}
+                error={error}
                 sort={sort}
-                onSortChange={setSort}
+                onSortChange={handleSortChange}
                 onCardClick={handleCardClick}
+                isFetchingMore={isFetchingMore}
+                hasMore={hasMore}
+                sentinelRef={sentinelRef}
               />
             </section>
           )}
