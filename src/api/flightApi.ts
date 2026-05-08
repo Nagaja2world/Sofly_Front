@@ -115,6 +115,7 @@ export interface FlightSearchInput {
   stops?: SearchFlightsParams["stops"];
   sort?: SearchFlightsParams["sort"];
   cabinClass?: SearchFlightsParams["cabinClass"];
+  pageNo?: number;
 }
 
 export async function searchFlightsFull(input: FlightSearchInput) {
@@ -140,6 +141,7 @@ export async function searchFlightsFull(input: FlightSearchInput) {
     stops: input.stops,
     sort: input.sort,
     cabinClass: input.cabinClass,
+    pageNo: input.pageNo,
   });
 
   return { result, fromId: dep.id, toId: arr.id };
