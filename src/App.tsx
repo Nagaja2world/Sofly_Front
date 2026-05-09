@@ -1,7 +1,9 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import NoHeaderLayout from "./layout/NoHeaderLayout";
 import HomePage from "@/pages/HomePage";
-import ProfilePage from "@/pages/ProfilePage";
+import Profile from "@/pages/Profile";
+import ProfileEditPage from "@/pages/ProfileEditPage";
+import ProfileOnboardingPage from "@/pages/ProfileOnboardingPage";
 import FlightSearchPage from "@/pages/FlightSearchPage";
 import FlightDetailPage from "@/pages/FlightDetailPage";
 import WorkspacePage from "@/pages/WorkspacePage";
@@ -17,7 +19,9 @@ const router = createBrowserRouter([
     element: <NoHeaderLayout />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: "profile", element: <ProfilePage /> },
+      { path: "profile", element: <Profile /> },
+      { path: "profile/edit", element: <ProfileEditPage /> },
+      { path: "onboarding", element: <ProfileOnboardingPage /> },
       { path: "workspace/:id", element: <WorkspacePage /> },
     ],
   },
@@ -37,14 +41,6 @@ const router = createBrowserRouter([
 
   /* Conquest Map (풀스크린, 자체 헤더) */
   { path: "/conquest-map", element: <ConquestMapPage /> },
-
-  // TODO: 추가 라우트
-  // { path: "/login", element: <LoginPage /> },
-  // {
-  //   path: "/search",
-  //   element: <SearchLayout />,
-  //   children: [{ index: true, element: <SearchResultPage /> }],
-  // },
 ]);
 
 export default function App() {
