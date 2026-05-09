@@ -19,6 +19,8 @@ interface HeaderProps {
   onKakaoLogin?: () => void;
   /** 구글 로그인 콜백 */
   onGoogleLogin?: () => void;
+  /** 네이버 로그인 콜백 */
+  onNaverLogin?: () => void;
 }
 
 export default function Header({
@@ -27,6 +29,7 @@ export default function Header({
   onLogout,
   onKakaoLogin,
   onGoogleLogin,
+  onNaverLogin,
 }: HeaderProps) {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const loginBtnRef = useRef<HTMLDivElement>(null);
@@ -73,6 +76,7 @@ export default function Header({
             triggerRef={loginBtnRef}
             onKakaoLogin={onKakaoLogin}
             onGoogleLogin={onGoogleLogin}
+            onNaverLogin={onNaverLogin}
           />
         </div>
       ) : (
