@@ -4,7 +4,7 @@
 import React from 'react';
 import { SOFLY_P as T } from './tokens';
 import { PlaneIllo, ButterflyIllo, FlowersIllo, TreesIllo } from './illustrations';
-import heroSvg from '@/assets/home_hero.svg';
+import heroSvg from '@/assets/profile_hero.svg';
 
 interface Props {
   children: React.ReactNode;
