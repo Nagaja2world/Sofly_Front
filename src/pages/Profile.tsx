@@ -2,7 +2,7 @@
 // 마이페이지 진입점.
 // profileCompleted=false 면 /onboarding 으로 보냅니다.
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../hooks/useProfile';
 import Header from '@/components/common/Header';
@@ -43,8 +43,15 @@ const MOCK_PAST = [
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { logout } = useAuthStore();
+  const { user, logout, fetchUserProfile } = useAuthStore();
   const { profile, loading, error } = useProfile();
+
+  // useAuthStore.user가 없으면 fetchUserProfile 호출 → Header 아바타 동기화
+  useEffect(() => {
+    if (!user) {
+      fetchUserProfile().catch(() => {});
+    }
+  }, [user, fetchUserProfile]);
 
   const handleLogout = () => {
     logout();
