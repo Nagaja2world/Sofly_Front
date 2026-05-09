@@ -4,6 +4,7 @@
 import React from 'react';
 import { SOFLY_P as T } from './tokens';
 import { PlaneIllo, ButterflyIllo, FlowersIllo, TreesIllo } from './illustrations';
+import heroSvg from '@/assets/home_hero.svg';
 
 interface Props {
   children: React.ReactNode;
@@ -14,7 +15,10 @@ export function ProfilePageBackground({ children, showIllustrations = true }: Pr
   return (
     <div style={{
       minHeight: '100vh',
-      background: T.background,
+      backgroundImage: `url(${heroSvg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center top',
+      backgroundAttachment: 'fixed',
       fontFamily: '"Pretendard", -apple-system, sans-serif',
       color: T.gray900,
       position: 'relative',
