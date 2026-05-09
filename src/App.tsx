@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import NoHeaderLayout from "./layout/NoHeaderLayout";
 import HomePage from "@/pages/HomePage";
+import ProfilePage from "@/pages/ProfilePage";
 import Profile from "@/pages/Profile";
 import ProfileEditPage from "@/pages/ProfileEditPage";
 import ProfileOnboardingPage from "@/pages/ProfileOnboardingPage";
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
     element: <NoHeaderLayout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "profile", element: <ProfilePage /> },
       { path: "mypage", element: <Profile /> },
       { path: "mypage/edit", element: <ProfileEditPage /> },
       { path: "onboarding", element: <ProfileOnboardingPage /> },
