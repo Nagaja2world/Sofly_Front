@@ -127,7 +127,15 @@ export default function ProfilePage({
           <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between">
             {/* 왼쪽: 프로필 아이콘 + 인사말 */}
             <div className="flex items-center gap-4">
-              <GroupIcon className="w-[64px] h-[64px] shrink-0" />
+              {user?.profileImageUrl ? (
+                <img
+                  src={user.profileImageUrl}
+                  alt={userName}
+                  className="w-[64px] h-[64px] rounded-full object-cover shrink-0 border border-gray-200"
+                />
+              ) : (
+                <GroupIcon className="w-[64px] h-[64px] shrink-0" />
+              )}
               <div>
                 <h1 className="font-montserrat text-title2 font-semibold text-gray-900 m-0">
                   Welcome, Traveler!

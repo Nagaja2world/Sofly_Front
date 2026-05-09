@@ -149,7 +149,10 @@ export default function FlightSearchPage() {
 
   /* ── 필터 & 정렬 상태 ── */
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
-  const [sort, setSort] = useState<SortOption>("best");
+  const [sort, setSort] = useState<SortOption>(() => {
+    const raw = searchParams.get("sort");
+    return (raw === "cheapest" || raw === "fastest" || raw === "best") ? raw : "best";
+  });
 
   /* sentinel ref — FlightResultList 하단에 마운트 */
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -349,8 +352,18 @@ export default function FlightSearchPage() {
 
   const handleReSearch = (params: FlightSearchParams) => {
     const sp = buildFlightSearchParams(params, searchParams);
+    sp.set("sort", sort);
     setSearchParams(sp);
     setFilter(DEFAULT_FILTER);
+  };
+
+  const handleSortChange = (next: SortOption) => {
+    setSort(next);
+    setSearchParams((prev) => {
+      const sp = new URLSearchParams(prev);
+      sp.set("sort", next);
+      return sp;
+    }, { replace: true });
   };
 
   const handleCardClick = (id: string) => {
@@ -414,7 +427,7 @@ export default function FlightSearchPage() {
                 isLoading={isLoading}
                 error={error}
                 sort={sort}
-                onSortChange={setSort}
+                onSortChange={handleSortChange}
                 onCardClick={handleCardClick}
                 isFetchingMore={isFetchingMore}
                 hasMore={hasMore}

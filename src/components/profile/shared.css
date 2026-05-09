@@ -1,0 +1,40 @@
+/* src/components/profile/shared.css
+   듀얼 슬라이더 thumb 스타일. globals 또는 profile 폴더에서 import. */
+
+input[type="range"].sofly-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+input[type="range"].sofly-range::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 4px;
+}
+input[type="range"].sofly-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 99px;
+  background: #fff;
+  border: 3px solid #f5d15a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  pointer-events: auto;
+  margin-top: -10px;
+}
+input[type="range"].sofly-range.sofly-range--max::-webkit-slider-thumb {
+  border-color: #a0c1d5;
+}
+input[type="range"].sofly-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 99px;
+  background: #fff;
+  border: 3px solid #f5d15a;
+  cursor: pointer;
+  pointer-events: auto;
+}
+input[type="range"].sofly-range.sofly-range--max::-moz-range-thumb {
+  border-color: #a0c1d5;
+}

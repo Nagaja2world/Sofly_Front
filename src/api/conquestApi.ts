@@ -160,3 +160,27 @@ export async function bulkImport(body: BulkImportBody): Promise<void> {
   });
   await unwrap<null>(res);
 }
+
+export interface AddCityBody {
+  cityName: string;
+  countryCode: string;
+  latitude: number;
+  longitude: number;
+  status: VisitStatus;
+}
+
+export async function addCity(body: AddCityBody): Promise<VisitedCity> {
+  const res = await fetch(`${API_BASE}/api/conquest/cities`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  return unwrap<VisitedCity>(res);
+}
+
+export async function getWorkspaceRoutes(workspaceId: number): Promise<TripRoute[]> {
+  const res = await fetch(`${API_BASE}/api/conquest/routes/workspaces/${workspaceId}`, {
+    headers: authHeaders(),
+  });
+  return unwrap<TripRoute[]>(res);
+}

@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Button from "@/components/common/Button";
 import LoginPopup from "../LoginPopup";
+import useAuthStore from "@/store/useAuthStore";
 
 import UserIcon from "@/assets/group.svg?react";
 
@@ -18,8 +19,6 @@ interface HeaderProps {
   onKakaoLogin?: () => void;
   /** 구글 로그인 콜백 */
   onGoogleLogin?: () => void;
-  // /** 유저 아이콘 (src/assets에서 import하여 전달, login variant에서 사용) */
-  // userIcon?: ReactNode;
 }
 
 export default function Header({
@@ -28,10 +27,11 @@ export default function Header({
   onLogout,
   onKakaoLogin,
   onGoogleLogin,
-  //userIcon,
 }: HeaderProps) {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const loginBtnRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
 
   const handleLoginClick = () => {
     if (onLogin) {
@@ -48,16 +48,12 @@ export default function Header({
         variant === "login" ? "bg-white" : "bg-background",
       ].join(" ")}
     >
-      {/* Logo */}
-      {/* <span className="font-montserrat text-[32px] font-semibold tracking-tight">
-        Sofly
-      </span> */}
       <Link
         to="/"
         className={[
           "font-montserrat text-[32px] font-semibold tracking-tight",
           "bg-transparent border-none p-0 cursor-pointer",
-          "text-gray-900 hover:opacity-80 transition-opacity",
+          "text-gray-900 no-underline hover:opacity-80 transition-opacity",
         ].join(" ")}
         aria-label="홈으로 이동"
       >
@@ -71,7 +67,6 @@ export default function Header({
             로그인
           </Button>
 
-          {/* 로그인 드롭다운 팝업 */}
           <LoginPopup
             isOpen={isLoginOpen}
             onClose={() => setIsLoginOpen(false)}
@@ -81,15 +76,34 @@ export default function Header({
           />
         </div>
       ) : (
-        <button
-          onClick={onLogout}
-          className="flex items-center bg-transparent border-none cursor-pointer text-black hover:text-gray-900 transition-colors"
-        >
-          <UserIcon />
-          <span className="font-pretendard text-body3 px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          {/* 프로필 아바타 */}
+          <button
+            type="button"
+            onClick={() => navigate("/mypage")}
+            className="bg-transparent border-none cursor-pointer p-0 flex items-center"
+            aria-label="프로필 페이지로 이동"
+          >
+            {user?.profileImageUrl ? (
+              <img
+                src={user.profileImageUrl}
+                alt={user.nickname ?? "프로필"}
+                className="w-9 h-9 rounded-full object-cover border border-gray-200"
+              />
+            ) : (
+              <UserIcon />
+            )}
+          </button>
+
+          {/* 로그아웃 */}
+          <button
+            type="button"
+            onClick={onLogout}
+            className="bg-transparent border-none cursor-pointer text-black hover:text-gray-600 transition-colors font-pretendard text-body3 px-2 py-1"
+          >
             로그아웃
-          </span>
-        </button>
+          </button>
+        </div>
       )}
     </header>
   );

@@ -9,6 +9,8 @@ import {
   updateCountryStatus,
   updateCityStatus,
   bulkImport,
+  addCity,
+  getWorkspaceRoutes,
   type ConquestMapData,
   type ConquestStats,
   type TripRoute,
@@ -23,6 +25,7 @@ import { StatsPanel } from "@/components/conquestMap/StatsPanel";
 import { CountrySidebar } from "@/components/conquestMap/CountrySidebar";
 import { StatusModal } from "@/components/conquestMap/StatusModal";
 import { BulkImportModal } from "@/components/conquestMap/BulkImportModal";
+import { CityAddModal } from "@/components/conquestMap/CityAddModal";
 import { LegendDot } from "@/components/conquestMap/LegendDot";
 import { Toast } from "@/components/conquestMap/Toast";
 
@@ -44,7 +47,6 @@ export default function ConquestMapPage() {
   const [mapData, setMapData] = useState<ConquestMapData | null>(null);
   const [stats, setStats] = useState<ConquestStats | null>(null);
   const [allRoutes, setAllRoutes] = useState<TripRoute[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
   // ── UI ──
@@ -66,6 +68,13 @@ export default function ConquestMapPage() {
   const [bulkJson, setBulkJson] = useState(BULK_TEMPLATE);
   const [bulkLoading, setBulkLoading] = useState(false);
 
+  // ── City Add ──
+  const [cityAddOpen, setCityAddOpen] = useState(false);
+  const [cityAddLoading, setCityAddLoading] = useState(false);
+
+  // ── Workspace routes (API-fetched) ──
+  const [wsRoutes, setWsRoutes] = useState<TripRoute[] | null>(null);
+
   // ── Toast ──
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err"; id: number } | null>(null);
 
@@ -77,7 +86,6 @@ export default function ConquestMapPage() {
 
   // ── Data loading ──
   const loadAll = useCallback(async () => {
-    setDataLoading(true);
     try {
       const [md, st, rt] = await Promise.all([
         getConquestMap(), getConquestStats(), getConquestRoutes(),
@@ -85,11 +93,8 @@ export default function ConquestMapPage() {
       setMapData(md);
       setStats(st);
       setAllRoutes(rt);
-      showToast("데이터 로드 완료", "ok");
     } catch (e: unknown) {
       showToast("로드 실패: " + (e instanceof Error ? e.message : "오류"), "err");
-    } finally {
-      setDataLoading(false);
     }
   }, [showToast]);
 
@@ -294,6 +299,11 @@ export default function ConquestMapPage() {
     };
   }, [mbToken]);
 
+  // ── Auto-load data when map is ready ──
+  useEffect(() => {
+    if (mapReady) loadAll();
+  }, [mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Update country colors ──
   useEffect(() => {
     const map = mapRef.current;
@@ -335,9 +345,9 @@ export default function ConquestMapPage() {
 
     const list = routeFilter === "none"
       ? []
-      : routeFilter === "all"
-      ? allRoutes
-      : allRoutes.filter((r) => r.workspaceId === routeFilter);
+      : wsRoutes !== null
+      ? wsRoutes
+      : allRoutes;
 
     const features = list
       .filter((r) => r.departureLng && r.departureLat && r.arrivalLng && r.arrivalLat)
@@ -347,7 +357,7 @@ export default function ConquestMapPage() {
         properties: {},
       }));
     (map.getSource("routes") as mapboxgl.GeoJSONSource).setData({ type: "FeatureCollection", features });
-  }, [mapReady, allRoutes, routeFilter]);
+  }, [mapReady, allRoutes, wsRoutes, routeFilter]);
 
   // ── Update selection outline ──
   useEffect(() => {
@@ -395,9 +405,36 @@ export default function ConquestMapPage() {
     }
   };
 
-  const handleRouteFilter = (f: RouteFilter) => {
+  const handleRouteFilter = async (f: RouteFilter) => {
     setRouteFilter(f);
     setHlWsId(typeof f === "number" ? f : null);
+    if (typeof f === "number") {
+      try {
+        const routes = await getWorkspaceRoutes(f);
+        setWsRoutes(routes);
+      } catch {
+        showToast("경로 로드 실패", "err");
+        setWsRoutes(null);
+      }
+    } else {
+      setWsRoutes(null);
+    }
+  };
+
+  const handleCityAdd = async (cityName: string, lat: number, lng: number, status: VisitStatus) => {
+    const iso2 = selCountry ? A3_A2[selCountry] : null;
+    if (!iso2) return;
+    setCityAddLoading(true);
+    try {
+      await addCity({ cityName, countryCode: iso2, latitude: lat, longitude: lng, status });
+      setCityAddOpen(false);
+      showToast(`${cityName} 추가 완료`, "ok");
+      await loadAll();
+    } catch (e: unknown) {
+      showToast("추가 실패: " + (e instanceof Error ? e.message : "오류"), "err");
+    } finally {
+      setCityAddLoading(false);
+    }
   };
 
   const handleTokenSubmit = () => {
@@ -417,10 +454,6 @@ export default function ConquestMapPage() {
         tokenInput={tokenInput}
         onTokenInputChange={setTokenInput}
         onTokenSubmit={handleTokenSubmit}
-        mbToken={mbToken}
-        dataLoading={dataLoading}
-        onLoadData={loadAll}
-        onBulkOpen={() => setBulkOpen(true)}
       />
 
       {/* ── Map area ──────────────────────────────── */}
@@ -529,6 +562,7 @@ export default function ConquestMapPage() {
           routeFilter={routeFilter}
           onRouteFilter={handleRouteFilter}
           onOpenModal={(ctx) => { setModalCtx(ctx); setModalStatus(ctx.status); }}
+          onAddCity={() => setCityAddOpen(true)}
         />
       </div>
 
@@ -541,6 +575,20 @@ export default function ConquestMapPage() {
           onSelectStatus={setModalStatus}
           onConfirm={confirmStatus}
           onClose={() => setModalCtx(null)}
+        />
+      )}
+
+      {/* City Add Modal */}
+      {cityAddOpen && selCountry && (
+        <CityAddModal
+          countryCode={A3_A2[selCountry] || selCountry}
+          countryName={
+            mapData?.countries.find((c) => c.countryCode === A3_A2[selCountry])?.countryName
+            || selCountry
+          }
+          loading={cityAddLoading}
+          onSubmit={handleCityAdd}
+          onClose={() => setCityAddOpen(false)}
         />
       )}
 

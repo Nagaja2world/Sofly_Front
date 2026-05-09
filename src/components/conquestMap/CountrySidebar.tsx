@@ -16,6 +16,7 @@ interface Props {
   routeFilter: RouteFilter;
   onRouteFilter: (f: RouteFilter) => void;
   onOpenModal: (ctx: ModalCtx) => void;
+  onAddCity: () => void;
 }
 
 export function CountrySidebar({
@@ -28,6 +29,7 @@ export function CountrySidebar({
   hlWsId,
   onRouteFilter,
   onOpenModal,
+  onAddCity,
 }: Props) {
   const countryInfo = selCountry
     ? (mapData?.countries.find((c) => c.countryCode === A3_A2[selCountry]) ?? null)
@@ -96,6 +98,14 @@ export function CountrySidebar({
         >
           전체 경로
         </button>
+        {selCountry && (
+          <button
+            onClick={onAddCity}
+            style={{ ...pillBtn(), flex: 1, padding: "8px 10px" }}
+          >
+            도시 추가
+          </button>
+        )}
       </div>
 
       {/* Trips list */}
