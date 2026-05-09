@@ -5,6 +5,11 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from "react";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
+import Placeholder from "@tiptap/extension-placeholder";
+import type { JSONContent } from "@tiptap/core";
 import PinIcon from "@/assets/pin.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 import SunPressedIcon from "@/assets/sun_pressed.svg?react";
@@ -23,16 +28,23 @@ import SnowIcon from "@/assets/snow.svg?react";
 /** 날씨 종류 (한 줄 여행 우측 아이콘 4개 중 하나가 활성화) */
 export type WeatherType = "sunny" | "cloudy" | "rainy" | "snowy";
 
-/** 편집 모드에서 부모로 전달되는 데이터 묶음
- *  - 보기 모드 props와 동일 형태이므로, 부모는 그대로 받아서 state에 머지하면 됨
- *  - photo는 string[] (URL 또는 createObjectURL 결과). API 연결 시
- *    File 업로드 → 서버 URL 받기 → setState로 갱신하는 흐름으로 바꾸면 됨 */
+/**
+ * 편집 모드에서 부모로 전달되는 데이터 묶음
+ *
+ * - 보기 모드 props와 동일 형태이므로, 부모는 그대로 받아서 state에 머지하면 됨
+ * - content는 Tiptap JSON (JSONContent). 백엔드 합의: Tiptap JSON 그대로 저장.
+ *   string으로 직렬화하고 싶으면 JSON.stringify(content)로 변환.
+ * - albumPhotos는 string[] (URL 또는 createObjectURL 결과). API 연결 시
+ *   File 업로드 → 서버 URL 받기 → setState로 갱신하는 흐름으로 바꾸면 됨
+ */
 export interface TravelLogData {
   oneLineSummary?: string;
   weather?: WeatherType;
-  body?: string;
-  bodyPhotos?: string[];
-  bodyClosing?: string;
+  /**
+   * 본문 (텍스트 + 이미지 + 인라인 서식이 섞인 Tiptap JSON 문서).
+   * 빈 본문은 undefined로 둠.
+   */
+  content?: JSONContent;
   albumPhotos?: string[];
 }
 
@@ -43,12 +55,8 @@ interface TravelLogCardProps {
   oneLineSummary?: string;
   /** 한 줄 여행 우측 날씨 (선택된 1개) */
   weather?: WeatherType;
-  /** 본문 텍스트 (긴 줄거리) */
-  body?: string;
-  /** 본문 중간에 들어가는 사진들 (3장 정도) */
-  bodyPhotos?: string[];
-  /** 본문 마지막 한 줄 (예: "이후 호텔에 체크인하며 하루를 마무리했다.") */
-  bodyClosing?: string;
+  /** 본문 (Tiptap JSON 문서) — 텍스트와 이미지가 자유롭게 섞임 */
+  content?: JSONContent;
   /** 앨범 사진들 */
   albumPhotos?: string[];
   /**
@@ -167,7 +175,7 @@ function WeatherIconGroupEdit({
   );
 }
 
-/** 보기 모드 사진 그리드 (3장 가로 배치, 빈 슬롯은 출력 안함) */
+/** 보기 모드 사진 그리드 (3장 가로 배치, 빈 슬롯은 출력 안함) — 앨범에서 사용 */
 function PhotoGridView({ photos, alt }: { photos: string[]; alt: string }) {
   if (!photos || photos.length === 0) return null;
 
@@ -217,7 +225,7 @@ function DashedDivider() {
    편집 모드 전용 서브 컴포넌트
    ══════════════════════════════════════════ */
 
-/** 한 줄 입력 (한 줄 여행, 마무리 한 줄 등) */
+/** 한 줄 입력 (한 줄 여행) */
 function EditTextInput({
   value,
   onChange,
@@ -247,39 +255,7 @@ function EditTextInput({
   );
 }
 
-/** 여러 줄 입력 (본문) */
-function EditTextarea({
-  value,
-  onChange,
-  placeholder,
-  ariaLabel,
-  rows = 5,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  ariaLabel?: string;
-  rows?: number;
-}) {
-  return (
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-      rows={rows}
-      className={[
-        "w-full px-3 py-2 resize-y",
-        "bg-white border border-gray-300 rounded-md",
-        "font-pretendard text-body3 text-gray-700 leading-relaxed",
-        "placeholder:text-gray-500",
-        "outline-none focus:border-gray-700 transition-colors",
-      ].join(" ")}
-    />
-  );
-}
-
-/** 사진 그리드 (편집 모드) — 각 사진에 X 삭제 버튼, 마지막 슬롯이 비어있으면 + 추가 슬롯 */
+/** 사진 그리드 (편집 모드) — 앨범에서만 사용 */
 function PhotoGridEdit({
   photos,
   onAdd,
@@ -383,6 +359,294 @@ function PhotoGridEdit({
 }
 
 /* ══════════════════════════════════════════
+   Tiptap 본문 에디터
+   ══════════════════════════════════════════ */
+
+/**
+ * 본문에 들어갈 빈 Tiptap 문서.
+ * Tiptap은 빈 paragraph 하나가 있어야 커서가 잡힘.
+ */
+const EMPTY_DOC: JSONContent = {
+  type: "doc",
+  content: [{ type: "paragraph" }],
+};
+
+/**
+ * Tiptap 문서가 사실상 비어있는지 판정.
+ * - 텍스트도 없고
+ * - 이미지 같은 미디어 노드도 없음
+ *
+ * → 비어있으면 onSave 시 content를 undefined로 정리하기 위함
+ */
+function isContentEmpty(json: JSONContent | undefined): boolean {
+  if (!json) return true;
+  // 어떤 leaf에라도 text 또는 image 노드가 있으면 not empty
+  let hasContent = false;
+  const walk = (node: JSONContent) => {
+    if (hasContent) return;
+    if (node.type === "image") {
+      hasContent = true;
+      return;
+    }
+    if (
+      node.type === "text" &&
+      typeof node.text === "string" &&
+      node.text.length > 0
+    ) {
+      hasContent = true;
+      return;
+    }
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) walk(child);
+    }
+  };
+  walk(json);
+  return !hasContent;
+}
+
+/**
+ * 에디터 위쪽 작은 툴바.
+ * - 굵게 / 기울임 / 이미지 삽입
+ *
+ * 이미지 삽입은 file input → ObjectURL → setImage(src)로 커서 위치에 삽입.
+ * API 연결 시: file을 서버에 업로드한 뒤 받은 URL로 src를 교체하면 됨.
+ */
+function EditorToolbar({
+  editor,
+  onPickImage,
+}: {
+  editor: Editor;
+  onPickImage: () => void;
+}) {
+  const btnBase = [
+    "px-2 py-1 rounded-md",
+    "border border-gray-300 bg-white",
+    "font-pretendard text-body4 text-gray-700",
+    "hover:border-gray-700 hover:bg-gray-100 transition-colors cursor-pointer",
+  ].join(" ");
+  const btnActive = "bg-gray-200 border-gray-700";
+
+  return (
+    <div
+      className="flex items-center gap-1 px-1 py-1 border-b border-gray-200 bg-gray-100 rounded-t-md"
+      role="toolbar"
+      aria-label="본문 서식"
+    >
+      <button
+        type="button"
+        onClick={() => editor.chain().focus().toggleBold().run()}
+        aria-label="굵게"
+        aria-pressed={editor.isActive("bold")}
+        className={[btnBase, editor.isActive("bold") ? btnActive : ""].join(
+          " ",
+        )}
+      >
+        <span className="font-bold">B</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+        aria-label="기울임"
+        aria-pressed={editor.isActive("italic")}
+        className={[btnBase, editor.isActive("italic") ? btnActive : ""].join(
+          " ",
+        )}
+      >
+        <span className="italic">I</span>
+      </button>
+      <div className="w-px h-5 bg-gray-300 mx-1" aria-hidden />
+      <button
+        type="button"
+        onClick={onPickImage}
+        aria-label="이미지 삽입"
+        className={btnBase}
+      >
+        <span className="inline-flex items-center gap-1">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="none"
+            aria-hidden
+          >
+            <rect
+              x="1.5"
+              y="2.5"
+              width="13"
+              height="11"
+              rx="1.5"
+              stroke="currentColor"
+            />
+            <circle cx="5.5" cy="6.5" r="1" fill="currentColor" />
+            <path
+              d="M2 11L6 7L9 10L11 8L14 11"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              fill="none"
+            />
+          </svg>
+          사진
+        </span>
+      </button>
+    </div>
+  );
+}
+
+/**
+ * 보기 모드용 (읽기 전용) Tiptap 렌더러.
+ * 같은 extension 셋으로 editable=false 에디터를 만들어 본문을 그대로 그려줌.
+ * → 보기/편집 간 렌더 일관성 보장.
+ *
+ * key prop을 활용해 content가 바뀌면 다시 만들도록 함 (Tiptap은 외부 content 변경에
+ * 자동 동기화되지 않음 — 보기 전용에선 매번 새로 만드는 게 가장 단순함).
+ */
+function BodyView({ content }: { content?: JSONContent }) {
+  const editor = useEditor({
+    extensions: [StarterKit, Image],
+    content: content ?? EMPTY_DOC,
+    editable: false,
+  });
+
+  useEffect(() => {
+    return () => {
+      editor?.destroy();
+    };
+  }, [editor]);
+
+  if (!editor) return null;
+  if (isContentEmpty(content)) return null;
+
+  return (
+    <EditorContent
+      editor={editor}
+      className={[
+        // 본문 prose 스타일 — Tailwind typography를 안 쓰므로 직접 지정
+        "font-pretendard text-body3 text-gray-700 leading-relaxed",
+        // ProseMirror 기본 outline 제거 (보기 모드라 어차피 포커스 안 됨)
+        "[&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-0",
+        // 이미지 스타일
+        "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
+        // 문단 간격
+        "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+        // break-keep으로 한글 줄바꿈 자연스럽게
+        "break-keep",
+      ].join(" ")}
+    />
+  );
+}
+
+/**
+ * 편집 모드용 Tiptap 에디터.
+ * - StarterKit (텍스트 기본 + 굵게/기울임/리스트 등)
+ * - Image (인라인 이미지)
+ * - Placeholder (빈 에디터에 안내 문구)
+ *
+ * onUpdate에서 외부 onChange로 JSON 전달 → 부모 draft state 갱신.
+ *
+ * 부모가 편집 진입 시점에 한 번 initialContent를 주면 그걸로 시작.
+ * Tiptap 자체는 controlled 컴포넌트가 아니므로 props.content를 매번 set하지 않음
+ * (그렇게 하면 IME 한글 입력이 깨짐).
+ */
+function BodyEditor({
+  initialContent,
+  onChange,
+  registerObjectUrl,
+}: {
+  initialContent?: JSONContent;
+  onChange: (json: JSONContent) => void;
+  /** 새로 만든 ObjectURL을 부모에 등록 → 언마운트/취소 시 revoke 위함 */
+  registerObjectUrl: (url: string) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Image.configure({
+        // 인라인이 아니라 블록 이미지로 (한 줄을 차지). 노션과 동일한 동작.
+        inline: false,
+        allowBase64: false,
+      }),
+      Placeholder.configure({
+        placeholder:
+          "오늘 있었던 일을 자유롭게 적어보세요. 사진은 위 버튼으로 추가할 수 있어요.",
+        emptyEditorClass: "is-editor-empty",
+      }),
+    ],
+    content: initialContent ?? EMPTY_DOC,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getJSON());
+    },
+    editorProps: {
+      attributes: {
+        // 에디터 영역 자체에 패딩 / 최소 높이
+        class: [
+          "min-h-[140px] px-3 py-2 outline-none",
+          "font-pretendard text-body3 text-gray-700 leading-relaxed",
+          "break-keep",
+        ].join(" "),
+      },
+    },
+  });
+
+  // 컴포넌트 언마운트 시 에디터 정리
+  useEffect(() => {
+    return () => {
+      editor?.destroy();
+    };
+  }, [editor]);
+
+  const handlePickImage = () => fileInputRef.current?.click();
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !editor) return;
+    // 여러 장 선택 시 순서대로 삽입
+    for (let i = 0; i < files.length; i++) {
+      const url = URL.createObjectURL(files[i]);
+      registerObjectUrl(url);
+      editor.chain().focus().setImage({ src: url }).run();
+    }
+    e.target.value = "";
+  };
+
+  if (!editor) {
+    // 에디터 초기화 전 (한 프레임)에 자리만 차지
+    return (
+      <div className="border border-gray-300 rounded-md min-h-[140px] bg-white" />
+    );
+  }
+
+  return (
+    <div className="border border-gray-300 rounded-md bg-white overflow-hidden focus-within:border-gray-700 transition-colors">
+      <EditorToolbar editor={editor} onPickImage={handlePickImage} />
+      <EditorContent
+        editor={editor}
+        className={[
+          // 이미지 / 문단 스타일 (보기 모드와 동일하게)
+          "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
+          "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+          // Placeholder 스타일 — Tiptap Placeholder extension의 관용
+          "[&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]",
+          "[&_.is-editor-empty:first-child]:before:text-gray-500",
+          "[&_.is-editor-empty:first-child]:before:float-left",
+          "[&_.is-editor-empty:first-child]:before:h-0",
+          "[&_.is-editor-empty:first-child]:before:pointer-events-none",
+        ].join(" ")}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileChange}
+        className="hidden"
+      />
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
    메인 컴포넌트
    ══════════════════════════════════════════ */
 
@@ -394,16 +658,20 @@ function PhotoGridEdit({
  * 1) 보기 모드 (기본)
  *    - 헤더: 📍 N일차 + "더보기" 버튼
  *    - 한 줄 여행 / 날씨 아이콘 4개
- *    - 본문 + 본문 사진 + 마무리 한 줄
+ *    - 본문 (Tiptap 읽기 전용 렌더 — 텍스트 + 이미지가 자유롭게 섞임)
  *    - 앨범 + 사진 추가 버튼
  *
  * 2) 편집 모드 ("더보기" 클릭 시 진입)
  *    - 헤더: 📍 N일차 + 취소 / 저장 버튼
  *    - 한 줄 여행: 한 줄 input + 날씨 4개 토글
- *    - 본문: textarea + 본문 사진 업로드/삭제 + 마무리 한 줄 input
+ *    - 본문: Tiptap 에디터 (굵게/기울임/이미지 삽입 툴바)
  *    - 앨범: 앨범 사진 업로드/삭제
  *    - 저장 시 onSave(data) 호출 → 부모 state 갱신 (API 연결 시 PATCH)
  *    - 취소 시 진입 시점 데이터로 되돌림
+ *
+ * 데이터 모델
+ * - 본문은 Tiptap JSON (JSONContent). 백엔드 합의: Tiptap JSON 그대로 저장.
+ * - 본문 안의 이미지 src는 현재 ObjectURL이지만, API 연결 시 업로드 후 서버 URL로 교체.
  *
  * 디자인 스펙
  * - 카드 외곽: 396px 폭, 회색 보더, rounded-xl
@@ -413,9 +681,7 @@ export default function TravelLogCard({
   dayNumber,
   oneLineSummary,
   weather,
-  body,
-  bodyPhotos,
-  bodyClosing,
+  content,
   albumPhotos,
   onSave,
   className = "",
@@ -430,16 +696,18 @@ export default function TravelLogCard({
   const [draft, setDraft] = useState<TravelLogData>({
     oneLineSummary,
     weather,
-    body,
-    bodyPhotos: bodyPhotos ?? [],
-    bodyClosing,
+    content,
     albumPhotos: albumPhotos ?? [],
   });
 
   /** 편집 중 새로 추가한 사진의 ObjectURL을 추적
    *  → 컴포넌트 언마운트/취소 시 revoke해서 메모리 누수 방지
-   *  (서버 URL은 추적할 필요 없음 — string[]으로만 들어옴) */
+   *  (본문 이미지 + 앨범 이미지 모두 여기로 모음) */
   const objectUrlsRef = useRef<string[]>([]);
+
+  const registerObjectUrl = (url: string) => {
+    objectUrlsRef.current.push(url);
+  };
 
   /** 컴포넌트 언마운트 시 만들어진 ObjectURL 정리 */
   useEffect(() => {
@@ -449,15 +717,14 @@ export default function TravelLogCard({
     };
   }, []);
 
-  /** File[] → ObjectURL[] (미리보기용)
-   *  API 연결 시: 여기서 FormData 업로드 → 서버 URL 반환받아 사용하도록 교체
-   *  현재는 클라이언트에서만 미리보기 */
+  /** File[] → ObjectURL[] (앨범 미리보기용)
+   *  API 연결 시: 여기서 FormData 업로드 → 서버 URL 반환받아 사용하도록 교체 */
   const filesToUrls = (files: FileList): string[] => {
     const urls: string[] = [];
     for (let i = 0; i < files.length; i++) {
       const url = URL.createObjectURL(files[i]);
       urls.push(url);
-      objectUrlsRef.current.push(url);
+      registerObjectUrl(url);
     }
     return urls;
   };
@@ -467,9 +734,7 @@ export default function TravelLogCard({
     setDraft({
       oneLineSummary,
       weather,
-      body,
-      bodyPhotos: bodyPhotos ?? [],
-      bodyClosing,
+      content,
       albumPhotos: albumPhotos ?? [],
     });
     setIsEditing(true);
@@ -483,13 +748,12 @@ export default function TravelLogCard({
   };
 
   const saveEdit = () => {
-    /* trim 처리해서 빈 문자열은 undefined로 */
+    /* trim 처리해서 빈 문자열은 undefined로,
+       빈 본문 JSON은 undefined로 정리 */
     const cleaned: TravelLogData = {
       oneLineSummary: draft.oneLineSummary?.trim() || undefined,
       weather: draft.weather,
-      body: draft.body?.trim() || undefined,
-      bodyClosing: draft.bodyClosing?.trim() || undefined,
-      bodyPhotos: draft.bodyPhotos ?? [],
+      content: isContentEmpty(draft.content) ? undefined : draft.content,
       albumPhotos: draft.albumPhotos ?? [],
     };
     onSave?.(cleaned);
@@ -600,92 +864,21 @@ export default function TravelLogCard({
 
       <DashedDivider />
 
-      {/* ── 3. 본문 + 사진 + 마무리 ── */}
-      <div className="px-4 py-6 flex flex-col gap-6 min-w-0">
+      {/* ── 3. 본문 (Tiptap) ── */}
+      <div className="px-4 py-6 flex flex-col gap-2 min-w-0">
         {isEditing ? (
           <>
-            <div className="flex flex-col gap-2">
-              <span className="font-pretendard text-body4 font-medium text-gray-500">
-                본문
-              </span>
-              <EditTextarea
-                value={draft.body ?? ""}
-                onChange={(v) => setDraft((d) => ({ ...d, body: v }))}
-                placeholder="오늘 있었던 일을 자유롭게 적어보세요."
-                ariaLabel="본문"
-                rows={5}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="font-pretendard text-body4 font-medium text-gray-500">
-                본문 사진 (최대 3장)
-              </span>
-              <PhotoGridEdit
-                photos={(draft.bodyPhotos ?? []).slice(0, 3)}
-                onAdd={(files) => {
-                  const urls = filesToUrls(files);
-                  setDraft((d) => ({
-                    ...d,
-                    /* 본문 사진은 3장 제한 */
-                    bodyPhotos: [...(d.bodyPhotos ?? []), ...urls].slice(0, 3),
-                  }));
-                }}
-                onRemove={(idx) => {
-                  setDraft((d) => ({
-                    ...d,
-                    bodyPhotos: (d.bodyPhotos ?? []).filter(
-                      (_, i) => i !== idx,
-                    ),
-                  }));
-                }}
-                alt={`${dayNumber}일차 본문`}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="font-pretendard text-body4 font-medium text-gray-500">
-                마무리 한 줄
-              </span>
-              <EditTextInput
-                value={draft.bodyClosing ?? ""}
-                onChange={(v) => setDraft((d) => ({ ...d, bodyClosing: v }))}
-                placeholder="하루를 마무리하는 한 줄을 적어보세요."
-                ariaLabel="마무리 한 줄"
-              />
-            </div>
+            <span className="font-pretendard text-body4 font-medium text-gray-500">
+              본문
+            </span>
+            <BodyEditor
+              initialContent={draft.content}
+              onChange={(json) => setDraft((d) => ({ ...d, content: json }))}
+              registerObjectUrl={registerObjectUrl}
+            />
           </>
         ) : (
-          <>
-            {body && (
-              <p
-                className={[
-                  "font-pretendard text-body3 text-gray-700 leading-relaxed m-0 whitespace-pre-line",
-                  "line-clamp-3 break-keep",
-                ].join(" ")}
-              >
-                {body}
-              </p>
-            )}
-
-            {bodyPhotos && bodyPhotos.length > 0 && (
-              <PhotoGridView
-                photos={bodyPhotos}
-                alt={`${dayNumber}일차 본문`}
-              />
-            )}
-
-            {bodyClosing && (
-              <p
-                className={[
-                  "font-pretendard text-body3 text-gray-700 leading-relaxed m-0",
-                  "line-clamp-2 break-keep",
-                ].join(" ")}
-              >
-                {bodyClosing}
-              </p>
-            )}
-          </>
+          <BodyView content={content} />
         )}
       </div>
 

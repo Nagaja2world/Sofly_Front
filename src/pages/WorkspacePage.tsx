@@ -16,6 +16,7 @@ import TravelLogCard, {
   type WeatherType,
   type TravelLogData,
 } from "@/components/workspace/TravelLogCard";
+import type { JSONContent } from "@tiptap/core";
 import ChatPanel, {
   type ChatMessageData,
 } from "@/components/chatting/ChatPanel";
@@ -41,9 +42,8 @@ interface TravelLog {
   dayNumber: number;
   oneLineSummary?: string;
   weather?: WeatherType;
-  body?: string;
-  bodyPhotos?: string[];
-  bodyClosing?: string;
+  /** 본문 (Tiptap JSON 문서). API 연결 시 백엔드도 동일한 JSON 포맷으로 주고받음. */
+  content?: JSONContent;
   albumPhotos?: string[];
 }
 
@@ -176,32 +176,71 @@ const MOCK_ITINERARY_DAYS: ItineraryDay[] = [
   },
 ];
 
+/** 기존 본문을 Tiptap JSON으로 변환한 목업.
+ *  실제 API 연결 시: 서버가 보내주는 Tiptap JSON 객체를 그대로 사용.
+ *  (각 paragraph가 한 문단, image 노드로 사진을 본문 사이사이 끼워넣을 수 있음) */
+const MOCK_BODY_CONTENT: JSONContent = {
+  type: "doc",
+  content: [
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "text",
+          text: "프랑크푸르트 공항에 도착해 본격적인 여행을 시작했다.",
+        },
+      ],
+    },
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "text",
+          text: "간단히 이동 후 감자 레스토랑에 들러 가볍게 식사를 하고,",
+        },
+      ],
+    },
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "text",
+          text: "뢰머 광장을 둘러보며 첫 도시의 분위기를 느꼈다.",
+        },
+      ],
+    },
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "text",
+          text: "이후 호텔에 체크인하며 하루를 마무리했다.",
+        },
+      ],
+    },
+  ],
+};
+
 const MOCK_TRAVEL_LOGS: TravelLog[] = [
   {
     dayNumber: 1,
     oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
     weather: "sunny",
-    body: "프랑크푸르트 공항에 도착해 본격적인 여행을 시작했다.\n간단히 이동 후 감자 레스토랑에 들러 가볍게 식사를 하고,\n뢰머 광장을 둘러보며 첫 도시의 분위기를 느꼈다.",
-    bodyClosing: "이후 호텔에 체크인하며 하루를 마무리했다.",
-    bodyPhotos: [],
+    content: MOCK_BODY_CONTENT,
     albumPhotos: [],
   },
   {
     dayNumber: 2,
     oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
     weather: "sunny",
-    body: "프랑크푸르트 공항에 도착해 본격적인 여행을 시작했다.\n간단히 이동 후 감자 레스토랑에 들러 가볍게 식사를 하고,\n뢰머 광장을 둘러보며 첫 도시의 분위기를 느꼈다.",
-    bodyClosing: "이후 호텔에 체크인하며 하루를 마무리했다.",
-    bodyPhotos: [],
+    content: MOCK_BODY_CONTENT,
     albumPhotos: [],
   },
   {
     dayNumber: 3,
     oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
     weather: "sunny",
-    body: "프랑크푸르트 공항에 도착해 본격적인 여행을 시작했다.\n간단히 이동 후 감자 레스토랑에 들러 가볍게 식사를 하고,\n뢰머 광장을 둘러보며 첫 도시의 분위기를 느꼈다.",
-    bodyClosing: "이후 호텔에 체크인하며 하루를 마무리했다.",
-    bodyPhotos: [],
+    content: MOCK_BODY_CONTENT,
     albumPhotos: [],
   },
 ];
@@ -299,6 +338,14 @@ export default function WorkspacePage() {
       ),
     );
     // TODO(API): PATCH /workspaces/:id/travel-log/:day { ...data }
+  };
+
+  /** 특정 일차의 지도 보기
+   *  ItineraryDayCard 헤더 오른쪽 "지도" 버튼 클릭 시 호출됨.
+   *  추후 지도 모달/페이지를 띄워 해당 일차의 장소들을 표시할 예정. */
+  const handleMapClick = (dayNumber: number) => {
+    // TODO: 해당 일차의 장소들을 지도에 표시하는 모달/페이지 띄우기
+    console.log("[Workspace] open map for day:", dayNumber);
   };
 
   /* ── 메시지 전송 (목업: 1초 뒤 가짜 AI 응답) ── */
@@ -468,6 +515,7 @@ export default function WorkspacePage() {
                       onSave={(rows) =>
                         handleSaveItineraryDay(d.dayNumber, rows)
                       }
+                      onMapClick={handleMapClick}
                     />
                   ))}
                 </div>
@@ -492,9 +540,7 @@ export default function WorkspacePage() {
                         dayNumber={log.dayNumber}
                         oneLineSummary={log.oneLineSummary}
                         weather={log.weather}
-                        body={log.body}
-                        bodyPhotos={log.bodyPhotos}
-                        bodyClosing={log.bodyClosing}
+                        content={log.content}
                         albumPhotos={log.albumPhotos}
                         onSave={(data) =>
                           handleSaveTravelLog(log.dayNumber, data)

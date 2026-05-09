@@ -39,11 +39,14 @@ interface ItineraryDayCardProps {
    */
   onSave?: (rows: ItineraryRow[]) => void;
   /**
-   * 지도 버튼 클릭 콜백.
+   * 지도 버튼 클릭 콜백 (필수).
    * 보기 모드 헤더 오른쪽 끝의 "지도" 버튼을 누르면 호출됨.
-   * 부모는 이 일정의 장소들을 지도에 표시하는 모달/페이지를 띄우는 등의 처리를 할 수 있음.
+   * 부모는 이 일정의 장소들을 지도에 표시하는 모달/페이지를 띄우는 등의 처리를 해야 함.
+   *
+   * 지도 버튼은 이 카드의 핵심 기능이므로 항상 노출되어야 하며,
+   * 따라서 부모는 반드시 이 핸들러를 구현해서 넘겨야 함 (옵셔널 아님).
    */
-  onMapClick?: (dayNumber: number) => void;
+  onMapClick: (dayNumber: number) => void;
   /** 추가 클래스 */
   className?: string;
 }
@@ -373,7 +376,7 @@ function EditDataRow({
  * 두 가지 모드를 가짐:
  *
  * 1) 보기 모드 (기본)
- *    - 헤더: 📍 + "1일차" + 편집 버튼(edit2)
+ *    - 헤더: 📍 + "1일차" + 편집 버튼(edit2) + 지도 버튼
  *    - 본문: 4컬럼 테이블 (제목 | 체류 | 이동 | 비고)
  *
  * 2) 편집 모드 (헤더 편집 버튼 클릭 시 진입)
@@ -383,7 +386,7 @@ function EditDataRow({
  *    - 저장 시 onSave(rows) 호출 → 부모가 state 갱신 (API 연결 시 PATCH)
  *    - 취소 시 진입 시점의 rows로 되돌림
  *
- * 부모는 보기/편집 모드 전환을 신경 쓸 필요 없이 rows + onSave만 넘기면 됨.
+ * 부모는 보기/편집 모드 전환을 신경 쓸 필요 없이 rows + onSave + onMapClick만 넘기면 됨.
  */
 export default function ItineraryDayCard({
   dayNumber,
@@ -467,7 +470,7 @@ export default function ItineraryDayCard({
           {dayNumber}일차
         </span>
 
-        {/* 보기 모드: edit2 버튼만 / 편집 모드: 취소·저장 버튼 */}
+        {/* 보기 모드: edit2 버튼 + 지도 버튼 / 편집 모드: 취소·저장 버튼 */}
         {isEditing ? (
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -512,10 +515,10 @@ export default function ItineraryDayCard({
               <Edit2Icon className="w-4 h-4" />
             </button>
 
-            {/* 지도 버튼 — 헤더 맨 오른쪽 끝, 편집 모드 시 사라지고 취소/저장 버튼이 그 자리에 옴 */}
+            {/* 지도 버튼 — 헤더 맨 오른쪽 끝 */}
             <button
               type="button"
-              onClick={() => onMapClick?.(dayNumber)}
+              onClick={() => onMapClick(dayNumber)}
               aria-label={`${dayNumber}일차 지도 보기`}
               className={[
                 "ml-auto",
