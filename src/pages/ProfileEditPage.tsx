@@ -49,7 +49,7 @@ export default function ProfileEditPage() {
         preferCities: draft.preferCities,
       };
       await update(patch);
-      navigate('/profile');
+      navigate('/mypage');
     } finally {
       setSaving(false);
     }

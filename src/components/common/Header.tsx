@@ -80,7 +80,7 @@ export default function Header({
           {/* 프로필 아바타 */}
           <button
             type="button"
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate("/mypage")}
             className="bg-transparent border-none cursor-pointer p-0 flex items-center"
             aria-label="프로필 페이지로 이동"
           >

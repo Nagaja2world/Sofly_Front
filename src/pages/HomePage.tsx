@@ -48,7 +48,7 @@ export default function HomePage() {
   /* 로그인 상태면 프로필 페이지로 이동 */
   useEffect(() => {
     if (isLoggedIn) {
-      navigate("/profile", { replace: true });
+      navigate("/mypage", { replace: true });
     }
   }, [isLoggedIn, navigate]);
 

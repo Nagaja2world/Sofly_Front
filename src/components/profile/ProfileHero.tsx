@@ -66,7 +66,7 @@ export function ProfileHero({ user, onLogout }: Props) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
-        <SoflyButton primary onClick={() => navigate('/profile/edit')}>프로필 수정</SoflyButton>
+        <SoflyButton primary onClick={() => navigate('/mypage/edit')}>프로필 수정</SoflyButton>
         {onLogout && <SoflyButton onClick={onLogout}>로그아웃</SoflyButton>}
       </div>
     </div>

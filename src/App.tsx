@@ -19,8 +19,8 @@ const router = createBrowserRouter([
     element: <NoHeaderLayout />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: "profile", element: <Profile /> },
-      { path: "profile/edit", element: <ProfileEditPage /> },
+      { path: "mypage", element: <Profile /> },
+      { path: "mypage/edit", element: <ProfileEditPage /> },
       { path: "onboarding", element: <ProfileOnboardingPage /> },
       { path: "workspace/:id", element: <WorkspacePage /> },
     ],

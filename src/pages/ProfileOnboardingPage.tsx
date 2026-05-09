@@ -72,7 +72,7 @@ export default function ProfileOnboardingPage() {
         preferCities: draft.preferCities,
       };
       await completeOnboarding(patch);
-      navigate('/profile');
+      navigate('/mypage');
     } finally {
       setSaving(false);
     }
@@ -207,7 +207,7 @@ export default function ProfileOnboardingPage() {
         </SectionStep>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-          <SoflyButton onClick={() => navigate('/profile')}>나중에 하기</SoflyButton>
+          <SoflyButton onClick={() => navigate('/mypage')}>나중에 하기</SoflyButton>
           <SoflyButton primary onClick={handleComplete}>
             {saving ? '저장 중...' : '완료하고 시작하기 →'}
           </SoflyButton>
