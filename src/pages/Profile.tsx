@@ -3,7 +3,6 @@
 // profileCompleted=false 면 /onboarding 으로 보냅니다.
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
 import { useProfile } from '../hooks/useProfile';
 import {
   SOFLY_P as T,
@@ -44,9 +43,6 @@ export default function ProfilePage() {
 
   if (loading) return <CenterMessage>불러오는 중...</CenterMessage>;
   if (error || !profile) return <CenterMessage>프로필을 불러오지 못했어요</CenterMessage>;
-
-  // 신규 가입자 → 온보딩으로
-  if (!profile.profileCompleted) return <Navigate to="/onboarding" replace />;
 
   const stats = MOCK_STATS;
   const connections = [
