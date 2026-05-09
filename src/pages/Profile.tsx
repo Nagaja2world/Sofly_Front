@@ -2,11 +2,12 @@
 // 마이페이지 진입점.
 // profileCompleted=false 면 /onboarding 으로 보냅니다.
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../hooks/useProfile';
 import Header from '@/components/common/Header';
 import useAuthStore from '@/store/useAuthStore';
+import { getConquestStats, type ConquestStats } from '@/api/conquestApi';
 import {
   SOFLY_P as T,
   ProfilePageBackground,
@@ -20,14 +21,6 @@ import {
   BudgetCard,
 } from '../components/profile';
 
-// 더미 — 실제로는 conquest / workspaces API 에서 받아오세요.
-const MOCK_STATS = {
-  visitedCountries: 14,
-  totalCountries: 195,
-  visitedCities: 38,
-  upcomingTrips: 2,
-  pastTrips: 7,
-};
 const MOCK_UPCOMING = [
   { id: 1, title: '교토 단풍 여행', dest: '교토, 일본',
     start: '2026.11.12', end: '2026.11.18', days: 7, members: 3, color: '#f0c2bf' },
@@ -45,6 +38,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, logout, fetchUserProfile } = useAuthStore();
   const { profile, loading, error } = useProfile();
+  const [stats, setStats] = useState<ConquestStats | null>(null);
 
   // useAuthStore.user가 없으면 fetchUserProfile 호출 → Header 아바타 동기화
   useEffect(() => {
@@ -52,6 +46,11 @@ export default function ProfilePage() {
       fetchUserProfile().catch(() => {});
     }
   }, [user, fetchUserProfile]);
+
+  // conquest stats API 호출
+  useEffect(() => {
+    getConquestStats().then(setStats).catch(() => {});
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -61,7 +60,6 @@ export default function ProfilePage() {
   if (loading) return <CenterMessage>불러오는 중...</CenterMessage>;
   if (error || !profile) return <CenterMessage>프로필을 불러오지 못했어요</CenterMessage>;
 
-  const stats = MOCK_STATS;
   const connections = [
     { provider: 'google' as const, label: 'Google', email: profile.email, connected: true },
     { provider: 'kakao'  as const, label: 'Kakao',  email: null,           connected: false },
@@ -85,10 +83,10 @@ export default function ProfilePage() {
       {/* STATS ROW */}
       <section style={{ padding: '0 60px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-          <StatCard bg="#fef4cc" label="방문 국가"      big={stats.visitedCountries} sub={`/ ${stats.totalCountries}`} icon="🌍" />
-          <StatCard bg="#e3eef5" label="방문 도시"      big={stats.visitedCities}    sub="곳"   icon="📍" />
-          <StatCard bg="#e8f0e9" label="다가오는 여행"  big={stats.upcomingTrips}    sub="건"   icon="🧳" />
-          <StatCard bg="#fbe6e3" label="지난 여행"      big={stats.pastTrips}        sub="회"   icon="📔" />
+          <StatCard bg="#fef4cc" label="방문 국가"   big={stats?.visitedCountryCount ?? '-'} sub={`/ ${stats?.totalCountryCount ?? 195}`} icon="🌍" />
+          <StatCard bg="#e3eef5" label="방문 도시"   big={stats?.visitedCityCount ?? '-'}    sub="곳"  icon="📍" />
+          <StatCard bg="#e8f0e9" label="총 여행일"   big={stats?.totalTravelDays ?? '-'}     sub="일"  icon="🧳" />
+          <StatCard bg="#fbe6e3" label="총 이동거리" big={stats ? Math.round(stats.totalDistanceKm / 1000) : '-'} sub="천km" icon="✈️" />
         </div>
       </section>
 
