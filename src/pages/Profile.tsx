@@ -3,7 +3,10 @@
 // profileCompleted=false 면 /onboarding 으로 보냅니다.
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../hooks/useProfile';
+import Header from '@/components/common/Header';
+import useAuthStore from '@/store/useAuthStore';
 import {
   SOFLY_P as T,
   ProfilePageBackground,
@@ -39,7 +42,14 @@ const MOCK_PAST = [
 ];
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
+  const { logout } = useAuthStore();
   const { profile, loading, error } = useProfile();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   if (loading) return <CenterMessage>불러오는 중...</CenterMessage>;
   if (error || !profile) return <CenterMessage>프로필을 불러오지 못했어요</CenterMessage>;
@@ -53,6 +63,13 @@ export default function ProfilePage() {
 
   return (
     <ProfilePageBackground>
+      {/* HEADER */}
+      <div style={{ background: 'white', borderBottom: `1px solid #e5e7eb` }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px' }}>
+          <Header variant="login" onLogout={handleLogout} />
+        </div>
+      </div>
+
       {/* HERO */}
       <section style={{ padding: '40px 60px 30px' }}>
         <ProfileHero user={profile} />
