@@ -10,6 +10,11 @@ interface AddTravelLogCardProps {
   /** "SNS용 카드 추가" 클릭 콜백 */
   onAddSnsCard: () => void;
   /**
+   * 우상단 "×" 버튼 클릭 콜백 (실행 취소).
+   * 카드 자체를 닫고 싶을 때 호출됨. 아무것도 추가되지 않음.
+   */
+  onCancel: () => void;
+  /**
    * SNS 카드 추가 버튼을 비활성화할지 여부.
    * 한 워크스페이스에 SNS 카드는 1개만 만들 수 있으므로,
    * 이미 SNS 카드가 존재하면 부모가 true로 넘김.
@@ -39,13 +44,14 @@ interface AddTravelLogCardProps {
 export default function AddTravelLogCard({
   onAddDailyCard,
   onAddSnsCard,
+  onCancel,
   disableSnsCard = false,
   className = "",
 }: AddTravelLogCardProps) {
   return (
     <article
       className={[
-        "bg-white rounded-xl border border-gray-300",
+        "relative bg-white rounded-xl border border-gray-300",
         "w-[396px] shrink-0",
         "flex flex-col items-stretch justify-center",
         "p-4 gap-3",
@@ -53,6 +59,24 @@ export default function AddTravelLogCard({
       ].join(" ")}
       aria-label="여행 기록 카드 추가"
     >
+      {/* 우상단 닫기(×) 버튼 — 실행 취소.
+          AddOptionButton들 위에 떠있도록 absolute 배치. */}
+      <button
+        type="button"
+        onClick={onCancel}
+        aria-label="카드 추가 취소"
+        className={[
+          "absolute top-3 right-3 z-10",
+          "inline-flex items-center justify-center",
+          "w-9 h-9 rounded-full text-gray-500 bg-transparent",
+          "hover:bg-gray-100 hover:text-gray-900",
+          "transition-colors cursor-pointer border-none",
+          "text-title3 leading-none",
+        ].join(" ")}
+      >
+        ×
+      </button>
+
       {/* 일자별 카드 추가 버튼 */}
       <AddOptionButton
         label="일자별 카드 추가"

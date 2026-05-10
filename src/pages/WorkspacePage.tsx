@@ -368,13 +368,34 @@ export default function WorkspacePage() {
     // TODO(API): PATCH /workspaces/:id/travel-log/:day { ...data }
   };
 
+  /** 특정 일차의 여행 기록 카드를 삭제.
+   *  주의: 삭제 후에도 다른 카드의 dayNumber는 변경하지 않음 (3일차 삭제 → 1, 2, 4일차 그대로).
+   *  이렇게 하는 이유:
+   *    - 데이터 안정성: 다른 곳에서 dayNumber를 참조하고 있을 수 있음
+   *    - UX: 갑자기 4일차가 3일차로 바뀌면 사용자 혼란
+   *  추후 "일차 재정렬" 기능이 필요하면 별도로 추가. */
+  const handleDeleteTravelLog = (dayNumber: number) => {
+    setTravelLogs((prev) => prev.filter((log) => log.dayNumber !== dayNumber));
+    // TODO(API): DELETE /workspaces/:id/travel-log/:day
+  };
+
   /* ──────────────────────────────────────────
      이슈 #25: 여행 기록 추가 기능 관련 핸들러
      ────────────────────────────────────────── */
 
-  /** "+" 버튼 클릭 → 추가 카드 표시/숨김 토글 */
-  const handleToggleAddCard = () => {
-    setShowAddCard((prev) => !prev);
+  /** "+" 버튼 클릭 → 추가 카드 열기.
+   *  닫히는 경우는 두 가지:
+   *    1) 사용자가 옵션(일자별/SNS)을 선택할 때 (handleAddDailyCard / handleAddSnsCard)
+   *    2) 사용자가 추가 카드 우상단 "×" 버튼을 누를 때 (handleCancelAddCard) — 실행 취소
+   *  버튼은 추가 카드가 열려있는 동안 비활성화되므로 중복 호출되지 않음. */
+  const handleOpenAddCard = () => {
+    setShowAddCard(true);
+  };
+
+  /** 추가 카드 우상단 "×" 버튼 클릭 → 카드 추가 실행 취소.
+   *  아무 카드도 추가하지 않고 AddTravelLogCard만 닫음. → "+" 버튼 다시 활성화. */
+  const handleCancelAddCard = () => {
+    setShowAddCard(false);
   };
 
   /** 추가 카드에서 "일자별 카드 추가" 선택
@@ -621,15 +642,19 @@ export default function WorkspacePage() {
                   action={
                     <button
                       type="button"
-                      onClick={handleToggleAddCard}
-                      aria-label="여행 기록 카드 추가"
-                      aria-pressed={showAddCard}
+                      onClick={handleOpenAddCard}
+                      disabled={showAddCard}
+                      aria-label={
+                        showAddCard
+                          ? "여행 기록 카드 추가 (열림)"
+                          : "여행 기록 카드 추가"
+                      }
                       className={[
                         "inline-flex items-center justify-center",
-                        "w-8 h-8 rounded-full transition-colors cursor-pointer border-none",
+                        "w-8 h-8 rounded-full transition-colors border-none bg-transparent",
                         showAddCard
-                          ? "bg-gray-900 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer",
                       ].join(" ")}
                     >
                       <PlusIcon className="w-4 h-4" />
@@ -671,15 +696,18 @@ export default function WorkspacePage() {
                         onSave={(data) =>
                           handleSaveTravelLog(log.dayNumber, data)
                         }
+                        onDelete={() => handleDeleteTravelLog(log.dayNumber)}
                       />
                     </div>
                   ))}
 
-                  {/* 추가 카드: "+" 버튼 클릭 시 맨 끝에 표시 */}
+                  {/* 추가 카드: "+" 버튼 클릭 시 맨 끝에 표시.
+                      우상단 "×"를 누르면 onCancel이 호출되어 그냥 닫힘 (실행 취소). */}
                   {showAddCard && (
                     <AddTravelLogCard
                       onAddDailyCard={handleAddDailyCard}
                       onAddSnsCard={handleAddSnsCard}
+                      onCancel={handleCancelAddCard}
                       disableSnsCard={snsLog !== null}
                     />
                   )}

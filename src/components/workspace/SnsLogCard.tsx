@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import PlusIcon from "@/assets/plus.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
+import ConfirmPopup from "@/components/common/ConfirmPopup";
 
 /* ══════════════════════════════════════════
    타입
@@ -96,6 +97,9 @@ export default function SnsLogCard({
    *  주의: 이 state 값이 media 길이를 초과할 수 있으므로(저장 후 미디어 삭제 등),
    *  렌더 시점에는 항상 아래의 safeCarouselIndex를 사용해야 함. */
   const [carouselIndex, setCarouselIndex] = useState(0);
+
+  /** 삭제 확인 모달 열림 여부 */
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   /** 편집 중 새로 만든 ObjectURL 추적 (메모리 누수 방지) */
   const objectUrlsRef = useRef<string[]>([]);
@@ -241,11 +245,17 @@ export default function SnsLogCard({
             {onDelete && (
               <button
                 type="button"
-                onClick={onDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 aria-label="SNS 카드 삭제"
-                className="p-1.5 rounded text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer border-none bg-transparent inline-flex items-center justify-center text-body3"
+                className="p-1.5 rounded text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer border-none bg-transparent inline-flex items-center justify-center"
               >
-                ×
+                {/* 편집 아이콘(Edit2Icon w-4 h-4)과 동일한 시각 영역 */}
+                <span
+                  className="w-4 h-4 inline-flex items-center justify-center text-body1 leading-none"
+                  aria-hidden="true"
+                >
+                  ×
+                </span>
               </button>
             )}
           </div>
@@ -436,6 +446,25 @@ export default function SnsLogCard({
           </div>
         </>
       )}
+
+      {/* 삭제 확인 모달.
+          ⚠️ SNS 카드 삭제는 SNS 페이지의 업로드된 게시물도 함께 삭제하므로
+          반드시 사용자에게 명확히 고지해야 함. */}
+      <ConfirmPopup
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          onDelete?.();
+        }}
+        title="SNS 카드를 삭제하시겠어요?"
+        description={
+          "이 카드를 삭제하면\n SNS 페이지에 업로드된 게시물도 함께 삭제되며,\n 되돌릴 수 없습니다."
+        }
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="danger"
+      />
     </article>
   );
 }

@@ -13,6 +13,7 @@ import type { JSONContent } from "@tiptap/core";
 import PinIcon from "@/assets/pin.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
+import ConfirmPopup from "@/components/common/ConfirmPopup";
 import SunPressedIcon from "@/assets/sun_pressed.svg?react";
 import SunIcon from "@/assets/sun.svg?react";
 import CloudPressedIcon from "@/assets/cloud_pressed.svg?react";
@@ -66,6 +67,13 @@ interface TravelLogCardProps {
    * 부모는 받은 data로 state를 갱신하면 됨. (API 연결 시 PATCH)
    */
   onSave?: (data: TravelLogData) => void;
+  /**
+   * 카드 삭제 콜백.
+   * 헤더 우상단 "×" 버튼 → ConfirmPopup → "삭제" 확인 시 호출됨.
+   * 부모는 받은 즉시 해당 일차 카드를 state에서 제거하면 됨. (API 연결 시 DELETE)
+   * 미지정 시 삭제 버튼이 렌더되지 않음.
+   */
+  onDelete?: () => void;
   /** 추가 클래스 */
   className?: string;
 }
@@ -720,10 +728,14 @@ export default function TravelLogCard({
   content,
   albumPhotos,
   onSave,
+  onDelete,
   className = "",
 }: TravelLogCardProps) {
   /** 편집 모드 여부 */
   const [isEditing, setIsEditing] = useState(false);
+
+  /** 삭제 확인 모달 열림 여부 */
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   /** 편집 중 임시 데이터 — 저장 시 onSave로 위임, 취소 시 폐기.
    *  보기 모드일 때는 이 state를 사용하지 않고 props를 직접 렌더하므로,
@@ -853,20 +865,49 @@ export default function TravelLogCard({
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={enterEditMode}
-            aria-label={`${dayNumber}일차 여행 기록 편집`}
-            className={[
-              "shrink-0 p-1 rounded",
-              "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-              "transition-colors cursor-pointer",
-              "border-none bg-transparent",
-              "inline-flex items-center justify-center",
-            ].join(" ")}
-          >
-            <Edit2Icon className="w-4 h-4" />
-          </button>
+          /* 보기 모드: 편집 버튼 + 삭제 버튼 (onDelete가 있을 때만) */
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={enterEditMode}
+              aria-label={`${dayNumber}일차 여행 기록 편집`}
+              className={[
+                "p-1 rounded",
+                "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+                "transition-colors cursor-pointer",
+                "border-none bg-transparent",
+                "inline-flex items-center justify-center",
+              ].join(" ")}
+            >
+              <Edit2Icon className="w-4 h-4" />
+            </button>
+
+            {/* 삭제 × 버튼 — onDelete prop이 있을 때만 표시.
+                편집 버튼과 동일한 크기/스타일로 통일.
+                클릭 시 즉시 삭제하지 않고 ConfirmPopup으로 한 번 확인 (실수 방지). */}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                aria-label={`${dayNumber}일차 여행 기록 삭제`}
+                className={[
+                  "p-1 rounded",
+                  "text-gray-500 hover:text-red-600 hover:bg-red-50",
+                  "transition-colors cursor-pointer",
+                  "border-none bg-transparent",
+                  "inline-flex items-center justify-center",
+                ].join(" ")}
+              >
+                {/* 편집 아이콘과 같은 16x16 시각 영역 */}
+                <span
+                  className="w-4 h-4 inline-flex items-center justify-center text-body1 leading-none"
+                  aria-hidden="true"
+                >
+                  ×
+                </span>
+              </button>
+            )}
+          </div>
         )}
       </header>
 
@@ -969,6 +1010,24 @@ export default function TravelLogCard({
           </div>
         )}
       </div>
+
+      {/* 삭제 확인 모달.
+          헤더의 "×" 버튼 클릭 시 띄워서 사용자에게 한 번 더 확인. */}
+      <ConfirmPopup
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          onDelete?.();
+        }}
+        title={`${dayNumber}일차 카드를 삭제하시겠어요?`}
+        description={
+          "삭제하면 해당 일차의 여행 기록과\n첨부된 사진이 모두 사라지며, 되돌릴 수 없습니다."
+        }
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="danger"
+      />
     </article>
   );
 }
