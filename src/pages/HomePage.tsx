@@ -66,6 +66,10 @@ export default function HomePage() {
     window.location.href = OAUTH_URLS.google;
   };
 
+  const handleNaverLogin = () => {
+    window.location.href = OAUTH_URLS.naver;
+  };
+
   const handleLogout = () => {
     logout();
     navigate("/");
@@ -108,6 +112,7 @@ export default function HomePage() {
               variant={isLoggedIn ? "login" : "default"}
               onKakaoLogin={handleKakaoLogin}
               onGoogleLogin={handleGoogleLogin}
+              onNaverLogin={handleNaverLogin}
               onLogout={handleLogout}
             />
           </div>

@@ -7,6 +7,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL;
 export const OAUTH_URLS = {
   kakao: `${API_BASE}/oauth2/authorization/kakao`,
   google: `${API_BASE}/oauth2/authorization/google`,
+  naver: `${API_BASE}/oauth2/authorization/naver`,
 } as const;
 
 /* ── 유저 프로필 타입 (GET /api/users/me/profile 응답 기준) ── */

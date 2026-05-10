@@ -15,6 +15,8 @@ interface LoginPopupProps {
   onKakaoLogin?: () => void;
   /** 구글 로그인 클릭 */
   onGoogleLogin?: () => void;
+  /** 네이버 로그인 클릭 */
+  onNaverLogin?: () => void;
 }
 
 /**
@@ -28,6 +30,7 @@ export default function LoginPopup({
   triggerRef,
   onKakaoLogin,
   onGoogleLogin,
+  onNaverLogin,
 }: LoginPopupProps) {
   const ref = useRef<HTMLDivElement>(null);
   const POPUP_WIDTH = 380;
@@ -139,6 +142,24 @@ export default function LoginPopup({
               className="w-full bg-transparent border-none p-0 cursor-pointer hover:opacity-90 transition-opacity"
             >
               <GoogleLogin className="w-full h-auto" />
+            </button>
+
+            <button
+              type="button"
+              onClick={onNaverLogin}
+              className="w-full flex items-center justify-center gap-2 cursor-pointer hover:opacity-90 transition-opacity rounded-xl py-3"
+              style={{ background: '#03C75A', border: 'none' }}
+            >
+              <span style={{
+                background: 'white', color: '#03C75A',
+                fontWeight: 900, fontSize: 16,
+                width: 24, height: 24, borderRadius: 4,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>N</span>
+              <span className="font-pretendard font-semibold text-white" style={{ fontSize: 15 }}>
+                네이버로 시작하기
+              </span>
             </button>
           </div>
 

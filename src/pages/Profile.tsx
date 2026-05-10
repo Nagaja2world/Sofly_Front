@@ -14,7 +14,6 @@ import {
   ProfileHero,
   StatCard,
   CompletenessCard,
-  ConnectionsCard,
   UpcomingTripsCard,
   PastTripsCard,
   ThemeTagCloud,
@@ -60,11 +59,6 @@ export default function ProfilePage() {
   if (loading) return <CenterMessage>불러오는 중...</CenterMessage>;
   if (error || !profile) return <CenterMessage>프로필을 불러오지 못했어요</CenterMessage>;
 
-  const connections = [
-    { provider: 'google' as const, label: 'Google', email: profile.email, connected: true },
-    { provider: 'kakao'  as const, label: 'Kakao',  email: null,           connected: false },
-    { provider: 'apple'  as const, label: 'Apple',  email: null,           connected: false },
-  ];
 
   return (
     <ProfilePageBackground>
@@ -93,8 +87,9 @@ export default function ProfilePage() {
       {/* MAIN GRID */}
       <section style={{ padding: '0 60px 60px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <CompletenessCard user={profile} />
-          <ConnectionsCard  connections={connections} />
+          <div style={{ gridColumn: 'span 2' }}>
+            <CompletenessCard user={profile} />
+          </div>
           <UpcomingTripsCard trips={MOCK_UPCOMING} />
           <PastTripsCard     trips={MOCK_PAST} />
           <ThemeTagCloud     selected={profile.preferThemes} />

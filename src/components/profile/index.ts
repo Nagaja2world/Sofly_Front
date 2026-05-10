@@ -2,7 +2,6 @@
 // barrel export
 
 export * from './tokens';
-export * from './illustrations';
 export * from './ui';
 export * from './DualRange';
 export * from './ProfileHero';
