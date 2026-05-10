@@ -139,8 +139,24 @@ export default function SnsLogCard({
       caption: draft.caption?.trim() || undefined,
       media: draft.media,
     };
+
+    /* ── 메모리 누수 방지 ──
+     *  편집 중 추가했지만 저장 시 draft.media에서 빠진 ObjectURL은
+     *  더 이상 어디서도 사용하지 않으므로 즉시 revoke.
+     *  저장된 media에 남아있는 URL은 보기 모드에서 계속 표시되어야 하므로,
+     *  ref에 그대로 추적해두고 컴포넌트 언마운트 시 cleanup에서 해제됨.
+     *  (단순히 objectUrlsRef.current = []로 비우면 추적이 끊겨 누수 발생) */
+    const stillInUse = new Set(draft.media.map((m) => m.url));
+    const toRevoke = objectUrlsRef.current.filter(
+      (url) => !stillInUse.has(url),
+    );
+    toRevoke.forEach((url) => URL.revokeObjectURL(url));
+    /* 사용 중인 URL만 남겨서 언마운트 시 정리되도록 추적 유지 */
+    objectUrlsRef.current = objectUrlsRef.current.filter((url) =>
+      stillInUse.has(url),
+    );
+
     onSave?.(cleaned);
-    objectUrlsRef.current = [];
     setIsEditing(false);
   };
 
@@ -161,7 +177,10 @@ export default function SnsLogCard({
 
       const isVideo = file.type.startsWith("video/");
       newMedia.push({
-        id: `m-${Date.now()}-${i}`,
+        /* RFC 4122 UUID v4로 충돌 가능성 사실상 0.
+         * 주의: crypto.randomUUID는 secure context (HTTPS 또는 localhost)에서만 동작.
+         * Vite 개발 서버(localhost) 및 프로덕션 HTTPS 환경에서 모두 OK. */
+        id: crypto.randomUUID(),
         type: isVideo ? "video" : "image",
         url,
       });
@@ -459,7 +478,7 @@ export default function SnsLogCard({
         }}
         title="SNS 카드를 삭제하시겠어요?"
         description={
-          "이 카드를 삭제하면\n SNS 페이지에 업로드된 게시물도 함께 삭제되며,\n 되돌릴 수 없습니다."
+          "이 카드를 삭제하면 SNS 페이지에 업로드된 게시물도\n함께 삭제되며, 되돌릴 수 없습니다."
         }
         confirmLabel="삭제"
         cancelLabel="취소"
