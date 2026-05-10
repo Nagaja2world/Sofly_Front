@@ -16,6 +16,9 @@ import TravelLogCard, {
   type WeatherType,
   type TravelLogData,
 } from "@/components/workspace/TravelLogCard";
+import SnsLogCard, { type SnsLogData } from "@/components/workspace/SnsLogCard";
+import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
+import PlusIcon from "@/assets/plus.svg?react";
 import type { JSONContent } from "@tiptap/core";
 import ChatPanel, {
   type ChatMessageData,
@@ -259,11 +262,25 @@ const MOCK_INITIAL_MESSAGES: ChatMessageData[] = [
    섹션 헤더 (항공 일정 / 여행 일정 / 여행 기록)
    ══════════════════════════════════════════ */
 
-function SectionHeader({ title }: { title: string }) {
+/**
+ * 섹션 헤더.
+ * `action` prop을 통해 헤더 제목 바로 오른쪽에 버튼 등을 추가할 수 있음.
+ * (예: "여행 기록" 옆 "+" 버튼)
+ */
+function SectionHeader({
+  title,
+  action,
+}: {
+  title: string;
+  action?: React.ReactNode;
+}) {
   return (
-    <h2 className="font-pretendard text-title2 font-semibold text-gray-900 m-0">
-      {title}
-    </h2>
+    <div className="flex items-center gap-2">
+      <h2 className="font-pretendard text-title2 font-semibold text-gray-900 m-0">
+        {title}
+      </h2>
+      {action}
+    </div>
   );
 }
 
@@ -322,6 +339,17 @@ export default function WorkspacePage() {
     useState<ItineraryDay[]>(MOCK_ITINERARY_DAYS);
   const [travelLogs, setTravelLogs] = useState<TravelLog[]>(MOCK_TRAVEL_LOGS);
 
+  /* ── SNS 카드 상태 ──
+   * 워크스페이스당 1개. null이면 아직 만들어지지 않은 상태.
+   * 항상 여행 기록 배열의 맨 왼쪽(첫 번째)에 렌더됨. */
+  const [snsLog, setSnsLog] = useState<SnsLogData | null>(null);
+
+  /* ── "추가 카드" 표시 토글 ──
+   * "여행 기록" 섹션 헤더 옆 "+" 버튼 클릭 시 토글.
+   * true면 카드 배열 맨 끝에 AddTravelLogCard 렌더 (선택 카드).
+   * 사용자가 옵션을 선택하면 실제 카드 추가 후 자동으로 false로 닫힘. */
+  const [showAddCard, setShowAddCard] = useState(false);
+
   /** 특정 일차의 일정 행을 갱신 */
   const handleSaveItineraryDay = (dayNumber: number, rows: ItineraryRow[]) => {
     setItineraryDays((prev) =>
@@ -338,6 +366,88 @@ export default function WorkspacePage() {
       ),
     );
     // TODO(API): PATCH /workspaces/:id/travel-log/:day { ...data }
+  };
+
+  /** 특정 일차의 여행 기록 카드를 삭제.
+   *  주의: 삭제 후에도 다른 카드의 dayNumber는 변경하지 않음 (3일차 삭제 → 1, 2, 4일차 그대로).
+   *  이렇게 하는 이유:
+   *    - 데이터 안정성: 다른 곳에서 dayNumber를 참조하고 있을 수 있음
+   *    - UX: 갑자기 4일차가 3일차로 바뀌면 사용자 혼란
+   *  추후 "일차 재정렬" 기능이 필요하면 별도로 추가. */
+  const handleDeleteTravelLog = (dayNumber: number) => {
+    setTravelLogs((prev) => prev.filter((log) => log.dayNumber !== dayNumber));
+    // TODO(API): DELETE /workspaces/:id/travel-log/:day
+  };
+
+  /* ──────────────────────────────────────────
+     이슈 #25: 여행 기록 추가 기능 관련 핸들러
+     ────────────────────────────────────────── */
+
+  /** "+" 버튼 클릭 → 추가 카드 열기.
+   *  닫히는 경우는 두 가지:
+   *    1) 사용자가 옵션(일자별/SNS)을 선택할 때 (handleAddDailyCard / handleAddSnsCard)
+   *    2) 사용자가 추가 카드 우상단 "×" 버튼을 누를 때 (handleCancelAddCard) — 실행 취소
+   *  버튼은 추가 카드가 열려있는 동안 비활성화되므로 중복 호출되지 않음. */
+  const handleOpenAddCard = () => {
+    setShowAddCard(true);
+  };
+
+  /** 추가 카드 우상단 "×" 버튼 클릭 → 카드 추가 실행 취소.
+   *  아무 카드도 추가하지 않고 AddTravelLogCard만 닫음. → "+" 버튼 다시 활성화. */
+  const handleCancelAddCard = () => {
+    setShowAddCard(false);
+  };
+
+  /** 추가 카드에서 "일자별 카드 추가" 선택
+   *  → travelLogs 배열 끝에 빈 일자별 카드 추가 (dayNumber는 자동 증가)
+   *  → 추가 카드는 닫힘 */
+  const handleAddDailyCard = () => {
+    setTravelLogs((prev) => {
+      const nextDayNumber =
+        prev.length > 0 ? Math.max(...prev.map((l) => l.dayNumber)) + 1 : 1;
+      return [
+        ...prev,
+        {
+          dayNumber: nextDayNumber,
+          oneLineSummary: undefined,
+          weather: undefined,
+          content: undefined,
+          albumPhotos: [],
+        },
+      ];
+    });
+    setShowAddCard(false);
+    // TODO(API): POST /workspaces/:id/travel-log { dayNumber: nextDayNumber }
+  };
+
+  /** 추가 카드에서 "SNS용 카드 추가" 선택
+   *  → SNS 카드 1개 생성 (이미 있으면 무시 — UI에서 비활성화로 막음)
+   *  → 추가 카드는 닫힘 */
+  const handleAddSnsCard = () => {
+    if (snsLog !== null) return;
+    setSnsLog({ caption: undefined, media: [] });
+    setShowAddCard(false);
+    // TODO(API): POST /workspaces/:id/sns-log
+  };
+
+  /** SNS 카드 편집 저장 */
+  const handleSaveSnsLog = (data: SnsLogData) => {
+    setSnsLog(data);
+    // TODO(API): PATCH /workspaces/:id/sns-log { ...data }
+  };
+
+  /** SNS 카드 삭제 */
+  const handleDeleteSnsLog = () => {
+    setSnsLog(null);
+    // TODO(API): DELETE /workspaces/:id/sns-log
+  };
+
+  /** SNS 카드의 "업로드" 버튼 클릭 → SNS 페이지에 게시
+   *  TODO: 라우터에 SNS 피드 페이지 추가 후 navigate + 게시물 전송 로직 구현 */
+  const handleUploadSnsLog = (data: SnsLogData) => {
+    // TODO(API/route): POST /sns/posts { ...data } → 성공 시 navigate("/sns")
+    console.log("[Workspace] upload to SNS:", data);
+    alert("SNS 페이지에 업로드되었습니다. (TODO: 실제 게시 로직 구현)");
   };
 
   /** 특정 일차의 지도 보기
@@ -521,10 +631,37 @@ export default function WorkspacePage() {
                 </div>
               </section>
 
-              {/* ── 여행 기록 ── */}
+              {/* ── 여행 기록 ──
+                  이슈 #25: 섹션 헤더 옆 "+" 버튼으로 카드 추가 가능.
+                  - SNS 카드: 항상 맨 왼쪽 (있을 때만 렌더)
+                  - 일자별 카드: 1일차, 2일차, ... 순으로 정렬 (자동 dayNumber)
+                  - "+" 클릭 시 맨 끝(맨 오른쪽)에 AddTravelLogCard 표시 */}
               <section className="flex flex-col gap-3">
-                <SectionHeader title="여행 기록" />
-                {/* 가로 스크롤 컨테이너: 카드 폭이 max-w-[420px]라 좁은 화면에선 1~2개,
+                <SectionHeader
+                  title="여행 기록"
+                  action={
+                    <button
+                      type="button"
+                      onClick={handleOpenAddCard}
+                      disabled={showAddCard}
+                      aria-label={
+                        showAddCard
+                          ? "여행 기록 카드 추가 (열림)"
+                          : "여행 기록 카드 추가"
+                      }
+                      className={[
+                        "inline-flex items-center justify-center",
+                        "w-8 h-8 rounded-full transition-colors border-none bg-transparent",
+                        showAddCard
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer",
+                      ].join(" ")}
+                    >
+                      <PlusIcon className="w-4 h-4" />
+                    </button>
+                  }
+                />
+                {/* 가로 스크롤 컨테이너: 카드 폭이 396px이라 좁은 화면에선 1~2개,
                     넓은 화면에선 3개 정도 자연스럽게 보임 */}
                 <div
                   className={[
@@ -534,6 +671,20 @@ export default function WorkspacePage() {
                     "[&::-webkit-scrollbar-thumb]:rounded",
                   ].join(" ")}
                 >
+                  {/* SNS 카드: 항상 맨 왼쪽 (이슈 #25 명시) */}
+                  {snsLog && (
+                    <div className="shrink-0">
+                      <SnsLogCard
+                        caption={snsLog.caption}
+                        media={snsLog.media}
+                        onSave={handleSaveSnsLog}
+                        onDelete={handleDeleteSnsLog}
+                        onUpload={handleUploadSnsLog}
+                      />
+                    </div>
+                  )}
+
+                  {/* 일자별 카드들 */}
                   {travelLogs.map((log) => (
                     <div key={log.dayNumber} className="shrink-0">
                       <TravelLogCard
@@ -545,9 +696,21 @@ export default function WorkspacePage() {
                         onSave={(data) =>
                           handleSaveTravelLog(log.dayNumber, data)
                         }
+                        onDelete={() => handleDeleteTravelLog(log.dayNumber)}
                       />
                     </div>
                   ))}
+
+                  {/* 추가 카드: "+" 버튼 클릭 시 맨 끝에 표시.
+                      우상단 "×"를 누르면 onCancel이 호출되어 그냥 닫힘 (실행 취소). */}
+                  {showAddCard && (
+                    <AddTravelLogCard
+                      onAddDailyCard={handleAddDailyCard}
+                      onAddSnsCard={handleAddSnsCard}
+                      onCancel={handleCancelAddCard}
+                      disableSnsCard={snsLog !== null}
+                    />
+                  )}
                 </div>
               </section>
             </main>
