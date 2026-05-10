@@ -12,6 +12,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import type { JSONContent } from "@tiptap/core";
 import PinIcon from "@/assets/pin.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
+import Edit2Icon from "@/assets/edit2.svg?react";
 import SunPressedIcon from "@/assets/sun_pressed.svg?react";
 import SunIcon from "@/assets/sun.svg?react";
 import CloudPressedIcon from "@/assets/cloud_pressed.svg?react";
@@ -61,7 +62,7 @@ interface TravelLogCardProps {
   albumPhotos?: string[];
   /**
    * 편집 저장 콜백.
-   * "더보기" → 편집 모드 → "저장" 누르면 호출됨.
+   * 편집 아이콘 → 편집 모드 → "저장" 누르면 호출됨.
    * 부모는 받은 data로 state를 갱신하면 됨. (API 연결 시 PATCH)
    */
   onSave?: (data: TravelLogData) => void;
@@ -517,21 +518,37 @@ function BodyView({ content }: { content?: JSONContent }) {
   if (isContentEmpty(content)) return null;
 
   return (
-    <EditorContent
-      editor={editor}
+    /* h-full로 부모 본문 섹션의 높이를 꽉 채움 → 카드 하단의 빈 공간 제거.
+       카드 자체가 h-[760px] 고정이고 다른 섹션이 shrink-0이므로,
+       이 영역은 약 400px 정도가 됨. 본문이 그보다 길면 안에서 세로 스크롤.
+       카드 전체가 길어지면 가로 스크롤 컨테이너에서 줄이 어긋나 보이므로
+       본문 영역 안쪽에서만 스크롤 처리. */
+    <div
       className={[
-        // 본문 prose 스타일 — Tailwind typography를 안 쓰므로 직접 지정
-        "font-pretendard text-body3 text-gray-700 leading-relaxed",
-        // ProseMirror 기본 outline 제거 (보기 모드라 어차피 포커스 안 됨)
-        "[&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-0",
-        // 이미지 스타일
-        "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
-        // 문단 간격
-        "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-        // break-keep으로 한글 줄바꿈 자연스럽게
-        "break-keep",
+        "h-full overflow-y-auto pr-1",
+        // 스크롤바 스타일 (가로 스크롤 컨테이너와 결을 맞춤)
+        "[&::-webkit-scrollbar]:w-1.5",
+        "[&::-webkit-scrollbar-thumb]:bg-gray-300",
+        "[&::-webkit-scrollbar-thumb]:rounded",
+        "[&::-webkit-scrollbar-track]:bg-transparent",
       ].join(" ")}
-    />
+    >
+      <EditorContent
+        editor={editor}
+        className={[
+          // 본문 prose 스타일 — Tailwind typography를 안 쓰므로 직접 지정
+          "font-pretendard text-body3 text-gray-700 leading-relaxed",
+          // ProseMirror 기본 outline 제거 (보기 모드라 어차피 포커스 안 됨)
+          "[&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-0",
+          // 이미지 스타일
+          "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
+          // 문단 간격
+          "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+          // break-keep으로 한글 줄바꿈 자연스럽게
+          "break-keep",
+        ].join(" ")}
+      />
+    </div>
   );
 }
 
@@ -618,22 +635,39 @@ function BodyEditor({
   }
 
   return (
-    <div className="border border-gray-300 rounded-md bg-white overflow-hidden focus-within:border-gray-700 transition-colors">
-      <EditorToolbar editor={editor} onPickImage={handlePickImage} />
-      <EditorContent
-        editor={editor}
+    /* h-full + flex column으로 외곽이 부모 본문 섹션 높이를 꽉 채우도록.
+       툴바는 위쪽에 고정, 입력 영역은 flex-1로 남는 공간을 모두 차지하며
+       그 안에서 자체적으로 세로 스크롤. */
+    <div className="h-full flex flex-col border border-gray-300 rounded-md bg-white overflow-hidden focus-within:border-gray-700 transition-colors">
+      <div className="shrink-0">
+        <EditorToolbar editor={editor} onPickImage={handlePickImage} />
+      </div>
+      {/* 입력 영역 — flex-1로 남는 공간 차지, min-h-0으로 flex 안에서 스크롤 정상 동작 */}
+      <div
         className={[
-          // 이미지 / 문단 스타일 (보기 모드와 동일하게)
-          "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
-          "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-          // Placeholder 스타일 — Tiptap Placeholder extension의 관용
-          "[&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]",
-          "[&_.is-editor-empty:first-child]:before:text-gray-500",
-          "[&_.is-editor-empty:first-child]:before:float-left",
-          "[&_.is-editor-empty:first-child]:before:h-0",
-          "[&_.is-editor-empty:first-child]:before:pointer-events-none",
+          "flex-1 min-h-0 overflow-y-auto",
+          // 스크롤바 스타일
+          "[&::-webkit-scrollbar]:w-1.5",
+          "[&::-webkit-scrollbar-thumb]:bg-gray-300",
+          "[&::-webkit-scrollbar-thumb]:rounded",
+          "[&::-webkit-scrollbar-track]:bg-transparent",
         ].join(" ")}
-      />
+      >
+        <EditorContent
+          editor={editor}
+          className={[
+            // 이미지 / 문단 스타일 (보기 모드와 동일하게)
+            "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
+            "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+            // Placeholder 스타일 — Tiptap Placeholder extension의 관용
+            "[&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]",
+            "[&_.is-editor-empty:first-child]:before:text-gray-500",
+            "[&_.is-editor-empty:first-child]:before:float-left",
+            "[&_.is-editor-empty:first-child]:before:h-0",
+            "[&_.is-editor-empty:first-child]:before:pointer-events-none",
+          ].join(" ")}
+        />
+      </div>
       <input
         ref={fileInputRef}
         type="file"
@@ -656,15 +690,17 @@ function BodyEditor({
  * 두 가지 모드:
  *
  * 1) 보기 모드 (기본)
- *    - 헤더: 📍 N일차 + "더보기" 버튼
+ *    - 헤더: 📍 N일차 + 편집 버튼(edit2 아이콘)
  *    - 한 줄 여행 / 날씨 아이콘 4개
  *    - 본문 (Tiptap 읽기 전용 렌더 — 텍스트 + 이미지가 자유롭게 섞임)
+ *      → 본문 섹션이 카드 내 남는 공간을 모두 차지. 본문이 길면 그 안에서 세로 스크롤.
  *    - 앨범 + 사진 추가 버튼
  *
- * 2) 편집 모드 ("더보기" 클릭 시 진입)
+ * 2) 편집 모드 (편집 아이콘 클릭 시 진입)
  *    - 헤더: 📍 N일차 + 취소 / 저장 버튼
  *    - 한 줄 여행: 한 줄 input + 날씨 4개 토글
  *    - 본문: Tiptap 에디터 (굵게/기울임/이미지 삽입 툴바)
+ *      → 에디터가 본문 섹션을 꽉 채움. 툴바는 위에 고정, 입력 영역만 안쪽에서 세로 스크롤.
  *    - 앨범: 앨범 사진 업로드/삭제
  *    - 저장 시 onSave(data) 호출 → 부모 state 갱신 (API 연결 시 PATCH)
  *    - 취소 시 진입 시점 데이터로 되돌림
@@ -772,13 +808,16 @@ export default function TravelLogCard({
         // 카드 폭 396px 고정. max-w가 아닌 w로 둬야 편집 모드(input 위주)에서
         // 자식 min-content가 작아져 카드가 쪼그라드는 현상을 막을 수 있음.
         "w-[396px] min-w-0",
+        // 카드 세로 길이 고정 — 본문 길이와 무관하게 모든 카드가 동일 높이로 정렬됨.
+        // 본문 섹션에 flex-1을 줘서 짧은 본문도 카드 하단까지 영역을 채우도록 함.
+        "h-[760px]",
         "transition-shadow duration-200",
         isEditing ? "shadow-md" : "",
         className,
       ].join(" ")}
     >
       {/* ── 1. 헤더 ── */}
-      <header className="flex items-center justify-between gap-2 px-4 py-3">
+      <header className="shrink-0 flex items-center justify-between gap-2 px-4 py-3">
         <div className="flex items-center gap-2 min-w-0">
           <PinIcon className="w-6 h-6 shrink-0" />
           <span className="font-pretendard text-body2 font-semibold text-gray-900 truncate">
@@ -817,14 +856,16 @@ export default function TravelLogCard({
           <button
             type="button"
             onClick={enterEditMode}
+            aria-label={`${dayNumber}일차 여행 기록 편집`}
             className={[
-              "shrink-0 px-3 py-1.5 rounded-md",
-              "border border-gray-300 bg-white",
-              "font-pretendard text-body4 text-gray-700",
-              "hover:border-gray-700 transition-colors cursor-pointer",
+              "shrink-0 p-1 rounded",
+              "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+              "transition-colors cursor-pointer",
+              "border-none bg-transparent",
+              "inline-flex items-center justify-center",
             ].join(" ")}
           >
-            더보기
+            <Edit2Icon className="w-4 h-4" />
           </button>
         )}
       </header>
@@ -832,7 +873,7 @@ export default function TravelLogCard({
       <DashedDivider />
 
       {/* ── 2. 한 줄 여행 ── */}
-      <div className="px-4 py-6 flex flex-col gap-4 min-w-0">
+      <div className="shrink-0 px-4 py-6 flex flex-col gap-4 min-w-0">
         <SectionLabel
           label="한줄 여행"
           rightSlot={
@@ -864,28 +905,36 @@ export default function TravelLogCard({
 
       <DashedDivider />
 
-      {/* ── 3. 본문 (Tiptap) ── */}
-      <div className="px-4 py-6 flex flex-col gap-2 min-w-0">
+      {/* ── 3. 본문 (Tiptap) ──
+          flex-1로 남는 공간을 모두 차지 → 본문이 짧아도 앨범이 카드 하단으로 밀림.
+          min-h-0은 flex 컨테이너에서 자식이 max-height 안에서 스크롤되도록 하는 안전장치. */}
+      <div className="flex-1 min-h-0 px-4 py-6 flex flex-col gap-2 min-w-0">
         {isEditing ? (
           <>
-            <span className="font-pretendard text-body4 font-medium text-gray-500">
+            <span className="font-pretendard text-body4 font-medium text-gray-500 shrink-0">
               본문
             </span>
-            <BodyEditor
-              initialContent={draft.content}
-              onChange={(json) => setDraft((d) => ({ ...d, content: json }))}
-              registerObjectUrl={registerObjectUrl}
-            />
+            {/* 에디터 wrapper: 라벨 아래 남는 공간을 모두 차지 → 에디터가 섹션을 꽉 채움 */}
+            <div className="flex-1 min-h-0">
+              <BodyEditor
+                initialContent={draft.content}
+                onChange={(json) => setDraft((d) => ({ ...d, content: json }))}
+                registerObjectUrl={registerObjectUrl}
+              />
+            </div>
           </>
         ) : (
-          <BodyView content={content} />
+          /* 보기 wrapper: 섹션의 남는 공간을 모두 차지 → 본문 영역이 카드 하단까지 채움 */
+          <div className="flex-1 min-h-0">
+            <BodyView content={content} />
+          </div>
         )}
       </div>
 
       <DashedDivider />
 
       {/* ── 4. 앨범 ── */}
-      <div className="px-4 py-6 flex flex-col gap-4 min-w-0">
+      <div className="shrink-0 px-4 py-6 flex flex-col gap-4 min-w-0">
         <SectionLabel label="앨범" />
 
         {isEditing ? (
