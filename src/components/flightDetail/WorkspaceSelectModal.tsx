@@ -20,7 +20,14 @@ export default function WorkspaceSelectModal({
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [savingId, setSavingId] = useState<number | null>(null);
+
+  /* 선택만 된 상태 (저장 전) */
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  /* 실제 저장 진행 중 */
+  const [isSaving, setIsSaving] = useState(false);
+
+  /* 저장 완료된 워크스페이스 id */
   const [savedId, setSavedId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -30,19 +37,19 @@ export default function WorkspaceSelectModal({
       .finally(() => setIsLoading(false));
   }, []);
 
-  const handleSelect = async (workspace: Workspace) => {
-    if (savingId !== null) return;
-    setSavingId(workspace.id);
+  const handleSave = async () => {
+    if (selectedId === null || isSaving) return;
+    setIsSaving(true);
     setError(null);
-
     try {
       await Promise.all(
-        flights.map((payload) => saveFlightToWorkspace(workspace.id, payload)),
+        flights.map((payload) => saveFlightToWorkspace(selectedId, payload)),
       );
-      setSavedId(workspace.id);
+      setSavedId(selectedId);
     } catch {
       setError("저장 중 오류가 발생했어요. 다시 시도해 주세요.");
-      setSavingId(null);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -94,23 +101,28 @@ export default function WorkspaceSelectModal({
             </p>
           ) : (
             workspaces.map((ws) => {
-              const isSaving = savingId === ws.id && savedId === null;
+              const isSelected = selectedId === ws.id;
               const isSaved = savedId === ws.id;
 
               return (
                 <button
                   key={ws.id}
                   type="button"
-                  disabled={savingId !== null}
-                  onClick={() => handleSelect(ws)}
+                  disabled={savedId !== null}
+                  onClick={() => {
+                    if (savedId !== null) return;
+                    setSelectedId(ws.id);
+                  }}
                   className={[
                     "flex items-center gap-4 w-full px-4 py-3 rounded-xl",
-                    "border transition-all duration-150 cursor-pointer text-left",
+                    "border transition-all duration-150 text-left",
                     "bg-transparent",
                     isSaved
-                      ? "border-primary bg-primary/5"
-                      : "border-gray-200 hover:border-gray-400 hover:bg-gray-50",
-                    savingId !== null && !isSaving ? "opacity-50 cursor-not-allowed" : "",
+                      ? "border-primary bg-primary/5 cursor-default"
+                      : isSelected
+                        ? "border-primary bg-primary/5 cursor-pointer"
+                        : "border-gray-200 hover:border-gray-400 hover:bg-gray-50 cursor-pointer",
+                    savedId !== null && !isSaved ? "opacity-50 cursor-not-allowed" : "",
                   ].join(" ")}
                 >
                   {/* 커버 이미지 */}
@@ -133,11 +145,9 @@ export default function WorkspaceSelectModal({
                     </p>
                   </div>
 
-                  {/* 상태 표시 */}
+                  {/* 선택 / 완료 표시 */}
                   <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
-                    {isSaving ? (
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
-                    ) : isSaved ? (
+                    {isSaved ? (
                       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <circle cx="10" cy="10" r="10" fill="#F5B800" />
                         <path
@@ -148,7 +158,16 @@ export default function WorkspaceSelectModal({
                           strokeLinejoin="round"
                         />
                       </svg>
-                    ) : null}
+                    ) : isSelected ? (
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <circle cx="10" cy="10" r="9" stroke="#F5B800" strokeWidth="2" />
+                        <circle cx="10" cy="10" r="5" fill="#F5B800" />
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <circle cx="10" cy="10" r="9" stroke="#D1D5DB" strokeWidth="2" />
+                      </svg>
+                    )}
                   </div>
                 </button>
               );
@@ -164,8 +183,8 @@ export default function WorkspaceSelectModal({
         </div>
 
         {/* 푸터 */}
-        {savedId !== null && (
-          <div className="px-6 pb-6 pt-2">
+        <div className="px-6 pb-6 pt-2">
+          {savedId !== null ? (
             <button
               type="button"
               onClick={onClose}
@@ -177,8 +196,23 @@ export default function WorkspaceSelectModal({
             >
               확인
             </button>
-          </div>
-        )}
+          ) : (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={selectedId === null || isSaving}
+              className={[
+                "w-full py-3 rounded-xl font-pretendard text-body2 font-semibold",
+                "border-none transition-all",
+                selectedId === null
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-primary text-gray-900 cursor-pointer hover:brightness-95",
+              ].join(" ")}
+            >
+              {isSaving ? "저장 중..." : "저장하기"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

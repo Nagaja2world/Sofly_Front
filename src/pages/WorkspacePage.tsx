@@ -814,35 +814,36 @@ export default function WorkspacePage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {/* 가는편(OUTBOUND) 왼쪽, 오는편(RETURN) 오른쪽 */}
-                    {[
-                      flights.find((f) => f.direction === "가는편"),
-                      flights.find((f) => f.direction === "오는편"),
-                    ]
-                      .filter(Boolean)
-                      .map((f, i) => (
-                        <FlightInfoCard
-                          key={i}
-                          direction={f!.direction}
-                          date={f!.date}
-                          legs={f!.legs}
-                          bookingUrl={f!.bookingUrl}
-                          bookingNumber={f!.bookingNumber}
-                        />
-                      ))}
-                    {flights
-                      .filter((f) => f.direction !== "가는편" && f.direction !== "오는편")
-                      .map((f, i) => (
-                        <FlightInfoCard
-                          key={`extra-${i}`}
-                          direction={f.direction}
-                          date={f.date}
-                          legs={f.legs}
-                          bookingUrl={f.bookingUrl}
-                          bookingNumber={f.bookingNumber}
-                        />
-                      ))}
+                  /* 가는편 전체 왼쪽 컬럼, 오는편 전체 오른쪽 컬럼 */
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+                    <div className="flex flex-col gap-3">
+                      {flights
+                        .filter((f) => f.direction === "가는편")
+                        .map((f, i) => (
+                          <FlightInfoCard
+                            key={`out-${i}`}
+                            direction={f.direction}
+                            date={f.date}
+                            legs={f.legs}
+                            bookingUrl={f.bookingUrl}
+                            bookingNumber={f.bookingNumber}
+                          />
+                        ))}
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {flights
+                        .filter((f) => f.direction === "오는편")
+                        .map((f, i) => (
+                          <FlightInfoCard
+                            key={`ret-${i}`}
+                            direction={f.direction}
+                            date={f.date}
+                            legs={f.legs}
+                            bookingUrl={f.bookingUrl}
+                            bookingNumber={f.bookingNumber}
+                          />
+                        ))}
+                    </div>
                   </div>
                 )}
               </section>
