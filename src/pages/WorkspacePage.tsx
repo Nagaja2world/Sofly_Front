@@ -1,11 +1,23 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  fetchWorkspaceFlights,
+  fetchWorkspaceById,
+  fetchWorkspaceMembers,
+  updateWorkspace,
+  deleteWorkspace,
+  deleteFlightFromWorkspace,
+  leaveWorkspace,
+  inviteMember,
+  type Workspace,
+  type WorkspaceFlight,
+  type WorkspaceMemberApi,
+} from "@/api/workspaceApi";
+import { type UserSearchResult } from "@/api/userApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
-import MemberSidebar, {
-  type WorkspaceMember,
-} from "@/components/workspace/MemberSidebar";
+import MemberSidebar from "@/components/workspace/MemberSidebar";
 import FlightInfoCard, {
   type FlightLegInfo,
 } from "@/components/workspace/FlightInfoCard";
@@ -18,6 +30,9 @@ import TravelLogCard, {
 } from "@/components/workspace/TravelLogCard";
 import SnsLogCard, { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
+import ConfirmPopup from "@/components/common/ConfirmPopup";
+import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
+import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import PlusIcon from "@/assets/plus.svg?react";
 import type { JSONContent } from "@tiptap/core";
 import ChatPanel, {
@@ -29,6 +44,7 @@ import ChatPanel, {
    ══════════════════════════════════════════ */
 
 interface FlightInfo {
+  id: number;
   direction: "가는편" | "오는편";
   date: string;
   legs: FlightLegInfo[];
@@ -51,75 +67,61 @@ interface TravelLog {
 }
 
 /* ══════════════════════════════════════════
-   목업 데이터
-   - 추후 API 연결 시 useEffect + fetch로 대체
-   - 컴포넌트 props 형태와 동일하게 유지하여 교체가 쉽도록 함
+   API 데이터 변환
    ══════════════════════════════════════════ */
 
-const MOCK_WORKSPACE_NAME = "프랑크푸르트 여행";
+function formatKoreanTime(iso: string): { meridiem: "오전" | "오후"; time: string } {
+  const d = new Date(iso);
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const meridiem: "오전" | "오후" = h < 12 ? "오전" : "오후";
+  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return { meridiem, time: `${hour}:${String(m).padStart(2, "0")}` };
+}
 
-const MOCK_MEMBERS: WorkspaceMember[] = [
-  { id: "1", name: "홍길동", isHost: true },
-  { id: "2", name: "이대화" },
-  { id: "3", name: "김갑자" },
-  { id: "4", name: "박조원" },
-  { id: "5", name: "조마마" },
-];
+function formatKoreanDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+}
 
-const MOCK_FLIGHTS: FlightInfo[] = [
-  {
-    direction: "가는편",
-    date: "2026년 3월 11일",
+function mapWorkspaceFlightToFlightInfo(wf: WorkspaceFlight): FlightInfo {
+  const dep = formatKoreanTime(wf.departureTime);
+  const arr = formatKoreanTime(wf.arrivalTime);
+
+  const durationStr = wf.durationMinutes != null
+    ? `${Math.floor(wf.durationMinutes / 60)}시간${wf.durationMinutes % 60 > 0 ? ` ${wf.durationMinutes % 60}분` : ""}`
+    : "";
+
+  return {
+    id: wf.id,
+    direction: wf.flightType === "OUTBOUND" ? "가는편" : "오는편",
+    date: formatKoreanDate(wf.departureTime),
     legs: [
       {
-        meridiem: "오전",
-        time: "11:10",
-        airportCode: "ICN",
-        airportName: "인천국제공항",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0312",
+        meridiem: dep.meridiem,
+        time: dep.time,
+        airportCode: wf.departureAirport,
+        airportName: wf.departureCity ?? wf.departureAirport,
+        duration: durationStr,
+        airline: wf.airline,
+        airlineLogo: wf.airlineLogo ?? undefined,
+        flightNo: wf.flightNumber,
       },
       {
-        meridiem: "오후",
-        time: "12:30",
-        airportCode: "PEK",
-        airportName: "베이징캐피탈",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0313",
+        meridiem: arr.meridiem,
+        time: arr.time,
+        airportCode: wf.arrivalAirport,
+        airportName: wf.arrivalCity ?? wf.arrivalAirport,
+        duration: durationStr,
+        airline: wf.airline,
+        airlineLogo: wf.airlineLogo ?? undefined,
+        flightNo: wf.flightNumber,
       },
     ],
-    bookingUrl: "https://www.myrealtrip.com/dfsg...",
-    bookingNumber: "2603140000007895321",
-  },
-  {
-    direction: "오는편",
-    date: "2026년 3월 14일",
-    legs: [
-      {
-        meridiem: "오전",
-        time: "11:10",
-        airportCode: "FRA",
-        airportName: "프랑크푸르트",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0312",
-      },
-      {
-        meridiem: "오후",
-        time: "12:30",
-        airportCode: "GMP",
-        airportName: "김포공항",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0313",
-      },
-    ],
-    bookingUrl: "https://www.myrealtrip.com/dfsg...",
-    bookingNumber: "2603140000007895321",
-  },
-];
+  };
+}
+
+/* (목업 데이터 제거됨 — 멤버/항공편 모두 API에서 로드) */
 
 const MOCK_ITINERARY_DAYS: ItineraryDay[] = [
   {
@@ -259,6 +261,153 @@ const MOCK_INITIAL_MESSAGES: ChatMessageData[] = [
 ];
 
 /* ══════════════════════════════════════════
+   워크스페이스 정보 바 (조회 + 인라인 편집)
+   ══════════════════════════════════════════ */
+
+interface WorkspaceInfoBarProps {
+  workspace: Workspace;
+  onSave: (title: string, destination: string, startDate: string, endDate: string) => Promise<void>;
+}
+
+function WorkspaceInfoBar({ workspace, onSave }: WorkspaceInfoBarProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [title, setTitle] = useState(workspace.title);
+  const [destination, setDestination] = useState(workspace.destination);
+  const [startDate, setStartDate] = useState(workspace.startDate);
+  const [endDate, setEndDate] = useState(workspace.endDate);
+
+  // workspace prop이 바뀌면 폼 초기화
+  useEffect(() => {
+    setTitle(workspace.title);
+    setDestination(workspace.destination);
+    setStartDate(workspace.startDate);
+    setEndDate(workspace.endDate);
+  }, [workspace]);
+
+  const handleCancel = () => {
+    setTitle(workspace.title);
+    setDestination(workspace.destination);
+    setStartDate(workspace.startDate);
+    setEndDate(workspace.endDate);
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(title, destination, startDate, endDate);
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const inputClass = [
+    "font-pretendard text-body3 text-gray-900 rounded-lg border border-gray-300",
+    "px-2.5 py-1.5 focus:outline-none focus:border-primary bg-white w-full",
+  ].join(" ");
+
+  if (isEditing) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="font-pretendard text-body5 text-gray-500">여행 제목</label>
+            <input
+              className={inputClass}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="여행 제목"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-pretendard text-body5 text-gray-500">목적지</label>
+            <input
+              className={inputClass}
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder="목적지"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-pretendard text-body5 text-gray-500">출발일</label>
+            <input
+              type="date"
+              className={inputClass}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-pretendard text-body5 text-gray-500">귀국일</label>
+            <input
+              type="date"
+              className={inputClass}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={isSaving}
+            className={[
+              "font-pretendard text-body4 px-4 py-1.5 rounded-lg border border-gray-300",
+              "text-gray-600 hover:bg-gray-50 cursor-pointer bg-transparent transition-colors",
+              isSaving ? "opacity-50 cursor-not-allowed" : "",
+            ].join(" ")}
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className={[
+              "font-pretendard text-body4 px-4 py-1.5 rounded-lg border-none",
+              "bg-primary text-gray-900 font-semibold cursor-pointer hover:brightness-95 transition-all",
+              isSaving ? "opacity-50 cursor-not-allowed" : "",
+            ].join(" ")}
+          >
+            {isSaving ? "저장 중..." : "저장"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-6 min-w-0">
+        <span className="font-pretendard text-body2 font-semibold text-gray-900 truncate">
+          {workspace.title}
+        </span>
+        <span className="font-pretendard text-body4 text-gray-500 shrink-0">
+          {workspace.destination !== "string" ? workspace.destination : "목적지 미정"}
+        </span>
+        <span className="font-pretendard text-body4 text-gray-500 shrink-0">
+          {workspace.startDate} ~ {workspace.endDate}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => setIsEditing(true)}
+        className={[
+          "shrink-0 font-pretendard text-body5 text-gray-500 px-3 py-1.5 rounded-lg",
+          "border border-gray-200 hover:border-gray-400 hover:text-gray-700",
+          "bg-transparent cursor-pointer transition-colors",
+        ].join(" ")}
+      >
+        편집
+      </button>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
    섹션 헤더 (항공 일정 / 여행 일정 / 여행 기록)
    ══════════════════════════════════════════ */
 
@@ -313,12 +462,153 @@ function SectionHeader({
  */
 export default function WorkspacePage() {
   const navigate = useNavigate();
-  const { logout } = useAuthStore();
+  const { id: workspaceIdParam } = useParams<{ id: string }>();
+  const workspaceId = Number(workspaceIdParam);
+  const { logout, user } = useAuthStore();
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
+
+  /* ── 워크스페이스 상세 (API) ── */
+  const [workspaceDetail, setWorkspaceDetail] = useState<Workspace | null>(null);
+
+  useEffect(() => {
+    if (!workspaceId || isNaN(workspaceId)) return;
+    fetchWorkspaceById(workspaceId)
+      .then(setWorkspaceDetail)
+      .catch((err) => console.warn("[WorkspacePage] 워크스페이스 조회 실패:", err));
+  }, [workspaceId]);
+
+  const handleWorkspaceUpdate = async (
+    title: string,
+    destination: string,
+    startDate: string,
+    endDate: string,
+  ) => {
+    if (!workspaceDetail) return;
+    const updated = await updateWorkspace(workspaceId, {
+      title,
+      destination,
+      startDate,
+      endDate,
+      headcount: workspaceDetail.headcount,
+      coverImageUrl: workspaceDetail.coverImageUrl,
+      countryCode: workspaceDetail.countryCode,
+    });
+    setWorkspaceDetail(updated);
+  };
+
+  /* ── 멤버 목록 (API) ── */
+  const [apiMembers, setApiMembers] = useState<WorkspaceMemberApi[]>([]);
+
+  const loadMembers = useCallback(async () => {
+    if (!workspaceId || isNaN(workspaceId)) return;
+    try {
+      const data = await fetchWorkspaceMembers(workspaceId);
+      setApiMembers(data);
+    } catch (err) {
+      console.warn("[WorkspacePage] 멤버 로드 실패:", err);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => { loadMembers(); }, [loadMembers]);
+
+  /* 현재 로그인 유저의 memberId */
+  const myMemberId = apiMembers.find((m) => m.userId === user?.id)?.memberId ?? null;
+  const myRole = apiMembers.find((m) => m.userId === user?.id)?.role ?? null;
+
+  /* ── 나가기(탈퇴) ── */
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  const handleLeaveWorkspace = async () => {
+    if (myMemberId === null) return;
+    setIsLeaving(true);
+    try {
+      await leaveWorkspace(workspaceId, myMemberId);
+      navigate("/");
+    } catch (err) {
+      console.warn("[WorkspacePage] 나가기 실패:", err);
+      setIsLeaving(false);
+    }
+  };
+
+  /* ── 멤버 초대 ── */
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteTarget, setInviteTarget] = useState<UserSearchResult | null>(null);
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteToast, setInviteToast] = useState<string | null>(null);
+
+  const handleInviteSelect = (selectedUser: UserSearchResult) => {
+    setShowInviteModal(false);
+    setInviteTarget(selectedUser);
+  };
+
+  const handleInviteConfirm = async () => {
+    if (!inviteTarget) return;
+    setIsInviting(true);
+    try {
+      await inviteMember(workspaceId, inviteTarget.id);
+      setInviteToast(`${inviteTarget.nickname}님에게 초대 요청을 보냈습니다.`);
+      setTimeout(() => setInviteToast(null), 3500);
+    } catch (err) {
+      console.warn("[WorkspacePage] 초대 실패:", err);
+      setInviteToast("초대 요청에 실패했습니다. 다시 시도해주세요.");
+      setTimeout(() => setInviteToast(null), 3500);
+    } finally {
+      setIsInviting(false);
+      setInviteTarget(null);
+    }
+  };
+
+  /* ── 워크스페이스 삭제 모달 ── */
+  const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
+  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
+
+  const handleDeleteWorkspace = async () => {
+    setIsDeletingWorkspace(true);
+    try {
+      await deleteWorkspace(workspaceId);
+      navigate("/");
+    } catch (err) {
+      console.warn("[WorkspacePage] 워크스페이스 삭제 실패:", err);
+      setIsDeletingWorkspace(false);
+    }
+  };
+
+  /* ── 항공편 삭제 확인 팝업 ── */
+  const [deleteFlightTarget, setDeleteFlightTarget] = useState<{ id: number; label: string } | null>(null);
+
+  const handleDeleteFlightConfirm = async () => {
+    if (!deleteFlightTarget) return;
+    try {
+      await deleteFlightFromWorkspace(workspaceId, deleteFlightTarget.id);
+      setApiFlight((prev) => prev.filter((f) => f.id !== deleteFlightTarget.id));
+    } catch (err) {
+      console.warn("[WorkspacePage] 항공편 삭제 실패:", err);
+    } finally {
+      setDeleteFlightTarget(null);
+    }
+  };
+
+  /* ── 항공 일정 (API) ── */
+  const [apiFlight, setApiFlight] = useState<FlightInfo[]>([]);
+
+  const loadFlights = useCallback(async () => {
+    if (!workspaceId || isNaN(workspaceId)) return;
+    try {
+      const data = await fetchWorkspaceFlights(workspaceId);
+      setApiFlight(data.map(mapWorkspaceFlightToFlightInfo));
+    } catch (err) {
+      console.warn("[WorkspacePage] 항공 일정 로드 실패:", err);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    loadFlights();
+  }, [loadFlights]);
 
   /* ── 채팅 상태 ── */
   const [messages, setMessages] = useState<ChatMessageData[]>(
@@ -488,12 +778,19 @@ export default function WorkspacePage() {
     console.log("[Workspace] save itinerary from message:", messageId);
   };
 
-  /* ── 멤버 (목업) ── */
-  const members = MOCK_MEMBERS;
-  const flights = MOCK_FLIGHTS;
+  /* ── 멤버: API 데이터 → WorkspaceMember 변환 ── */
+  const members = apiMembers.map((m) => ({
+    id: m.memberId,
+    userId: m.userId,
+    name: m.nickname,
+    email: m.userEmail,
+    avatarUrl: m.profileImageUrl ?? undefined,
+    isHost: m.role === 'OWNER',
+  }));
+  const flights = apiFlight;
 
   /* ── 워크스페이스명 ── */
-  const workspaceName = useMemo(() => MOCK_WORKSPACE_NAME, []);
+  const workspaceName = workspaceDetail?.title ?? '워크스페이스';
 
   return (
     <>
@@ -554,9 +851,7 @@ export default function WorkspacePage() {
                       workspaceName={workspaceName}
                       members={members}
                       onCollapse={() => setIsMemberOpen(false)}
-                      onAddMember={() => {
-                        // TODO: 멤버 추가 모달
-                      }}
+                      onAddMember={() => setShowInviteModal(true)}
                     />
                   </div>
                 </div>
@@ -596,21 +891,65 @@ export default function WorkspacePage() {
 
             {/* ══ 가운데: 메인 컨텐츠 ══ */}
             <main className="min-w-0 flex flex-col gap-8 pt-6">
+              {/* ── 워크스페이스 정보 ── */}
+              {workspaceDetail && (
+                <WorkspaceInfoBar
+                  workspace={workspaceDetail}
+                  onSave={handleWorkspaceUpdate}
+                />
+              )}
+
               {/* ── 항공 일정 ── */}
               <section className="flex flex-col gap-3">
                 <SectionHeader title="항공 일정" />
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {flights.map((f, i) => (
-                    <FlightInfoCard
-                      key={i}
-                      direction={f.direction}
-                      date={f.date}
-                      legs={f.legs}
-                      bookingUrl={f.bookingUrl}
-                      bookingNumber={f.bookingNumber}
-                    />
-                  ))}
-                </div>
+                {flights.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex flex-col items-center gap-2 text-center">
+                    <p className="font-pretendard text-body3 text-gray-700 m-0">
+                      저장된 항공편이 없어요
+                    </p>
+                    <p className="font-pretendard text-body4 text-gray-400 m-0">
+                      항공 검색에서 원하는 항공편을 찾아 이 워크스페이스에 저장해보세요.
+                    </p>
+                  </div>
+                ) : (
+                  /* 가는편 전체 왼쪽 컬럼, 오는편 전체 오른쪽 컬럼 */
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+                    <div className="flex flex-col gap-3">
+                      {flights
+                        .filter((f) => f.direction === "가는편")
+                        .map((f) => (
+                          <FlightInfoCard
+                            key={f.id}
+                            direction={f.direction}
+                            date={f.date}
+                            legs={f.legs}
+                            bookingUrl={f.bookingUrl}
+                            bookingNumber={f.bookingNumber}
+                            onDelete={() =>
+                              setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
+                            }
+                          />
+                        ))}
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {flights
+                        .filter((f) => f.direction === "오는편")
+                        .map((f) => (
+                          <FlightInfoCard
+                            key={f.id}
+                            direction={f.direction}
+                            date={f.date}
+                            legs={f.legs}
+                            bookingUrl={f.bookingUrl}
+                            bookingNumber={f.bookingNumber}
+                            onDelete={() =>
+                              setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
+                            }
+                          />
+                        ))}
+                    </div>
+                  </div>
+                )}
               </section>
 
               {/* ── 여행 일정 ── */}
@@ -729,6 +1068,51 @@ export default function WorkspacePage() {
                   )}
                 </div>
               </section>
+
+              {/* ── 위험 영역 (나가기 / 삭제) ── */}
+              <section className="flex flex-col gap-4 pb-6">
+                <div className="border-t border-gray-200 pt-6 flex flex-col gap-4">
+                  {/* 워크스페이스 나가기: OWNER가 아닌 멤버에게만 표시 */}
+                  {myRole !== null && myRole !== 'OWNER' && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowLeaveConfirm(true)}
+                        className={[
+                          "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
+                          "border border-orange-300 text-orange-500 bg-transparent",
+                          "hover:bg-orange-50 hover:border-orange-400 transition-colors cursor-pointer",
+                        ].join(" ")}
+                      >
+                        워크스페이스 나가기
+                      </button>
+                      <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
+                        나가면 다시 초대를 받아야 참여할 수 있습니다.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 워크스페이스 삭제: OWNER에게만 표시 */}
+                  {myRole === 'OWNER' && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteWorkspace(true)}
+                        className={[
+                          "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
+                          "border border-red-300 text-red-500 bg-transparent",
+                          "hover:bg-red-50 hover:border-red-400 transition-colors cursor-pointer",
+                        ].join(" ")}
+                      >
+                        워크스페이스 삭제
+                      </button>
+                      <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
+                        삭제된 워크스페이스는 복구할 수 없습니다.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
             </main>
 
             {/* ══ 우측: AI 채팅 패널 (펼침/접힘) ══
@@ -788,6 +1172,69 @@ export default function WorkspacePage() {
           </div>
         </div>
       </div>
+
+      {/* ── 멤버 초대 모달 ── */}
+      {showInviteModal && (
+        <InviteMemberModal
+          onInvite={handleInviteSelect}
+          onClose={() => setShowInviteModal(false)}
+        />
+      )}
+
+      {/* ── 초대 확인 팝업 ── */}
+      <ConfirmPopup
+        isOpen={inviteTarget !== null}
+        onClose={() => setInviteTarget(null)}
+        onConfirm={handleInviteConfirm}
+        title={`${inviteTarget?.nickname}님을 초대하시겠어요?`}
+        description={`${inviteTarget?.email}\n초대 요청을 보내면 상대방이 수락해야 참여됩니다.`}
+        confirmLabel={isInviting ? "전송 중..." : "초대 요청 보내기"}
+        cancelLabel="취소"
+        variant="primary"
+      />
+
+      {/* ── 초대 토스트 ── */}
+      {inviteToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100]">
+          <div className="bg-gray-900 text-white font-pretendard text-body4 px-5 py-3 rounded-xl shadow-lg">
+            {inviteToast}
+          </div>
+        </div>
+      )}
+
+      {/* ── 나가기 확인 팝업 ── */}
+      <ConfirmPopup
+        isOpen={showLeaveConfirm}
+        onClose={() => setShowLeaveConfirm(false)}
+        onConfirm={handleLeaveWorkspace}
+        title="워크스페이스를 나가시겠어요?"
+        description={isLeaving ? "처리 중..." : "나가면 다시 초대를 받아야 참여할 수 있습니다."}
+        confirmLabel="나가기"
+        cancelLabel="취소"
+        variant="danger"
+      />
+
+      {/* ── 워크스페이스 삭제 모달 ── */}
+      {showDeleteWorkspace && workspaceDetail && (
+        <DeleteWorkspaceModal
+          workspaceName={workspaceDetail.title}
+          isDeleting={isDeletingWorkspace}
+          onConfirm={handleDeleteWorkspace}
+          onClose={() => setShowDeleteWorkspace(false)}
+        />
+      )}
+
+      {/* ── 항공편 삭제 확인 팝업 ── */}
+      <ConfirmPopup
+        isOpen={deleteFlightTarget !== null}
+        onClose={() => setDeleteFlightTarget(null)}
+        onConfirm={handleDeleteFlightConfirm}
+        title="항공편을 삭제하시겠어요?"
+        description={deleteFlightTarget?.label}
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="danger"
+      />
     </>
   );
 }

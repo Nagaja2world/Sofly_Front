@@ -6,13 +6,17 @@ import PlusIcon from "@/assets/plus.svg?react";
    ══════════════════════════════════════════ */
 
 export interface WorkspaceMember {
-  /** 멤버 고유 id */
-  id: string;
+  /** memberId (API) */
+  id: number;
+  /** userId (API) */
+  userId: number;
   /** 표시 이름 */
   name: string;
+  /** 이메일 */
+  email?: string;
   /** 프로필 이미지 URL (없으면 이니셜 표시) */
   avatarUrl?: string;
-  /** 호스트 여부 (이름 옆 작은 칩 표시) */
+  /** 호스트 여부 */
   isHost?: boolean;
 }
 
@@ -21,7 +25,7 @@ interface MemberSidebarProps {
   workspaceName: string;
   /** 멤버 목록 */
   members: WorkspaceMember[];
-  /** 사이드바 접기 버튼 클릭 콜백 (워크스페이스명 우측 아이콘) */
+  /** 사이드바 접기 버튼 클릭 콜백 */
   onCollapse?: () => void;
   /** 멤버 추가 버튼 클릭 콜백 */
   onAddMember?: () => void;
@@ -81,12 +85,19 @@ function MemberRow({ member }: { member: WorkspaceMember }) {
       </div>
 
       {/* 이름 + 호스트 칩 */}
-      <span className="flex items-center gap-1.5 min-w-0">
-        <span className="font-pretendard text-body3 text-gray-900 truncate">
-          {member.name}
+      <div className="flex flex-col min-w-0">
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span className="font-pretendard text-body3 text-gray-900 truncate">
+            {member.name}
+          </span>
+          {member.isHost && <HostBadge />}
         </span>
-        {member.isHost && <HostBadge />}
-      </span>
+        {member.email && (
+          <span className="font-pretendard text-body5 text-gray-400 truncate">
+            {member.email}
+          </span>
+        )}
+      </div>
     </li>
   );
 }

@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import ReadGuideBox from "@/components/flightDetail/Readguidebox";
 import BrandedFareCard from "@/components/flightDetail/Providercard";
 import ItinerarySummaryCard from "@/components/flightDetail/Itinerarysummarycard";
+import WorkspaceSelectModal from "@/components/flightDetail/WorkspaceSelectModal";
 import Button from "@/components/common/Button";
 import { getFlightDetails } from "@/api/flightApi";
 import {
@@ -11,6 +12,7 @@ import {
   toKrwInt,
 } from "@/api/flightMapper";
 import type { FlightOffer, FlightDetailsResponse } from "@/types/flightOffersType";
+import type { SaveFlightPayload } from "@/api/workspaceApi";
 
 import FlowerImage from "@/assets/flower.svg?react";
 
@@ -47,6 +49,9 @@ export default function FlightDetailPage() {
 
   /* 선택된 branded fare 토큰 */
   const [selectedToken, setSelectedToken] = useState<string | null>(null);
+
+  /* 워크스페이스 저장 모달 */
+  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
 
   /* ── getFlightDetails 호출 ── */
   useEffect(() => {
@@ -169,6 +174,112 @@ export default function FlightDetailPage() {
     setSelectedToken(token);
     console.log("[BrandedFare] selected token:", token, "for offer:", id);
   };
+
+  /* ── offer → SaveFlightPayload 변환 ── */
+  const flightPayloads = useMemo<SaveFlightPayload[]>(() => {
+    const source = detailsData?.segments?.length ? detailsData.segments : offer?.segments ?? [];
+
+    // 선택된 branded fare offer의 가격 정보 우선 사용
+    const selectedFareOffer = detailsData?.brandedFareOffers?.find(
+      (f) => f.token === selectedToken,
+    );
+    const pb = selectedFareOffer?.priceBreakdown ?? detailsData?.priceBreakdown;
+
+    const totalPrice = pb ? toKrwInt(pb.total) : offer?.price ? toKrwInt(offer.price.total) : null;
+    const baseFare = pb ? toKrwInt(pb.baseFare) : offer?.price ? toKrwInt(offer.price.baseFare) : null;
+    const tax = pb ? toKrwInt(pb.tax) : offer?.price ? toKrwInt(offer.price.tax) : null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const platformFee = (pb as any)?.fee ? toKrwInt((pb as any).fee) : null;
+    const currencyCode = pb?.total?.currencyCode ?? null;
+    // bookingToken: DB 컬럼이 varchar(255)로 제한되어 있어 null로 설정
+    // (백엔드 entity는 TEXT로 선언되어 있으나 DB 마이그레이션이 필요한 상태)
+    const bookingToken = null;
+    const offerReference = selectedFareOffer?.offerReference ?? null;
+    const cabinClass =
+      selectedFareOffer?.brandedFareInfo?.cabinClass ??
+      detailsData?.brandedFareInfo?.cabinClass ??
+      offer?.brandedFareInfo?.cabinClass ??
+      null;
+
+    return source.map((seg, idx) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const firstLeg = seg.legs?.[0] as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const lastLeg = seg.legs?.[seg.legs.length - 1] as any;
+
+      const carrierCode: string =
+        firstLeg?.flightInfo?.carrierInfo?.marketingCarrier ||
+        firstLeg?.marketingCarrier ||
+        '';
+      const flightNum: number =
+        firstLeg?.flightInfo?.flightNumber || firstLeg?.flightNumber || 0;
+      const carrierData = firstLeg?.carriersData?.[0];
+      const airlineName: string = carrierData?.name || carrierCode || '알 수 없음';
+      const airlineLogo: string | null = carrierData?.logo ?? null;
+      const planeType: string | null = firstLeg?.flightInfo?.planeType ?? null;
+      const departureTerminal: string | null = firstLeg?.departureTerminal ?? null;
+      const arrivalTerminal: string | null = lastLeg?.arrivalTerminal ?? null;
+
+      // 수하물 정보 (detailsData segments에만 있음)
+      let checkedBaggageKg: number | null = null;
+      let checkedBaggagePiece: number | null = null;
+      let cabinBaggageKg: number | null = null;
+      let personalItemIncluded: boolean | null = null;
+      if (detailsData?.segments?.[idx]) {
+        const detailSeg = detailsData.segments[idx];
+        const checkedLuggage = detailSeg.travellerCheckedLuggage?.[0]?.luggageAllowance;
+        if (checkedLuggage) {
+          checkedBaggageKg = checkedLuggage.maxWeightPerPiece ?? null;
+          checkedBaggagePiece = checkedLuggage.maxPiece ?? null;
+        }
+        const cabinLuggage = detailSeg.travellerCabinLuggage?.[0]?.luggageAllowance;
+        if (cabinLuggage) {
+          if (cabinLuggage.luggageType === 'PERSONAL_ITEM') {
+            personalItemIncluded = true;
+          } else {
+            cabinBaggageKg = cabinLuggage.maxWeightPerPiece ?? null;
+          }
+        }
+      }
+
+      const durationMinutes = seg.totalTime ? Math.round(seg.totalTime / 60) : null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const depAirport = seg.departureAirport as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const arrAirport = seg.arrivalAirport as any;
+
+      return {
+        flightNumber: `${carrierCode}${flightNum}`,
+        airline: airlineName,
+        airlineLogo,
+        planeType,
+        cabinClass,
+        departureAirport: depAirport.code,
+        departureCity: depAirport.cityName ?? null,
+        departureCountry: depAirport.countryName ?? null,
+        departureTerminal,
+        arrivalAirport: arrAirport.code,
+        arrivalCity: arrAirport.cityName ?? null,
+        arrivalCountry: arrAirport.countryName ?? null,
+        arrivalTerminal,
+        departureTime: new Date(seg.departureTime).toISOString(),
+        arrivalTime: new Date(seg.arrivalTime).toISOString(),
+        durationMinutes,
+        totalPrice,
+        baseFare,
+        tax,
+        platformFee,
+        currencyCode,
+        checkedBaggageKg,
+        checkedBaggagePiece,
+        cabinBaggageKg,
+        personalItemIncluded,
+        bookingToken,
+        offerReference,
+        flightType: idx === 0 ? 'OUTBOUND' : 'RETURN',
+      };
+    });
+  }, [detailsData, offer, selectedToken]);
 
   return (
     <>
@@ -328,6 +439,15 @@ export default function FlightDetailPage() {
                   </ul>
                 </div>
               )}
+
+              {/* 워크스페이스에 저장 버튼 */}
+              <Button
+                btnType="solid"
+                className="w-full py-3.5"
+                onClick={() => setShowWorkspaceModal(true)}
+              >
+                워크스페이스에 저장
+              </Button>
             </aside>
           </div>
           {/* ── 데코레이션 ── */}
@@ -341,6 +461,14 @@ export default function FlightDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* ── 워크스페이스 선택 모달 ── */}
+      {showWorkspaceModal && (
+        <WorkspaceSelectModal
+          flights={flightPayloads}
+          onClose={() => setShowWorkspaceModal(false)}
+        />
+      )}
     </>
   );
 }

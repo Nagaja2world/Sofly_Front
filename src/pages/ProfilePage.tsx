@@ -1,49 +1,35 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
 import Button from "@/components/common/Button";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
-//import type { Airport } from "@/components/searchbar/AirportSearchDropdown";
-//import type { DateRange } from "@/components/searchbar/CalendarDropdown";
-//import type { PassengerSeatData } from "@/components/searchbar/PassengerSeatDropdown";
-//🌟
 import {
   buildFlightSearchQuery,
   type FlightSearchParams,
 } from "@/utils/flightSearchQuery";
+import {
+  fetchWorkspaces,
+  createWorkspace,
+  buildDummyWorkspacePayload,
+  resolveCoverImage,
+  type Workspace,
+} from "@/api/workspaceApi";
 
 import profileHeroSvg from "@/assets/profile_hero.svg";
 import GroupIcon from "@/assets/group.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 
-/* ── 워크스페이스 데이터 타입 ── */
-export interface WorkspaceData {
-  id: string;
-  name: string;
-  startDate?: string;
-  endDate?: string;
-  memberCount?: number;
-  imageUrl?: string;
-}
-
-interface ProfilePageProps {
-  /** 사용자 이름 (카카오/구글 로그인 시 받아온 닉네임) */
-  userName?: string;
-  /** 워크스페이스 목록 */
-  workspaces?: WorkspaceData[];
-  /** 새 워크스페이스 생성 콜백 */
-  onCreateWorkspace?: () => void;
-}
-
-export default function ProfilePage({
-  workspaces = [],
-  onCreateWorkspace,
-}: ProfilePageProps) {
+export default function ProfilePage() {
   const navigate = useNavigate();
   const { isLoggedIn, user, isProfileLoading, logout, fetchUserProfile } =
     useAuthStore();
+
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [wsLoading, setWsLoading] = useState(false);
+  const [wsError, setWsError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   /* 비로그인 상태면 홈으로 이동 */
   useEffect(() => {
@@ -51,15 +37,33 @@ export default function ProfilePage({
       navigate("/", { replace: true });
       return;
     }
-    /* 유저 정보가 없고, 로딩 중이 아닐 때만 조회 */
     if (!user && !isProfileLoading) {
       fetchUserProfile().catch(() => {
-        /* 프로필 조회 실패 시 로그아웃 처리 */
         logout();
         navigate("/", { replace: true });
       });
     }
   }, [isLoggedIn, user, isProfileLoading, navigate, fetchUserProfile, logout]);
+
+  /* 워크스페이스 목록 자동 로드 */
+  const loadWorkspaces = useCallback(async () => {
+    setWsLoading(true);
+    setWsError(null);
+    try {
+      const data = await fetchWorkspaces();
+      setWorkspaces(data);
+    } catch (err) {
+      setWsError(err instanceof Error ? err.message : "불러오기 실패");
+    } finally {
+      setWsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadWorkspaces();
+    }
+  }, [isLoggedIn, loadWorkspaces]);
 
   const userName = user?.nickname ?? "여행자";
 
@@ -72,11 +76,17 @@ export default function ProfilePage({
     navigate(`/workspace/${id}`);
   };
 
-  const handleCreateWorkspace = () => {
-    if (onCreateWorkspace) {
-      onCreateWorkspace();
-    } else {
-      navigate("/workspace/new");
+  const handleCreateWorkspace = async () => {
+    setIsCreating(true);
+    try {
+      const payload = buildDummyWorkspacePayload();
+      const created = await createWorkspace(payload);
+      setWorkspaces((prev) => [...prev, created]);
+      navigate(`/workspace/${created.id}`);
+    } catch (err) {
+      console.error("워크스페이스 생성 실패:", err);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -175,25 +185,37 @@ export default function ProfilePage({
                 btnType="text"
                 icon={<PlusIcon />}
                 onClick={handleCreateWorkspace}
+                disabled={isCreating}
               >
-                New Workspace
+                {isCreating ? "생성 중..." : "New Workspace"}
               </Button>
             </div>
 
-            {/* 카드 그리드 또는 빈 상태 */}
-            {workspaces.length > 0 ? (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* 카드 목록 또는 빈 상태 */}
+            {wsLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
+              </div>
+            ) : wsError ? (
+              <div className="py-10 text-center">
+                <p className="font-pretendard text-body3 text-red-500 mb-3">{wsError}</p>
+                <Button btnType="outlined" onClick={loadWorkspaces}>다시 시도</Button>
+              </div>
+            ) : workspaces.length > 0 ? (
+              /* 가로 스크롤 컨테이너: 4개 초과 시 스크롤 */
+              <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300">
                 {workspaces.map((ws) => (
-                  <WorkspaceCard
-                    key={ws.id}
-                    id={ws.id}
-                    name={ws.name}
-                    startDate={ws.startDate}
-                    endDate={ws.endDate}
-                    memberCount={ws.memberCount}
-                    imageUrl={ws.imageUrl}
-                    onClick={handleCardClick}
-                  />
+                  <div key={ws.id} className="min-w-[272px] w-[272px] flex-shrink-0">
+                    <WorkspaceCard
+                      id={String(ws.id)}
+                      name={ws.title}
+                      startDate={ws.startDate}
+                      endDate={ws.endDate}
+                      memberCount={ws.memberCount}
+                      imageUrl={resolveCoverImage(ws.coverImageUrl, ws.id)}
+                      onClick={handleCardClick}
+                    />
+                  </div>
                 ))}
               </div>
             ) : (
@@ -232,8 +254,8 @@ export default function ProfilePage({
                 <p className="font-pretendard text-body3 text-gray-400 mb-5">
                   새로운 여행을 계획하고 함께 떠나보세요!
                 </p>
-                <Button btnType="solid" onClick={handleCreateWorkspace}>
-                  첫 워크스페이스 만들기
+                <Button btnType="solid" onClick={handleCreateWorkspace} disabled={isCreating}>
+                  {isCreating ? "생성 중..." : "첫 워크스페이스 만들기"}
                 </Button>
               </div>
             )}
