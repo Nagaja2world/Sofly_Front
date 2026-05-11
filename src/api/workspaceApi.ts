@@ -111,6 +111,43 @@ export function resolveCoverImage(url: string, id: number): string {
   return MOCK_COVER_IMAGES[id % MOCK_COVER_IMAGES.length];
 }
 
+/* ── 워크스페이스 멤버 ── */
+
+export interface WorkspaceMemberApi {
+  memberId: number;
+  userId: number;
+  nickname: string;
+  userEmail: string;
+  role: 'OWNER' | 'VIEWER';
+}
+
+/** 워크스페이스 멤버 목록 조회 */
+export async function fetchWorkspaceMembers(workspaceId: number): Promise<WorkspaceMemberApi[]> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/members`, {
+    headers: authHeaders(),
+  });
+  return unwrap<WorkspaceMemberApi[]>(res);
+}
+
+/** 워크스페이스 나가기 (탈퇴) */
+export async function leaveWorkspace(workspaceId: number, memberId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/members/${memberId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+}
+
+/** 워크스페이스 멤버 초대 */
+export async function inviteMember(workspaceId: number, userId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/members/invite`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ userId }),
+  });
+  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+}
+
 /* ── 워크스페이스 항공편 ── */
 
 export interface WorkspaceFlight {

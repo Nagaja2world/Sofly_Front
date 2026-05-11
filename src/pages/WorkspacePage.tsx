@@ -3,12 +3,17 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchWorkspaceFlights,
   fetchWorkspaceById,
+  fetchWorkspaceMembers,
   updateWorkspace,
   deleteWorkspace,
   deleteFlightFromWorkspace,
+  leaveWorkspace,
+  inviteMember,
   type Workspace,
   type WorkspaceFlight,
+  type WorkspaceMemberApi,
 } from "@/api/workspaceApi";
+import { type UserSearchResult } from "@/api/userApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
@@ -29,6 +34,7 @@ import SnsLogCard, { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
+import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import PlusIcon from "@/assets/plus.svg?react";
 import type { JSONContent } from "@tiptap/core";
 import ChatPanel, {
@@ -117,17 +123,7 @@ function mapWorkspaceFlightToFlightInfo(wf: WorkspaceFlight): FlightInfo {
   };
 }
 
-/* ══════════════════════════════════════════
-   목업 데이터
-   ══════════════════════════════════════════ */
-
-const MOCK_MEMBERS: WorkspaceMember[] = [
-  { id: "1", name: "홍길동", isHost: true },
-  { id: "2", name: "이대화" },
-  { id: "3", name: "김갑자" },
-  { id: "4", name: "박조원" },
-  { id: "5", name: "조마마" },
-];
+/* (목업 데이터 제거됨 — 멤버/항공편 모두 API에서 로드) */
 
 const MOCK_ITINERARY_DAYS: ItineraryDay[] = [
   {
@@ -470,7 +466,7 @@ export default function WorkspacePage() {
   const navigate = useNavigate();
   const { id: workspaceIdParam } = useParams<{ id: string }>();
   const workspaceId = Number(workspaceIdParam);
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
 
   const handleLogout = () => {
     logout();
@@ -504,6 +500,65 @@ export default function WorkspacePage() {
       countryCode: workspaceDetail.countryCode,
     });
     setWorkspaceDetail(updated);
+  };
+
+  /* ── 멤버 목록 (API) ── */
+  const [apiMembers, setApiMembers] = useState<WorkspaceMemberApi[]>([]);
+
+  const loadMembers = useCallback(async () => {
+    if (!workspaceId || isNaN(workspaceId)) return;
+    try {
+      const data = await fetchWorkspaceMembers(workspaceId);
+      setApiMembers(data);
+    } catch (err) {
+      console.warn("[WorkspacePage] 멤버 로드 실패:", err);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => { loadMembers(); }, [loadMembers]);
+
+  /* 현재 로그인 유저의 memberId */
+  const myMemberId = apiMembers.find((m) => m.userId === user?.id)?.memberId ?? null;
+  const myRole = apiMembers.find((m) => m.userId === user?.id)?.role ?? null;
+
+  /* ── 나가기(탈퇴) ── */
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  const handleLeaveWorkspace = async () => {
+    if (myMemberId === null) return;
+    setIsLeaving(true);
+    try {
+      await leaveWorkspace(workspaceId, myMemberId);
+      navigate("/");
+    } catch (err) {
+      console.warn("[WorkspacePage] 나가기 실패:", err);
+      setIsLeaving(false);
+    }
+  };
+
+  /* ── 멤버 초대 ── */
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteTarget, setInviteTarget] = useState<UserSearchResult | null>(null);
+  const [isInviting, setIsInviting] = useState(false);
+
+  const handleInviteSelect = (user: UserSearchResult) => {
+    setShowInviteModal(false);
+    setInviteTarget(user);
+  };
+
+  const handleInviteConfirm = async () => {
+    if (!inviteTarget) return;
+    setIsInviting(true);
+    try {
+      await inviteMember(workspaceId, inviteTarget.userId);
+      await loadMembers();
+    } catch (err) {
+      console.warn("[WorkspacePage] 초대 실패:", err);
+    } finally {
+      setIsInviting(false);
+      setInviteTarget(null);
+    }
   };
 
   /* ── 워크스페이스 삭제 모달 ── */
@@ -721,8 +776,14 @@ export default function WorkspacePage() {
     console.log("[Workspace] save itinerary from message:", messageId);
   };
 
-  /* ── 멤버 (목업) ── */
-  const members = MOCK_MEMBERS;
+  /* ── 멤버: API 데이터 → WorkspaceMember 변환 ── */
+  const members = apiMembers.map((m) => ({
+    id: m.memberId,
+    userId: m.userId,
+    name: m.nickname,
+    email: m.userEmail,
+    isHost: m.role === 'OWNER',
+  }));
   const flights = apiFlight;
 
   /* ── 워크스페이스명 ── */
@@ -787,9 +848,7 @@ export default function WorkspacePage() {
                       workspaceName={workspaceName}
                       members={members}
                       onCollapse={() => setIsMemberOpen(false)}
-                      onAddMember={() => {
-                        // TODO: 멤버 추가 모달
-                      }}
+                      onAddMember={() => setShowInviteModal(true)}
                     />
                   </div>
                 </div>
@@ -991,23 +1050,48 @@ export default function WorkspacePage() {
                 </div>
               </section>
 
-              {/* ── 워크스페이스 삭제 ── */}
-              <section className="flex flex-col gap-2 pb-6">
-                <div className="border-t border-gray-200 pt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteWorkspace(true)}
-                    className={[
-                      "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
-                      "border border-red-300 text-red-500 bg-transparent",
-                      "hover:bg-red-50 hover:border-red-400 transition-colors cursor-pointer",
-                    ].join(" ")}
-                  >
-                    워크스페이스 삭제
-                  </button>
-                  <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
-                    삭제된 워크스페이스는 복구할 수 없습니다.
-                  </p>
+              {/* ── 위험 영역 (나가기 / 삭제) ── */}
+              <section className="flex flex-col gap-4 pb-6">
+                <div className="border-t border-gray-200 pt-6 flex flex-col gap-4">
+                  {/* 워크스페이스 나가기: OWNER가 아닌 멤버에게만 표시 */}
+                  {myRole !== null && myRole !== 'OWNER' && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowLeaveConfirm(true)}
+                        className={[
+                          "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
+                          "border border-orange-300 text-orange-500 bg-transparent",
+                          "hover:bg-orange-50 hover:border-orange-400 transition-colors cursor-pointer",
+                        ].join(" ")}
+                      >
+                        워크스페이스 나가기
+                      </button>
+                      <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
+                        나가면 다시 초대를 받아야 참여할 수 있습니다.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 워크스페이스 삭제: OWNER에게만 표시 */}
+                  {myRole === 'OWNER' && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteWorkspace(true)}
+                        className={[
+                          "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
+                          "border border-red-300 text-red-500 bg-transparent",
+                          "hover:bg-red-50 hover:border-red-400 transition-colors cursor-pointer",
+                        ].join(" ")}
+                      >
+                        워크스페이스 삭제
+                      </button>
+                      <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
+                        삭제된 워크스페이스는 복구할 수 없습니다.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </section>
             </main>
@@ -1069,6 +1153,38 @@ export default function WorkspacePage() {
           </div>
         </div>
       </div>
+
+      {/* ── 멤버 초대 모달 ── */}
+      {showInviteModal && (
+        <InviteMemberModal
+          onInvite={handleInviteSelect}
+          onClose={() => setShowInviteModal(false)}
+        />
+      )}
+
+      {/* ── 초대 확인 팝업 ── */}
+      <ConfirmPopup
+        isOpen={inviteTarget !== null}
+        onClose={() => setInviteTarget(null)}
+        onConfirm={handleInviteConfirm}
+        title={`${inviteTarget?.nickname}님을 초대하시겠어요?`}
+        description={inviteTarget?.email}
+        confirmLabel={isInviting ? "초대 중..." : "초대"}
+        cancelLabel="취소"
+        variant="primary"
+      />
+
+      {/* ── 나가기 확인 팝업 ── */}
+      <ConfirmPopup
+        isOpen={showLeaveConfirm}
+        onClose={() => setShowLeaveConfirm(false)}
+        onConfirm={handleLeaveWorkspace}
+        title="워크스페이스를 나가시겠어요?"
+        description={isLeaving ? "처리 중..." : "나가면 다시 초대를 받아야 참여할 수 있습니다."}
+        confirmLabel="나가기"
+        cancelLabel="취소"
+        variant="danger"
+      />
 
       {/* ── 워크스페이스 삭제 모달 ── */}
       {showDeleteWorkspace && workspaceDetail && (
