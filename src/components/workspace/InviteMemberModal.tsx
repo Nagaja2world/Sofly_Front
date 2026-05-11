@@ -129,11 +129,12 @@ export default function InviteMemberModal({ onInvite, onClose }: InviteMemberMod
               ) : (
                 <ul className="list-none p-0 m-0 max-h-[240px] overflow-y-auto">
                   {results.map((u) => (
-                    <li key={u.userId}>
+                    <li key={u.id}>
                       <button
                         type="button"
                         onClick={() => {
                           setShowDropdown(false);
+                          setQuery("");
                           onInvite(u);
                         }}
                         className={[
@@ -142,11 +143,15 @@ export default function InviteMemberModal({ onInvite, onClose }: InviteMemberMod
                           "border-b border-gray-100 last:border-b-0",
                         ].join(" ")}
                       >
-                        {/* 이니셜 아바타 */}
-                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0 border border-gray-300">
-                          <span className="font-pretendard text-body4 font-semibold text-gray-700">
-                            {u.nickname.charAt(0).toUpperCase()}
-                          </span>
+                        {/* 아바타 */}
+                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0 border border-gray-300 overflow-hidden">
+                          {u.profileImageUrl ? (
+                            <img src={u.profileImageUrl} alt={u.nickname} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="font-pretendard text-body4 font-semibold text-gray-700">
+                              {u.nickname.charAt(0).toUpperCase()}
+                            </span>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="font-pretendard text-body3 font-semibold text-gray-900 m-0 truncate">

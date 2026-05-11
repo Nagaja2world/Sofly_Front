@@ -22,9 +22,10 @@ async function unwrap<T>(res: Response): Promise<T> {
 }
 
 export interface UserSearchResult {
-  userId: number;
-  nickname: string;
+  id: number;
   email: string;
+  nickname: string;
+  profileImageUrl: string | null;
 }
 
 /** 이메일로 사용자 검색 (최대 10명) */

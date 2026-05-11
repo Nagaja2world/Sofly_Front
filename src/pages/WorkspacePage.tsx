@@ -539,20 +539,24 @@ export default function WorkspacePage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteTarget, setInviteTarget] = useState<UserSearchResult | null>(null);
   const [isInviting, setIsInviting] = useState(false);
+  const [inviteToast, setInviteToast] = useState<string | null>(null);
 
-  const handleInviteSelect = (user: UserSearchResult) => {
+  const handleInviteSelect = (selectedUser: UserSearchResult) => {
     setShowInviteModal(false);
-    setInviteTarget(user);
+    setInviteTarget(selectedUser);
   };
 
   const handleInviteConfirm = async () => {
     if (!inviteTarget) return;
     setIsInviting(true);
     try {
-      await inviteMember(workspaceId, inviteTarget.userId);
-      await loadMembers();
+      await inviteMember(workspaceId, inviteTarget.id);
+      setInviteToast(`${inviteTarget.nickname}님에게 초대 요청을 보냈습니다.`);
+      setTimeout(() => setInviteToast(null), 3500);
     } catch (err) {
       console.warn("[WorkspacePage] 초대 실패:", err);
+      setInviteToast("초대 요청에 실패했습니다. 다시 시도해주세요.");
+      setTimeout(() => setInviteToast(null), 3500);
     } finally {
       setIsInviting(false);
       setInviteTarget(null);
@@ -1166,11 +1170,20 @@ export default function WorkspacePage() {
         onClose={() => setInviteTarget(null)}
         onConfirm={handleInviteConfirm}
         title={`${inviteTarget?.nickname}님을 초대하시겠어요?`}
-        description={inviteTarget?.email}
-        confirmLabel={isInviting ? "초대 중..." : "초대"}
+        description={`${inviteTarget?.email}\n초대 요청을 보내면 상대방이 수락해야 참여됩니다.`}
+        confirmLabel={isInviting ? "전송 중..." : "초대 요청 보내기"}
         cancelLabel="취소"
         variant="primary"
       />
+
+      {/* ── 초대 토스트 ── */}
+      {inviteToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100]">
+          <div className="bg-gray-900 text-white font-pretendard text-body4 px-5 py-3 rounded-xl shadow-lg">
+            {inviteToast}
+          </div>
+        </div>
+      )}
 
       {/* ── 나가기 확인 팝업 ── */}
       <ConfirmPopup
