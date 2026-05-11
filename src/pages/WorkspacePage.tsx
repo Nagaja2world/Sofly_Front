@@ -4,6 +4,7 @@ import {
   fetchWorkspaceFlights,
   fetchWorkspaceById,
   updateWorkspace,
+  deleteWorkspace,
   deleteFlightFromWorkspace,
   type Workspace,
   type WorkspaceFlight,
@@ -27,6 +28,7 @@ import TravelLogCard, {
 import SnsLogCard, { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
+import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
 import PlusIcon from "@/assets/plus.svg?react";
 import type { JSONContent } from "@tiptap/core";
 import ChatPanel, {
@@ -504,6 +506,21 @@ export default function WorkspacePage() {
     setWorkspaceDetail(updated);
   };
 
+  /* ── 워크스페이스 삭제 모달 ── */
+  const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
+  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
+
+  const handleDeleteWorkspace = async () => {
+    setIsDeletingWorkspace(true);
+    try {
+      await deleteWorkspace(workspaceId);
+      navigate("/");
+    } catch (err) {
+      console.warn("[WorkspacePage] 워크스페이스 삭제 실패:", err);
+      setIsDeletingWorkspace(false);
+    }
+  };
+
   /* ── 항공편 삭제 확인 팝업 ── */
   const [deleteFlightTarget, setDeleteFlightTarget] = useState<{ id: number; label: string } | null>(null);
 
@@ -973,6 +990,26 @@ export default function WorkspacePage() {
                   )}
                 </div>
               </section>
+
+              {/* ── 워크스페이스 삭제 ── */}
+              <section className="flex flex-col gap-2 pb-6">
+                <div className="border-t border-gray-200 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteWorkspace(true)}
+                    className={[
+                      "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
+                      "border border-red-300 text-red-500 bg-transparent",
+                      "hover:bg-red-50 hover:border-red-400 transition-colors cursor-pointer",
+                    ].join(" ")}
+                  >
+                    워크스페이스 삭제
+                  </button>
+                  <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
+                    삭제된 워크스페이스는 복구할 수 없습니다.
+                  </p>
+                </div>
+              </section>
             </main>
 
             {/* ══ 우측: AI 채팅 패널 (펼침/접힘) ══
@@ -1032,6 +1069,16 @@ export default function WorkspacePage() {
           </div>
         </div>
       </div>
+
+      {/* ── 워크스페이스 삭제 모달 ── */}
+      {showDeleteWorkspace && workspaceDetail && (
+        <DeleteWorkspaceModal
+          workspaceName={workspaceDetail.title}
+          isDeleting={isDeletingWorkspace}
+          onConfirm={handleDeleteWorkspace}
+          onClose={() => setShowDeleteWorkspace(false)}
+        />
+      )}
 
       {/* ── 항공편 삭제 확인 팝업 ── */}
       <ConfirmPopup

@@ -71,6 +71,15 @@ export async function createWorkspace(payload: CreateWorkspacePayload): Promise<
   return unwrap<Workspace>(res);
 }
 
+/** 워크스페이스 삭제 */
+export async function deleteWorkspace(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+}
+
 /** 워크스페이스 수정 */
 export async function updateWorkspace(
   id: number,
