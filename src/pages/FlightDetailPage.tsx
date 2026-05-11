@@ -178,41 +178,106 @@ export default function FlightDetailPage() {
   /* ── offer → SaveFlightPayload 변환 ── */
   const flightPayloads = useMemo<SaveFlightPayload[]>(() => {
     const source = detailsData?.segments?.length ? detailsData.segments : offer?.segments ?? [];
-    const totalPrice = detailsData?.priceBreakdown
-      ? toKrwInt(detailsData.priceBreakdown.total)
-      : offer?.price
-        ? toKrwInt(offer.price.total)
-        : 0;
-    const pricePerSegment = source.length > 0 ? Math.round(totalPrice / source.length) : totalPrice;
+
+    // 선택된 branded fare offer의 가격 정보 우선 사용
+    const selectedFareOffer = detailsData?.brandedFareOffers?.find(
+      (f) => f.token === selectedToken,
+    );
+    const pb = selectedFareOffer?.priceBreakdown ?? detailsData?.priceBreakdown;
+
+    const totalPrice = pb ? toKrwInt(pb.total) : offer?.price ? toKrwInt(offer.price.total) : null;
+    const baseFare = pb ? toKrwInt(pb.baseFare) : offer?.price ? toKrwInt(offer.price.baseFare) : null;
+    const tax = pb ? toKrwInt(pb.tax) : offer?.price ? toKrwInt(offer.price.tax) : null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const platformFee = (pb as any)?.fee ? toKrwInt((pb as any).fee) : null;
+    const currencyCode = pb?.total?.currencyCode ?? null;
+    const bookingToken = selectedToken ?? null;
+    const offerReference = selectedFareOffer?.offerReference ?? null;
+    const cabinClass =
+      selectedFareOffer?.brandedFareInfo?.cabinClass ??
+      detailsData?.brandedFareInfo?.cabinClass ??
+      offer?.brandedFareInfo?.cabinClass ??
+      null;
 
     return source.map((seg, idx) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const firstLeg = seg.legs?.[0] as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const lastLeg = seg.legs?.[seg.legs.length - 1] as any;
 
       const carrierCode: string =
         firstLeg?.flightInfo?.carrierInfo?.marketingCarrier ||
         firstLeg?.marketingCarrier ||
         '';
       const flightNum: number =
-        firstLeg?.flightInfo?.flightNumber ||
-        firstLeg?.flightNumber ||
-        0;
-      const airlineName: string =
-        firstLeg?.carriersData?.[0]?.name || carrierCode || '알 수 없음';
+        firstLeg?.flightInfo?.flightNumber || firstLeg?.flightNumber || 0;
+      const carrierData = firstLeg?.carriersData?.[0];
+      const airlineName: string = carrierData?.name || carrierCode || '알 수 없음';
+      const airlineLogo: string | null = carrierData?.logo ?? null;
+      const planeType: string | null = firstLeg?.flightInfo?.planeType ?? null;
+      const departureTerminal: string | null = firstLeg?.departureTerminal ?? null;
+      const arrivalTerminal: string | null = lastLeg?.arrivalTerminal ?? null;
+
+      // 수하물 정보 (detailsData segments에만 있음)
+      let checkedBaggageKg: number | null = null;
+      let checkedBaggagePiece: number | null = null;
+      let cabinBaggageKg: number | null = null;
+      let personalItemIncluded: boolean | null = null;
+      if (detailsData?.segments?.[idx]) {
+        const detailSeg = detailsData.segments[idx];
+        const checkedLuggage = detailSeg.travellerCheckedLuggage?.[0]?.luggageAllowance;
+        if (checkedLuggage) {
+          checkedBaggageKg = checkedLuggage.maxWeightPerPiece ?? null;
+          checkedBaggagePiece = checkedLuggage.maxPiece ?? null;
+        }
+        const cabinLuggage = detailSeg.travellerCabinLuggage?.[0]?.luggageAllowance;
+        if (cabinLuggage) {
+          if (cabinLuggage.luggageType === 'PERSONAL_ITEM') {
+            personalItemIncluded = true;
+          } else {
+            cabinBaggageKg = cabinLuggage.maxWeightPerPiece ?? null;
+          }
+        }
+      }
+
+      const durationMinutes = seg.totalTime ? Math.round(seg.totalTime / 60) : null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const depAirport = seg.departureAirport as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const arrAirport = seg.arrivalAirport as any;
 
       return {
         flightNumber: `${carrierCode}${flightNum}`,
         airline: airlineName,
-        departureAirport: seg.departureAirport.code,
-        arrivalAirport: seg.arrivalAirport.code,
+        airlineLogo,
+        planeType,
+        cabinClass,
+        departureAirport: depAirport.code,
+        departureCity: depAirport.cityName ?? null,
+        departureCountry: depAirport.countryName ?? null,
+        departureTerminal,
+        arrivalAirport: arrAirport.code,
+        arrivalCity: arrAirport.cityName ?? null,
+        arrivalCountry: arrAirport.countryName ?? null,
+        arrivalTerminal,
         departureTime: new Date(seg.departureTime).toISOString(),
         arrivalTime: new Date(seg.arrivalTime).toISOString(),
-        duration: String(Math.round(seg.totalTime / 60)),
-        price: pricePerSegment,
+        durationMinutes,
+        totalPrice,
+        baseFare,
+        tax,
+        platformFee,
+        currencyCode,
+        checkedBaggageKg,
+        checkedBaggagePiece,
+        cabinBaggageKg,
+        personalItemIncluded,
+        bookingToken,
+        offerReference,
         flightType: idx === 0 ? 'OUTBOUND' : 'RETURN',
       };
     });
-  }, [detailsData, offer]);
+  }, [detailsData, offer, selectedToken]);
 
   return (
     <>

@@ -76,10 +76,9 @@ function mapWorkspaceFlightToFlightInfo(wf: WorkspaceFlight): FlightInfo {
   const dep = formatKoreanTime(wf.departureTime);
   const arr = formatKoreanTime(wf.arrivalTime);
 
-  const durationMin = parseInt(wf.duration, 10);
-  const durationStr = isNaN(durationMin)
-    ? wf.duration
-    : `${Math.floor(durationMin / 60)}시간 ${durationMin % 60 > 0 ? `${durationMin % 60}분` : ""}`.trim();
+  const durationStr = wf.durationMinutes != null
+    ? `${Math.floor(wf.durationMinutes / 60)}시간${wf.durationMinutes % 60 > 0 ? ` ${wf.durationMinutes % 60}분` : ""}`
+    : "";
 
   return {
     direction: wf.flightType === "OUTBOUND" ? "가는편" : "오는편",
@@ -89,18 +88,20 @@ function mapWorkspaceFlightToFlightInfo(wf: WorkspaceFlight): FlightInfo {
         meridiem: dep.meridiem,
         time: dep.time,
         airportCode: wf.departureAirport,
-        airportName: wf.departureAirport,
+        airportName: wf.departureCity ?? wf.departureAirport,
         duration: durationStr,
         airline: wf.airline,
+        airlineLogo: wf.airlineLogo ?? undefined,
         flightNo: wf.flightNumber,
       },
       {
         meridiem: arr.meridiem,
         time: arr.time,
         airportCode: wf.arrivalAirport,
-        airportName: wf.arrivalAirport,
+        airportName: wf.arrivalCity ?? wf.arrivalAirport,
         duration: durationStr,
         airline: wf.airline,
+        airlineLogo: wf.airlineLogo ?? undefined,
         flightNo: wf.flightNumber,
       },
     ],
@@ -675,16 +676,35 @@ export default function WorkspacePage() {
               <section className="flex flex-col gap-3">
                 <SectionHeader title="항공 일정" />
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {flights.map((f, i) => (
-                    <FlightInfoCard
-                      key={i}
-                      direction={f.direction}
-                      date={f.date}
-                      legs={f.legs}
-                      bookingUrl={f.bookingUrl}
-                      bookingNumber={f.bookingNumber}
-                    />
-                  ))}
+                  {/* 가는편(OUTBOUND) 왼쪽, 오는편(RETURN) 오른쪽 */}
+                  {[
+                    flights.find((f) => f.direction === "가는편"),
+                    flights.find((f) => f.direction === "오는편"),
+                  ]
+                    .filter(Boolean)
+                    .map((f, i) => (
+                      <FlightInfoCard
+                        key={i}
+                        direction={f!.direction}
+                        date={f!.date}
+                        legs={f!.legs}
+                        bookingUrl={f!.bookingUrl}
+                        bookingNumber={f!.bookingNumber}
+                      />
+                    ))}
+                  {/* 방향 구분 없는 기타 편 (있을 경우) */}
+                  {flights
+                    .filter((f) => f.direction !== "가는편" && f.direction !== "오는편")
+                    .map((f, i) => (
+                      <FlightInfoCard
+                        key={`extra-${i}`}
+                        direction={f.direction}
+                        date={f.date}
+                        legs={f.legs}
+                        bookingUrl={f.bookingUrl}
+                        bookingNumber={f.bookingNumber}
+                      />
+                    ))}
                 </div>
               </section>
 

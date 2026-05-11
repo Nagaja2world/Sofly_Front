@@ -87,24 +87,62 @@ export interface WorkspaceFlight {
   id: number;
   flightNumber: string;
   airline: string;
+  airlineLogo: string | null;
+  planeType: string | null;
+  cabinClass: string | null;
   departureAirport: string;
+  departureCity: string | null;
+  departureCountry: string | null;
+  departureTerminal: string | null;
   arrivalAirport: string;
+  arrivalCity: string | null;
+  arrivalCountry: string | null;
+  arrivalTerminal: string | null;
   departureTime: string;
   arrivalTime: string;
-  duration: string;
-  price: number;
+  durationMinutes: number | null;
+  totalPrice: number | null;
+  baseFare: number | null;
+  tax: number | null;
+  platformFee: number | null;
+  currencyCode: string | null;
+  checkedBaggageKg: number | null;
+  checkedBaggagePiece: number | null;
+  cabinBaggageKg: number | null;
+  personalItemIncluded: boolean | null;
+  bookingToken: string | null;
+  offerReference: string | null;
   flightType: 'OUTBOUND' | 'RETURN';
 }
 
 export interface SaveFlightPayload {
   flightNumber: string;
   airline: string;
+  airlineLogo?: string | null;
+  planeType?: string | null;
+  cabinClass?: string | null;
   departureAirport: string;
+  departureCity?: string | null;
+  departureCountry?: string | null;
+  departureTerminal?: string | null;
   arrivalAirport: string;
+  arrivalCity?: string | null;
+  arrivalCountry?: string | null;
+  arrivalTerminal?: string | null;
   departureTime: string;
   arrivalTime: string;
-  duration: string;
-  price: number;
+  durationMinutes?: number | null;
+  totalPrice?: number | null;
+  baseFare?: number | null;
+  tax?: number | null;
+  platformFee?: number | null;
+  currencyCode?: string | null;
+  checkedBaggageKg?: number | null;
+  checkedBaggagePiece?: number | null;
+  cabinBaggageKg?: number | null;
+  personalItemIncluded?: boolean | null;
+  bookingToken?: string | null;
+  offerReference?: string | null;
   flightType: 'OUTBOUND' | 'RETURN';
 }
 
