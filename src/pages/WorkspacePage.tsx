@@ -17,9 +17,7 @@ import { type UserSearchResult } from "@/api/userApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
-import MemberSidebar, {
-  type WorkspaceMember,
-} from "@/components/workspace/MemberSidebar";
+import MemberSidebar from "@/components/workspace/MemberSidebar";
 import FlightInfoCard, {
   type FlightLegInfo,
 } from "@/components/workspace/FlightInfoCard";
