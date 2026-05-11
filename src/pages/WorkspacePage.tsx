@@ -702,13 +702,29 @@ export default function WorkspacePage() {
                   ))}
 
                   {/* 추가 카드: "+" 버튼 클릭 시 맨 끝에 표시.
-                      우상단 "×"를 누르면 onCancel이 호출되어 그냥 닫힘 (실행 취소). */}
+                      우상단 "×"를 누르면 onCancel이 호출되어 그냥 닫힘 (실행 취소).
+                      SNS 카드 추가 버튼 비활성화 조건 (이슈 #24 관련):
+                        1) 이미 SNS 카드가 있을 때 (워크스페이스당 1개 제한)
+                        2) 일자별 카드가 하나도 없을 때
+                           → SNS 게시는 여행 기록을 공유하기 위함이므로,
+                             공유할 일자별 기록이 없는 상태에서 SNS 카드만 만드는 건
+                             의미가 없음. 또한 SNS 미리보기 페이지(/workspace/:id/preview)는
+                             "SNS 카드가 있으면 일자별 카드도 최소 1개 있다"는 invariant를
+                             전제로 하므로 이 조건이 invariant를 보장함.
+                      비활성화 사유 우선순위: 1) > 2) (이미 1개 있으면 그게 더 직접적 원인) */}
                   {showAddCard && (
                     <AddTravelLogCard
                       onAddDailyCard={handleAddDailyCard}
                       onAddSnsCard={handleAddSnsCard}
                       onCancel={handleCancelAddCard}
-                      disableSnsCard={snsLog !== null}
+                      disableSnsCard={
+                        snsLog !== null || travelLogs.length === 0
+                      }
+                      disableSnsCardReason={
+                        snsLog !== null
+                          ? "이미 SNS 카드가 있어요 (워크스페이스당 1개)"
+                          : "먼저 일자별 카드를 추가해 주세요"
+                      }
                     />
                   )}
                 </div>

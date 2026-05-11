@@ -36,17 +36,31 @@ interface ItineraryDayCardProps {
    * 편집 모드에서 "저장"을 누르면 호출됨.
    * 부모 컴포넌트는 이 rows로 자신의 state를 갱신해야 함.
    * (API 연결 시: 여기서 PATCH/PUT 호출 후 성공 시 state 갱신)
+   *
+   * readOnly가 true이면 편집 모드 자체로 진입할 수 없으므로 무시됨.
    */
   onSave?: (rows: ItineraryRow[]) => void;
   /**
-   * 지도 버튼 클릭 콜백 (필수).
+   * 지도 버튼 클릭 콜백.
    * 보기 모드 헤더 오른쪽 끝의 "지도" 버튼을 누르면 호출됨.
    * 부모는 이 일정의 장소들을 지도에 표시하는 모달/페이지를 띄우는 등의 처리를 해야 함.
    *
-   * 지도 버튼은 이 카드의 핵심 기능이므로 항상 노출되어야 하며,
-   * 따라서 부모는 반드시 이 핸들러를 구현해서 넘겨야 함 (옵셔널 아님).
+   * 일반 워크스페이스 페이지에서는 이 카드의 핵심 기능이므로 반드시 구현해서 넘겨야 하지만,
+   * SNS 미리보기 페이지(readOnly)에서도 지도 보기는 의미가 있으므로 readOnly여도 동작 가능.
+   * 미지정 시 지도 버튼이 렌더되지 않음.
    */
-  onMapClick: (dayNumber: number) => void;
+  onMapClick?: (dayNumber: number) => void;
+  /**
+   * 읽기 전용 모드.
+   * true이면:
+   *  - 헤더의 편집 버튼(Edit2Icon)이 사라져 편집 모드 진입 자체가 불가능.
+   *  - 지도 버튼(onMapClick이 있을 때)은 그대로 표시됨.
+   *  - SNS 미리보기 페이지(/workspace/:id/preview)처럼 다른 사람의 워크스페이스를
+   *    구경하는 용도의 페이지에서 사용.
+   *
+   * 기본값 false.
+   */
+  readOnly?: boolean;
   /** 추가 클래스 */
   className?: string;
 }
@@ -387,12 +401,17 @@ function EditDataRow({
  *    - 취소 시 진입 시점의 rows로 되돌림
  *
  * 부모는 보기/편집 모드 전환을 신경 쓸 필요 없이 rows + onSave + onMapClick만 넘기면 됨.
+ *
+ * readOnly 모드 (SNS 미리보기 페이지 등):
+ *  - readOnly={true}로 넘기면 편집 버튼이 사라져 편집 모드 진입 자체가 불가능.
+ *  - 지도 버튼은 onMapClick prop의 유무에 따라 표시되며 readOnly와 독립적.
  */
 export default function ItineraryDayCard({
   dayNumber,
   rows,
   onSave,
   onMapClick,
+  readOnly = false,
   className = "",
 }: ItineraryDayCardProps) {
   /** 편집 모드 여부 */
@@ -470,7 +489,9 @@ export default function ItineraryDayCard({
           {dayNumber}일차
         </span>
 
-        {/* 보기 모드: edit2 버튼 + 지도 버튼 / 편집 모드: 취소·저장 버튼 */}
+        {/* 보기 모드: edit2 버튼 + 지도 버튼 / 편집 모드: 취소·저장 버튼
+            - readOnly === true 이면 편집 버튼 숨김 (편집 모드 진입 자체 불가)
+            - onMapClick 미지정 시 지도 버튼 숨김 */}
         {isEditing ? (
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -500,37 +521,43 @@ export default function ItineraryDayCard({
           </div>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={enterEditMode}
-              aria-label={`${dayNumber}일차 편집`}
-              className={[
-                "ml-1 p-1 rounded",
-                "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-                "transition-colors cursor-pointer",
-                "border-none bg-transparent",
-                "inline-flex items-center justify-center",
-              ].join(" ")}
-            >
-              <Edit2Icon className="w-4 h-4" />
-            </button>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={enterEditMode}
+                aria-label={`${dayNumber}일차 편집`}
+                className={[
+                  "ml-1 p-1 rounded",
+                  "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+                  "transition-colors cursor-pointer",
+                  "border-none bg-transparent",
+                  "inline-flex items-center justify-center",
+                ].join(" ")}
+              >
+                <Edit2Icon className="w-4 h-4" />
+              </button>
+            )}
 
-            {/* 지도 버튼 — 헤더 맨 오른쪽 끝 */}
-            <button
-              type="button"
-              onClick={() => onMapClick(dayNumber)}
-              aria-label={`${dayNumber}일차 지도 보기`}
-              className={[
-                "ml-auto",
-                "inline-flex items-center gap-1 px-3 py-1.5 rounded-md",
-                "border border-gray-300 bg-white",
-                "font-pretendard text-body4 text-gray-700",
-                "hover:border-gray-700 hover:text-gray-900 transition-colors cursor-pointer",
-              ].join(" ")}
-            >
-              <MapIcon className="w-4 h-4 shrink-0" />
-              <span>지도</span>
-            </button>
+            {/* 지도 버튼 — 헤더 맨 오른쪽 끝.
+                onMapClick이 있을 때만 표시.
+                readOnly여도 지도 보기는 의미가 있으므로 readOnly와 무관하게 표시됨. */}
+            {onMapClick && (
+              <button
+                type="button"
+                onClick={() => onMapClick(dayNumber)}
+                aria-label={`${dayNumber}일차 지도 보기`}
+                className={[
+                  "ml-auto",
+                  "inline-flex items-center gap-1 px-3 py-1.5 rounded-md",
+                  "border border-gray-300 bg-white",
+                  "font-pretendard text-body4 text-gray-700",
+                  "hover:border-gray-700 hover:text-gray-900 transition-colors cursor-pointer",
+                ].join(" ")}
+              >
+                <MapIcon className="w-4 h-4 shrink-0" />
+                <span>지도</span>
+              </button>
+            )}
           </>
         )}
       </header>

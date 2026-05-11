@@ -65,6 +65,8 @@ interface TravelLogCardProps {
    * 편집 저장 콜백.
    * 편집 아이콘 → 편집 모드 → "저장" 누르면 호출됨.
    * 부모는 받은 data로 state를 갱신하면 됨. (API 연결 시 PATCH)
+   *
+   * readOnly가 true이면 편집 모드 진입 불가이므로 무시됨.
    */
   onSave?: (data: TravelLogData) => void;
   /**
@@ -72,8 +74,21 @@ interface TravelLogCardProps {
    * 헤더 우상단 "×" 버튼 → ConfirmPopup → "삭제" 확인 시 호출됨.
    * 부모는 받은 즉시 해당 일차 카드를 state에서 제거하면 됨. (API 연결 시 DELETE)
    * 미지정 시 삭제 버튼이 렌더되지 않음.
+   *
+   * readOnly가 true이면 삭제 버튼이 표시되지 않으므로 무시됨.
    */
   onDelete?: () => void;
+  /**
+   * 읽기 전용 모드.
+   * true이면:
+   *  - 헤더의 편집 버튼(Edit2Icon)과 삭제 버튼("×")이 모두 사라져
+   *    편집 모드 진입 및 카드 삭제 불가.
+   *  - SNS 미리보기 페이지(/workspace/:id/preview)처럼 다른 사람의
+   *    워크스페이스를 구경하는 용도의 페이지에서 사용.
+   *
+   * 기본값 false.
+   */
+  readOnly?: boolean;
   /** 추가 클래스 */
   className?: string;
 }
@@ -729,6 +744,7 @@ export default function TravelLogCard({
   albumPhotos,
   onSave,
   onDelete,
+  readOnly = false,
   className = "",
 }: TravelLogCardProps) {
   /** 편집 모드 여부 */
@@ -864,8 +880,10 @@ export default function TravelLogCard({
               저장
             </button>
           </div>
-        ) : (
-          /* 보기 모드: 편집 버튼 + 삭제 버튼 (onDelete가 있을 때만) */
+        ) : readOnly ? /* readOnly 모드: 편집/삭제 버튼 영역 자체를 렌더하지 않음.
+             SNS 미리보기 페이지처럼 다른 사람의 게시물을 구경할 때 사용. */
+        null : (
+          /* 보기 모드 (편집 가능): 편집 버튼 + 삭제 버튼 (onDelete가 있을 때만) */
           <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
