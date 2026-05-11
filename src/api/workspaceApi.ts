@@ -188,6 +188,18 @@ export async function fetchWorkspaceFlights(workspaceId: number): Promise<Worksp
   return unwrap<WorkspaceFlight[]>(res);
 }
 
+/** 워크스페이스 항공편 삭제 */
+export async function deleteFlightFromWorkspace(
+  workspaceId: number,
+  flightId: number,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/flights/${flightId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+}
+
 /** 새 워크스페이스 생성 시 사용할 더미 데이터 */
 export function buildDummyWorkspacePayload(): CreateWorkspacePayload {
   const today = new Date();

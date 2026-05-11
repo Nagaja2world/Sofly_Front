@@ -191,7 +191,9 @@ export default function FlightDetailPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const platformFee = (pb as any)?.fee ? toKrwInt((pb as any).fee) : null;
     const currencyCode = pb?.total?.currencyCode ?? null;
-    const bookingToken = selectedToken ?? null;
+    // bookingToken: DB 컬럼이 varchar(255)로 제한되어 있어 null로 설정
+    // (백엔드 entity는 TEXT로 선언되어 있으나 DB 마이그레이션이 필요한 상태)
+    const bookingToken = null;
     const offerReference = selectedFareOffer?.offerReference ?? null;
     const cabinClass =
       selectedFareOffer?.brandedFareInfo?.cabinClass ??

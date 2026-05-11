@@ -37,6 +37,8 @@ interface FlightInfoCardProps {
   bookingUrl?: string;
   /** 예약 번호 */
   bookingNumber?: string;
+  /** 삭제 콜백 (있으면 삭제 버튼 표시) */
+  onDelete?: () => void;
   /** 추가 클래스 */
   className?: string;
 }
@@ -236,6 +238,7 @@ export default function FlightInfoCard({
   legs,
   bookingUrl,
   bookingNumber,
+  onDelete,
   className = "",
 }: FlightInfoCardProps) {
   return (
@@ -254,6 +257,28 @@ export default function FlightInfoCard({
         <span className="font-pretendard text-body3 text-gray-600 ml-1">
           {date}
         </span>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="항공편 삭제"
+            className={[
+              "ml-auto p-1.5 rounded-lg border-none bg-transparent",
+              "text-gray-400 hover:text-red-500 hover:bg-red-50",
+              "cursor-pointer transition-colors",
+            ].join(" ")}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M2 4h12M5.333 4V2.667A1.333 1.333 0 0 1 6.667 1.333h2.666A1.333 1.333 0 0 1 10.667 2.667V4m2 0v9.333A1.333 1.333 0 0 1 11.333 14.667H4.667A1.333 1.333 0 0 1 3.333 13.333V4h9.334Z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
       </header>
 
       <div className="border-t border-gray-200" />

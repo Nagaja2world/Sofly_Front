@@ -4,6 +4,7 @@ import {
   fetchWorkspaceFlights,
   fetchWorkspaceById,
   updateWorkspace,
+  deleteFlightFromWorkspace,
   type Workspace,
   type WorkspaceFlight,
 } from "@/api/workspaceApi";
@@ -25,6 +26,7 @@ import TravelLogCard, {
 } from "@/components/workspace/TravelLogCard";
 import SnsLogCard, { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
+import ConfirmPopup from "@/components/common/ConfirmPopup";
 import PlusIcon from "@/assets/plus.svg?react";
 import type { JSONContent } from "@tiptap/core";
 import ChatPanel, {
@@ -36,6 +38,7 @@ import ChatPanel, {
    ══════════════════════════════════════════ */
 
 interface FlightInfo {
+  id: number;
   direction: "가는편" | "오는편";
   date: string;
   legs: FlightLegInfo[];
@@ -84,6 +87,7 @@ function mapWorkspaceFlightToFlightInfo(wf: WorkspaceFlight): FlightInfo {
     : "";
 
   return {
+    id: wf.id,
     direction: wf.flightType === "OUTBOUND" ? "가는편" : "오는편",
     date: formatKoreanDate(wf.departureTime),
     legs: [
@@ -500,6 +504,21 @@ export default function WorkspacePage() {
     setWorkspaceDetail(updated);
   };
 
+  /* ── 항공편 삭제 확인 팝업 ── */
+  const [deleteFlightTarget, setDeleteFlightTarget] = useState<{ id: number; label: string } | null>(null);
+
+  const handleDeleteFlightConfirm = async () => {
+    if (!deleteFlightTarget) return;
+    try {
+      await deleteFlightFromWorkspace(workspaceId, deleteFlightTarget.id);
+      setApiFlight((prev) => prev.filter((f) => f.id !== deleteFlightTarget.id));
+    } catch (err) {
+      console.warn("[WorkspacePage] 항공편 삭제 실패:", err);
+    } finally {
+      setDeleteFlightTarget(null);
+    }
+  };
+
   /* ── 항공 일정 (API) ── */
   const [apiFlight, setApiFlight] = useState<FlightInfo[]>([]);
 
@@ -819,28 +838,34 @@ export default function WorkspacePage() {
                     <div className="flex flex-col gap-3">
                       {flights
                         .filter((f) => f.direction === "가는편")
-                        .map((f, i) => (
+                        .map((f) => (
                           <FlightInfoCard
-                            key={`out-${i}`}
+                            key={f.id}
                             direction={f.direction}
                             date={f.date}
                             legs={f.legs}
                             bookingUrl={f.bookingUrl}
                             bookingNumber={f.bookingNumber}
+                            onDelete={() =>
+                              setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
+                            }
                           />
                         ))}
                     </div>
                     <div className="flex flex-col gap-3">
                       {flights
                         .filter((f) => f.direction === "오는편")
-                        .map((f, i) => (
+                        .map((f) => (
                           <FlightInfoCard
-                            key={`ret-${i}`}
+                            key={f.id}
                             direction={f.direction}
                             date={f.date}
                             legs={f.legs}
                             bookingUrl={f.bookingUrl}
                             bookingNumber={f.bookingNumber}
+                            onDelete={() =>
+                              setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
+                            }
                           />
                         ))}
                     </div>
@@ -1007,6 +1032,18 @@ export default function WorkspacePage() {
           </div>
         </div>
       </div>
+
+      {/* ── 항공편 삭제 확인 팝업 ── */}
+      <ConfirmPopup
+        isOpen={deleteFlightTarget !== null}
+        onClose={() => setDeleteFlightTarget(null)}
+        onConfirm={handleDeleteFlightConfirm}
+        title="항공편을 삭제하시겠어요?"
+        description={deleteFlightTarget?.label}
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="danger"
+      />
     </>
   );
 }
