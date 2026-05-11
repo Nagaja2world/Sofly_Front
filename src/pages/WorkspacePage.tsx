@@ -784,6 +784,7 @@ export default function WorkspacePage() {
     userId: m.userId,
     name: m.nickname,
     email: m.userEmail,
+    avatarUrl: m.profileImageUrl ?? undefined,
     isHost: m.role === 'OWNER',
   }));
   const flights = apiFlight;

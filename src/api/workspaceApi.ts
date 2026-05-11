@@ -118,6 +118,7 @@ export interface WorkspaceMemberApi {
   userId: number;
   nickname: string;
   userEmail: string;
+  profileImageUrl: string | null;
   role: 'OWNER' | 'VIEWER';
 }
 

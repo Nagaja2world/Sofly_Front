@@ -71,7 +71,7 @@ export default function InvitationPanel({ onClose }: InvitationPanelProps) {
       {/* 헤더 */}
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <h3 className="font-pretendard text-body2 font-semibold text-gray-900 m-0">
-          워크스페이스 초대
+          알림
         </h3>
         {invitations.length > 0 && (
           <span className="font-pretendard text-body5 text-gray-500">
