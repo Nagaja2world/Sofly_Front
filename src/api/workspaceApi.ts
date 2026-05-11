@@ -93,7 +93,7 @@ export interface WorkspaceFlight {
   arrivalTime: string;
   duration: string;
   price: number;
-  flightType: 'OUTBOUND' | 'INBOUND';
+  flightType: 'OUTBOUND' | 'RETURN';
 }
 
 export interface SaveFlightPayload {
@@ -105,7 +105,7 @@ export interface SaveFlightPayload {
   arrivalTime: string;
   duration: string;
   price: number;
-  flightType: 'OUTBOUND' | 'INBOUND';
+  flightType: 'OUTBOUND' | 'RETURN';
 }
 
 /** 워크스페이스에 항공편 저장 */

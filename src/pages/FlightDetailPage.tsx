@@ -209,7 +209,7 @@ export default function FlightDetailPage() {
         arrivalTime: new Date(seg.arrivalTime).toISOString(),
         duration: String(Math.round(seg.totalTime / 60)),
         price: pricePerSegment,
-        flightType: idx === 0 ? 'OUTBOUND' : 'INBOUND',
+        flightType: idx === 0 ? 'OUTBOUND' : 'RETURN',
       };
     });
   }, [detailsData, offer]);

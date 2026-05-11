@@ -1,5 +1,9 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  fetchWorkspaceFlights,
+  type WorkspaceFlight,
+} from "@/api/workspaceApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
@@ -51,9 +55,60 @@ interface TravelLog {
 }
 
 /* ══════════════════════════════════════════
+   API 데이터 변환
+   ══════════════════════════════════════════ */
+
+function formatKoreanTime(iso: string): { meridiem: "오전" | "오후"; time: string } {
+  const d = new Date(iso);
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const meridiem: "오전" | "오후" = h < 12 ? "오전" : "오후";
+  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return { meridiem, time: `${hour}:${String(m).padStart(2, "0")}` };
+}
+
+function formatKoreanDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+}
+
+function mapWorkspaceFlightToFlightInfo(wf: WorkspaceFlight): FlightInfo {
+  const dep = formatKoreanTime(wf.departureTime);
+  const arr = formatKoreanTime(wf.arrivalTime);
+
+  const durationMin = parseInt(wf.duration, 10);
+  const durationStr = isNaN(durationMin)
+    ? wf.duration
+    : `${Math.floor(durationMin / 60)}시간 ${durationMin % 60 > 0 ? `${durationMin % 60}분` : ""}`.trim();
+
+  return {
+    direction: wf.flightType === "OUTBOUND" ? "가는편" : "오는편",
+    date: formatKoreanDate(wf.departureTime),
+    legs: [
+      {
+        meridiem: dep.meridiem,
+        time: dep.time,
+        airportCode: wf.departureAirport,
+        airportName: wf.departureAirport,
+        duration: durationStr,
+        airline: wf.airline,
+        flightNo: wf.flightNumber,
+      },
+      {
+        meridiem: arr.meridiem,
+        time: arr.time,
+        airportCode: wf.arrivalAirport,
+        airportName: wf.arrivalAirport,
+        duration: durationStr,
+        airline: wf.airline,
+        flightNo: wf.flightNumber,
+      },
+    ],
+  };
+}
+
+/* ══════════════════════════════════════════
    목업 데이터
-   - 추후 API 연결 시 useEffect + fetch로 대체
-   - 컴포넌트 props 형태와 동일하게 유지하여 교체가 쉽도록 함
    ══════════════════════════════════════════ */
 
 const MOCK_WORKSPACE_NAME = "프랑크푸르트 여행";
@@ -313,12 +368,31 @@ function SectionHeader({
  */
 export default function WorkspacePage() {
   const navigate = useNavigate();
+  const { id: workspaceIdParam } = useParams<{ id: string }>();
+  const workspaceId = Number(workspaceIdParam);
   const { logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
+
+  /* ── 항공 일정 (API) ── */
+  const [apiFlight, setApiFlight] = useState<FlightInfo[]>([]);
+
+  const loadFlights = useCallback(async () => {
+    if (!workspaceId || isNaN(workspaceId)) return;
+    try {
+      const data = await fetchWorkspaceFlights(workspaceId);
+      setApiFlight(data.map(mapWorkspaceFlightToFlightInfo));
+    } catch (err) {
+      console.warn("[WorkspacePage] 항공 일정 로드 실패:", err);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    loadFlights();
+  }, [loadFlights]);
 
   /* ── 채팅 상태 ── */
   const [messages, setMessages] = useState<ChatMessageData[]>(
@@ -490,7 +564,8 @@ export default function WorkspacePage() {
 
   /* ── 멤버 (목업) ── */
   const members = MOCK_MEMBERS;
-  const flights = MOCK_FLIGHTS;
+  /* API 데이터가 있으면 사용, 없으면 목업으로 폴백 */
+  const flights = apiFlight.length > 0 ? apiFlight : MOCK_FLIGHTS;
 
   /* ── 워크스페이스명 ── */
   const workspaceName = useMemo(() => MOCK_WORKSPACE_NAME, []);
