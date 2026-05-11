@@ -186,19 +186,18 @@ export default function FlightDetailPage() {
     const pricePerSegment = source.length > 0 ? Math.round(totalPrice / source.length) : totalPrice;
 
     return source.map((seg, idx) => {
-      const firstLeg = seg.legs?.[0] as
-        | { flightInfo?: { flightNumber?: number; carrierInfo?: { marketingCarrier?: string } }; carriersData?: { name?: string }[]; flightNumber?: number; marketingCarrier?: string; carriersData?: { name?: string }[] }
-        | undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const firstLeg = seg.legs?.[0] as any;
 
-      const carrierCode =
-        (firstLeg as { flightInfo?: { carrierInfo?: { marketingCarrier?: string } } })?.flightInfo?.carrierInfo?.marketingCarrier ||
-        (firstLeg as { marketingCarrier?: string })?.marketingCarrier ||
+      const carrierCode: string =
+        firstLeg?.flightInfo?.carrierInfo?.marketingCarrier ||
+        firstLeg?.marketingCarrier ||
         '';
-      const flightNum =
-        (firstLeg as { flightInfo?: { flightNumber?: number } })?.flightInfo?.flightNumber ||
-        (firstLeg as { flightNumber?: number })?.flightNumber ||
+      const flightNum: number =
+        firstLeg?.flightInfo?.flightNumber ||
+        firstLeg?.flightNumber ||
         0;
-      const airlineName =
+      const airlineName: string =
         firstLeg?.carriersData?.[0]?.name || carrierCode || '알 수 없음';
 
       return {
