@@ -53,10 +53,31 @@ export async function fetchWorkspaces(): Promise<Workspace[]> {
   return unwrap<Workspace[]>(res);
 }
 
+/** 워크스페이스 단건 조회 */
+export async function fetchWorkspaceById(id: number): Promise<Workspace> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${id}`, {
+    headers: authHeaders(),
+  });
+  return unwrap<Workspace>(res);
+}
+
 /** 워크스페이스 생성 */
 export async function createWorkspace(payload: CreateWorkspacePayload): Promise<Workspace> {
   const res = await fetch(`${API_BASE}/api/workspaces`, {
     method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return unwrap<Workspace>(res);
+}
+
+/** 워크스페이스 수정 */
+export async function updateWorkspace(
+  id: number,
+  payload: CreateWorkspacePayload,
+): Promise<Workspace> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${id}`, {
+    method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(payload),
   });

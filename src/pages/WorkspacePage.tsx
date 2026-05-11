@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchWorkspaceFlights,
+  fetchWorkspaceById,
+  updateWorkspace,
+  type Workspace,
   type WorkspaceFlight,
 } from "@/api/workspaceApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
@@ -112,69 +115,12 @@ function mapWorkspaceFlightToFlightInfo(wf: WorkspaceFlight): FlightInfo {
    목업 데이터
    ══════════════════════════════════════════ */
 
-const MOCK_WORKSPACE_NAME = "프랑크푸르트 여행";
-
 const MOCK_MEMBERS: WorkspaceMember[] = [
   { id: "1", name: "홍길동", isHost: true },
   { id: "2", name: "이대화" },
   { id: "3", name: "김갑자" },
   { id: "4", name: "박조원" },
   { id: "5", name: "조마마" },
-];
-
-const MOCK_FLIGHTS: FlightInfo[] = [
-  {
-    direction: "가는편",
-    date: "2026년 3월 11일",
-    legs: [
-      {
-        meridiem: "오전",
-        time: "11:10",
-        airportCode: "ICN",
-        airportName: "인천국제공항",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0312",
-      },
-      {
-        meridiem: "오후",
-        time: "12:30",
-        airportCode: "PEK",
-        airportName: "베이징캐피탈",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0313",
-      },
-    ],
-    bookingUrl: "https://www.myrealtrip.com/dfsg...",
-    bookingNumber: "2603140000007895321",
-  },
-  {
-    direction: "오는편",
-    date: "2026년 3월 14일",
-    legs: [
-      {
-        meridiem: "오전",
-        time: "11:10",
-        airportCode: "FRA",
-        airportName: "프랑크푸르트",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0312",
-      },
-      {
-        meridiem: "오후",
-        time: "12:30",
-        airportCode: "GMP",
-        airportName: "김포공항",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0313",
-      },
-    ],
-    bookingUrl: "https://www.myrealtrip.com/dfsg...",
-    bookingNumber: "2603140000007895321",
-  },
 ];
 
 const MOCK_ITINERARY_DAYS: ItineraryDay[] = [
@@ -315,6 +261,153 @@ const MOCK_INITIAL_MESSAGES: ChatMessageData[] = [
 ];
 
 /* ══════════════════════════════════════════
+   워크스페이스 정보 바 (조회 + 인라인 편집)
+   ══════════════════════════════════════════ */
+
+interface WorkspaceInfoBarProps {
+  workspace: Workspace;
+  onSave: (title: string, destination: string, startDate: string, endDate: string) => Promise<void>;
+}
+
+function WorkspaceInfoBar({ workspace, onSave }: WorkspaceInfoBarProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [title, setTitle] = useState(workspace.title);
+  const [destination, setDestination] = useState(workspace.destination);
+  const [startDate, setStartDate] = useState(workspace.startDate);
+  const [endDate, setEndDate] = useState(workspace.endDate);
+
+  // workspace prop이 바뀌면 폼 초기화
+  useEffect(() => {
+    setTitle(workspace.title);
+    setDestination(workspace.destination);
+    setStartDate(workspace.startDate);
+    setEndDate(workspace.endDate);
+  }, [workspace]);
+
+  const handleCancel = () => {
+    setTitle(workspace.title);
+    setDestination(workspace.destination);
+    setStartDate(workspace.startDate);
+    setEndDate(workspace.endDate);
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(title, destination, startDate, endDate);
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const inputClass = [
+    "font-pretendard text-body3 text-gray-900 rounded-lg border border-gray-300",
+    "px-2.5 py-1.5 focus:outline-none focus:border-primary bg-white w-full",
+  ].join(" ");
+
+  if (isEditing) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="font-pretendard text-body5 text-gray-500">여행 제목</label>
+            <input
+              className={inputClass}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="여행 제목"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-pretendard text-body5 text-gray-500">목적지</label>
+            <input
+              className={inputClass}
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder="목적지"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-pretendard text-body5 text-gray-500">출발일</label>
+            <input
+              type="date"
+              className={inputClass}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="font-pretendard text-body5 text-gray-500">귀국일</label>
+            <input
+              type="date"
+              className={inputClass}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={isSaving}
+            className={[
+              "font-pretendard text-body4 px-4 py-1.5 rounded-lg border border-gray-300",
+              "text-gray-600 hover:bg-gray-50 cursor-pointer bg-transparent transition-colors",
+              isSaving ? "opacity-50 cursor-not-allowed" : "",
+            ].join(" ")}
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className={[
+              "font-pretendard text-body4 px-4 py-1.5 rounded-lg border-none",
+              "bg-primary text-gray-900 font-semibold cursor-pointer hover:brightness-95 transition-all",
+              isSaving ? "opacity-50 cursor-not-allowed" : "",
+            ].join(" ")}
+          >
+            {isSaving ? "저장 중..." : "저장"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-6 min-w-0">
+        <span className="font-pretendard text-body2 font-semibold text-gray-900 truncate">
+          {workspace.title}
+        </span>
+        <span className="font-pretendard text-body4 text-gray-500 shrink-0">
+          {workspace.destination !== "string" ? workspace.destination : "목적지 미정"}
+        </span>
+        <span className="font-pretendard text-body4 text-gray-500 shrink-0">
+          {workspace.startDate} ~ {workspace.endDate}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => setIsEditing(true)}
+        className={[
+          "shrink-0 font-pretendard text-body5 text-gray-500 px-3 py-1.5 rounded-lg",
+          "border border-gray-200 hover:border-gray-400 hover:text-gray-700",
+          "bg-transparent cursor-pointer transition-colors",
+        ].join(" ")}
+      >
+        편집
+      </button>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
    섹션 헤더 (항공 일정 / 여행 일정 / 여행 기록)
    ══════════════════════════════════════════ */
 
@@ -376,6 +469,35 @@ export default function WorkspacePage() {
   const handleLogout = () => {
     logout();
     navigate("/");
+  };
+
+  /* ── 워크스페이스 상세 (API) ── */
+  const [workspaceDetail, setWorkspaceDetail] = useState<Workspace | null>(null);
+
+  useEffect(() => {
+    if (!workspaceId || isNaN(workspaceId)) return;
+    fetchWorkspaceById(workspaceId)
+      .then(setWorkspaceDetail)
+      .catch((err) => console.warn("[WorkspacePage] 워크스페이스 조회 실패:", err));
+  }, [workspaceId]);
+
+  const handleWorkspaceUpdate = async (
+    title: string,
+    destination: string,
+    startDate: string,
+    endDate: string,
+  ) => {
+    if (!workspaceDetail) return;
+    const updated = await updateWorkspace(workspaceId, {
+      title,
+      destination,
+      startDate,
+      endDate,
+      headcount: workspaceDetail.headcount,
+      coverImageUrl: workspaceDetail.coverImageUrl,
+      countryCode: workspaceDetail.countryCode,
+    });
+    setWorkspaceDetail(updated);
   };
 
   /* ── 항공 일정 (API) ── */
@@ -565,11 +687,10 @@ export default function WorkspacePage() {
 
   /* ── 멤버 (목업) ── */
   const members = MOCK_MEMBERS;
-  /* API 데이터가 있으면 사용, 없으면 목업으로 폴백 */
-  const flights = apiFlight.length > 0 ? apiFlight : MOCK_FLIGHTS;
+  const flights = apiFlight;
 
   /* ── 워크스페이스명 ── */
-  const workspaceName = useMemo(() => MOCK_WORKSPACE_NAME, []);
+  const workspaceName = workspaceDetail?.title ?? '워크스페이스';
 
   return (
     <>
@@ -672,40 +793,58 @@ export default function WorkspacePage() {
 
             {/* ══ 가운데: 메인 컨텐츠 ══ */}
             <main className="min-w-0 flex flex-col gap-8 pt-6">
+              {/* ── 워크스페이스 정보 ── */}
+              {workspaceDetail && (
+                <WorkspaceInfoBar
+                  workspace={workspaceDetail}
+                  onSave={handleWorkspaceUpdate}
+                />
+              )}
+
               {/* ── 항공 일정 ── */}
               <section className="flex flex-col gap-3">
                 <SectionHeader title="항공 일정" />
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {/* 가는편(OUTBOUND) 왼쪽, 오는편(RETURN) 오른쪽 */}
-                  {[
-                    flights.find((f) => f.direction === "가는편"),
-                    flights.find((f) => f.direction === "오는편"),
-                  ]
-                    .filter(Boolean)
-                    .map((f, i) => (
-                      <FlightInfoCard
-                        key={i}
-                        direction={f!.direction}
-                        date={f!.date}
-                        legs={f!.legs}
-                        bookingUrl={f!.bookingUrl}
-                        bookingNumber={f!.bookingNumber}
-                      />
-                    ))}
-                  {/* 방향 구분 없는 기타 편 (있을 경우) */}
-                  {flights
-                    .filter((f) => f.direction !== "가는편" && f.direction !== "오는편")
-                    .map((f, i) => (
-                      <FlightInfoCard
-                        key={`extra-${i}`}
-                        direction={f.direction}
-                        date={f.date}
-                        legs={f.legs}
-                        bookingUrl={f.bookingUrl}
-                        bookingNumber={f.bookingNumber}
-                      />
-                    ))}
-                </div>
+                {flights.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex flex-col items-center gap-2 text-center">
+                    <p className="font-pretendard text-body3 text-gray-700 m-0">
+                      저장된 항공편이 없어요
+                    </p>
+                    <p className="font-pretendard text-body4 text-gray-400 m-0">
+                      항공 검색에서 원하는 항공편을 찾아 이 워크스페이스에 저장해보세요.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    {/* 가는편(OUTBOUND) 왼쪽, 오는편(RETURN) 오른쪽 */}
+                    {[
+                      flights.find((f) => f.direction === "가는편"),
+                      flights.find((f) => f.direction === "오는편"),
+                    ]
+                      .filter(Boolean)
+                      .map((f, i) => (
+                        <FlightInfoCard
+                          key={i}
+                          direction={f!.direction}
+                          date={f!.date}
+                          legs={f!.legs}
+                          bookingUrl={f!.bookingUrl}
+                          bookingNumber={f!.bookingNumber}
+                        />
+                      ))}
+                    {flights
+                      .filter((f) => f.direction !== "가는편" && f.direction !== "오는편")
+                      .map((f, i) => (
+                        <FlightInfoCard
+                          key={`extra-${i}`}
+                          direction={f.direction}
+                          date={f.date}
+                          legs={f.legs}
+                          bookingUrl={f.bookingUrl}
+                          bookingNumber={f.bookingNumber}
+                        />
+                      ))}
+                  </div>
+                )}
               </section>
 
               {/* ── 여행 일정 ── */}
