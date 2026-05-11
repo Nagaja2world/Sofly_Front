@@ -81,6 +81,54 @@ export function resolveCoverImage(url: string, id: number): string {
   return MOCK_COVER_IMAGES[id % MOCK_COVER_IMAGES.length];
 }
 
+/* ── 워크스페이스 항공편 ── */
+
+export interface WorkspaceFlight {
+  id: number;
+  flightNumber: string;
+  airline: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  departureTime: string;
+  arrivalTime: string;
+  duration: string;
+  price: number;
+  flightType: 'OUTBOUND' | 'INBOUND';
+}
+
+export interface SaveFlightPayload {
+  flightNumber: string;
+  airline: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  departureTime: string;
+  arrivalTime: string;
+  duration: string;
+  price: number;
+  flightType: 'OUTBOUND' | 'INBOUND';
+}
+
+/** 워크스페이스에 항공편 저장 */
+export async function saveFlightToWorkspace(
+  workspaceId: number,
+  payload: SaveFlightPayload,
+): Promise<WorkspaceFlight> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/flights`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return unwrap<WorkspaceFlight>(res);
+}
+
+/** 워크스페이스 항공편 목록 조회 */
+export async function fetchWorkspaceFlights(workspaceId: number): Promise<WorkspaceFlight[]> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/flights`, {
+    headers: authHeaders(),
+  });
+  return unwrap<WorkspaceFlight[]>(res);
+}
+
 /** 새 워크스페이스 생성 시 사용할 더미 데이터 */
 export function buildDummyWorkspacePayload(): CreateWorkspacePayload {
   const today = new Date();
