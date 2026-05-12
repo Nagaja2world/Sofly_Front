@@ -1344,27 +1344,35 @@ export default function WorkspacePage() {
                   내부 sticky div가 viewport 높이로 chat 영역을 고정 */}
             {isChatOpen ? (
               <aside className="self-stretch">
+                {/* 외부 div: self-stretch 높이만큼 늘어나 테두리/배경 역할 */}
                 <div
                   className={[
-                    "h-full min-h-full relative overflow-hidden",
+                    "h-full min-h-full relative",
                     "bg-white",
                     "rounded-bl-xl",
                     "border border-r-0 border-t-0 border-gray-300",
                   ].join(" ")}
                 >
-                  {/* 드래그 핸들 — 커서만 제공, 별도 선 없음 */}
+                  {/* sticky 래퍼: 헤더(h-20=80px) 아래에 고정, 나머지 뷰포트 채움.
+                      footer가 보이면 aside 끝에 걸려 자동으로 올라감. */}
                   <div
-                    onMouseDown={handleResizeStart}
-                    className="absolute left-0 top-0 bottom-0 z-10 w-2"
-                    style={{ cursor: "ew-resize" }}
-                    aria-hidden
-                  />
-                  <ChatPanel
-                    workspaceId={workspaceId}
-                    onScheduleSaved={loadSchedule}
-                    onCollapse={() => setIsChatOpen(false)}
-                    className="!rounded-none !border-none h-full"
-                  />
+                    className="sticky top-20 overflow-hidden"
+                    style={{ height: "calc(100vh - 80px)" }}
+                  >
+                    {/* 드래그 핸들 — 커서만 제공, 별도 선 없음 */}
+                    <div
+                      onMouseDown={handleResizeStart}
+                      className="absolute left-0 top-0 bottom-0 z-10 w-2"
+                      style={{ cursor: "ew-resize" }}
+                      aria-hidden
+                    />
+                    <ChatPanel
+                      workspaceId={workspaceId}
+                      onScheduleSaved={loadSchedule}
+                      onCollapse={() => setIsChatOpen(false)}
+                      className="!rounded-none !border-none h-full"
+                    />
+                  </div>
                 </div>
               </aside>
             ) : (
