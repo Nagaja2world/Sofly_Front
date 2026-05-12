@@ -80,6 +80,20 @@ export async function deleteWorkspace(id: number): Promise<void> {
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
 }
 
+/** 워크스페이스 커버 이미지 업로드 */
+export async function uploadCoverImage(workspaceId: number, file: File): Promise<Workspace> {
+  const token = localStorage.getItem('accessToken');
+  const formData = new FormData();
+  formData.append('image', file);
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/cover-image`, {
+    method: 'PATCH',
+    // Content-Type 헤더를 직접 설정하지 않음 → 브라우저가 boundary 포함해서 자동 설정
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  return unwrap<Workspace>(res);
+}
+
 /** 워크스페이스 수정 */
 export async function updateWorkspace(
   id: number,
