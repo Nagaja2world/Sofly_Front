@@ -51,9 +51,7 @@ import FlightDetailModal from "@/components/workspace/FlightDetailModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import PlusIcon from "@/assets/plus.svg?react";
 import type { JSONContent } from "@tiptap/core";
-import ChatPanel, {
-  type ChatMessageData,
-} from "@/components/chatting/ChatPanel";
+import ChatPanel from "@/components/chatting/ChatPanel";
 
 /* ══════════════════════════════════════════
    타입 (페이지 단위 데이터 모델)
@@ -246,15 +244,6 @@ const MOCK_TRAVEL_LOGS: TravelLog[] = [
   },
 ];
 
-const MOCK_INITIAL_MESSAGES: ChatMessageData[] = [
-  {
-    id: "m1",
-    role: "user",
-    text: "여자 3명이서 오사카 여행가는데 일정 짜줘.",
-    pageIndex: 1,
-    pageTotal: 1,
-  },
-];
 
 /* ══════════════════════════════════════════
    워크스페이스 정보 바 (조회 + 인라인 편집)
@@ -672,11 +661,6 @@ export default function WorkspacePage() {
     loadFlights();
   }, [loadFlights]);
 
-  /* ── 채팅 상태 ── */
-  const [messages, setMessages] = useState<ChatMessageData[]>(
-    MOCK_INITIAL_MESSAGES,
-  );
-  const [isThinking, setIsThinking] = useState(false);
 
   /* ── 사이드바 토글 상태 ──
    * 좌(멤버) / 우(채팅) 각각 독립적으로 펼침/접힘 제어.
@@ -933,35 +917,6 @@ export default function WorkspacePage() {
     console.log("[Workspace] open map for day:", dayNumber);
   };
 
-  /* ── 메시지 전송 (목업: 1초 뒤 가짜 AI 응답) ── */
-  const handleSend = (text: string) => {
-    const userMsg: ChatMessageData = {
-      id: `u-${Date.now()}`,
-      role: "user",
-      text,
-      pageIndex: 1,
-      pageTotal: 1,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-
-    setIsThinking(true);
-    setTimeout(() => {
-      const aiMsg: ChatMessageData = {
-        id: `a-${Date.now()}`,
-        role: "ai",
-        text: "요청하신 일정을 정리했어요. 마음에 드시면 아래에서 저장해 보세요.",
-        isItinerarySuggestion: true,
-      };
-      setMessages((prev) => [...prev, aiMsg]);
-      setIsThinking(false);
-    }, 1000);
-  };
-
-  /* ── 일정 저장 (목업) ── */
-  const handleSaveItinerary = (messageId: string) => {
-    // TODO: 해당 AI 메시지의 일정 데이터를 워크스페이스에 반영
-    console.log("[Workspace] save itinerary from message:", messageId);
-  };
 
   /* ── 멤버: API 데이터 → WorkspaceMember 변환 ── */
   const members = apiMembers.map((m) => ({
@@ -1355,16 +1310,9 @@ export default function WorkspacePage() {
             {isChatOpen ? (
               <aside className="sticky top-0 self-start h-[calc(100vh-5rem)]">
                 <ChatPanel
-                  messages={messages}
-                  onSend={handleSend}
-                  onSaveItinerary={handleSaveItinerary}
-                  onEditMessage={(id) => console.log("edit", id)}
-                  onCopyMessage={(id) => console.log("copy", id)}
-                  onPrevPage={(id) => console.log("prev", id)}
-                  onNextPage={(id) => console.log("next", id)}
-                  isThinking={isThinking}
+                  workspaceId={workspaceId}
+                  onScheduleSaved={loadSchedule}
                   onCollapse={() => setIsChatOpen(false)}
-                  /* ChatPanel 기본 스타일을 덮어써서 좌하만 둥글고 우/상 테두리 제거 */
                   className="!rounded-none !rounded-bl-xl !border-0 border-l border-b border-gray-300 h-full"
                 />
               </aside>
