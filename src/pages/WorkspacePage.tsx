@@ -1352,22 +1352,19 @@ export default function WorkspacePage() {
                     "border border-r-0 border-t-0 border-gray-300",
                   ].join(" ")}
                 >
-                  {/* 드래그 핸들 — border-l 선 위에 겹쳐서 커서만 제공, 별도 선 없음 */}
+                  {/* 드래그 핸들 — 커서만 제공, 별도 선 없음 */}
                   <div
                     onMouseDown={handleResizeStart}
                     className="absolute left-0 top-0 bottom-0 z-10 w-2"
                     style={{ cursor: "ew-resize" }}
                     aria-hidden
                   />
-                  {/* sticky: content보다 길어지지 않고 viewport 높이만큼만 차지 */}
-                  <div className="sticky top-0 h-[calc(100vh-5rem)]">
-                    <ChatPanel
-                      workspaceId={workspaceId}
-                      onScheduleSaved={loadSchedule}
-                      onCollapse={() => setIsChatOpen(false)}
-                      className="!rounded-none !border-none h-full"
-                    />
-                  </div>
+                  <ChatPanel
+                    workspaceId={workspaceId}
+                    onScheduleSaved={loadSchedule}
+                    onCollapse={() => setIsChatOpen(false)}
+                    className="!rounded-none !border-none h-full"
+                  />
                 </div>
               </aside>
             ) : (
