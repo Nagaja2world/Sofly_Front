@@ -4,6 +4,7 @@ import Edit2Icon from "@/assets/edit2.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 import MapIcon from "@/assets/map.svg?react";
 import DayItineraryMap from "@/components/workspace/DayItineraryMap";
+import ConfirmPopup from "@/components/common/ConfirmPopup";
 
 /* ══════════════════════════════════════════
    타입
@@ -413,6 +414,9 @@ export default function ItineraryDayCard({
   /** 지도 펼침 여부 (기본 열림) */
   const [showMap, setShowMap] = useState(true);
 
+  /** 삭제 확인 모달 대상 (null이면 닫힘) */
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
+
   /** 편집 중 임시 rows (저장 시 onSave로 위임, 취소 시 폐기)
    *  보기 모드일 때는 이 state를 사용하지 않고 props.rows를 직접 렌더하므로
    *  부모 props 변경을 useEffect로 동기화할 필요가 없음.
@@ -615,9 +619,7 @@ export default function ItineraryDayCard({
                 onDeleteItem
                   ? () => {
                       const id = parseInt(row.id, 10);
-                      if (!isNaN(id) && confirm(`"${row.title}" 일정을 삭제할까요?`)) {
-                        onDeleteItem(id);
-                      }
+                      if (!isNaN(id)) setDeleteTarget({ id, title: row.title });
                     }
                   : undefined
               }
@@ -625,6 +627,21 @@ export default function ItineraryDayCard({
           ))
         )}
       </div>
+
+      {/* ── 삭제 확인 모달 ── */}
+      <ConfirmPopup
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) onDeleteItem?.(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+        title="일정을 삭제할까요?"
+        description={deleteTarget ? `"${deleteTarget.title}"\n삭제하면 되돌릴 수 없어요.` : ""}
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="danger"
+      />
     </article>
   );
 }
