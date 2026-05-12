@@ -1354,9 +1354,10 @@ export default function WorkspacePage() {
                   ].join(" ")}
                 >
                   {/* sticky 래퍼: 헤더(h-20=80px) 아래에 고정, 나머지 뷰포트 채움.
+                      pt-6: 가운데 main의 pt-6과 상단 라인 맞춤.
                       footer가 보이면 aside 끝에 걸려 자동으로 올라감. */}
                   <div
-                    className="sticky top-20 overflow-hidden"
+                    className="sticky top-20 overflow-hidden pt-6"
                     style={{ height: "calc(100vh - 80px)" }}
                   >
                     {/* 드래그 핸들 — 커서만 제공, 별도 선 없음 */}
