@@ -1346,21 +1346,19 @@ export default function WorkspacePage() {
               <aside className="self-stretch">
                 <div
                   className={[
-                    "h-full min-h-full relative",
+                    "h-full min-h-full relative overflow-hidden",
                     "bg-white",
                     "rounded-bl-xl",
                     "border border-r-0 border-t-0 border-gray-300",
                   ].join(" ")}
                 >
-                  {/* 드래그 핸들 — 왼쪽 경계에 절대 위치 */}
+                  {/* 드래그 핸들 — border-l 선 위에 겹쳐서 커서만 제공, 별도 선 없음 */}
                   <div
                     onMouseDown={handleResizeStart}
-                    className="absolute left-0 top-0 bottom-0 z-10 w-2 group"
+                    className="absolute left-0 top-0 bottom-0 z-10 w-2"
                     style={{ cursor: "ew-resize" }}
                     aria-hidden
-                  >
-                    <div className="absolute inset-y-0 left-[3px] w-px bg-gray-300 group-hover:bg-gray-500 transition-colors" />
-                  </div>
+                  />
                   {/* sticky: content보다 길어지지 않고 viewport 높이만큼만 차지 */}
                   <div className="sticky top-0 h-[calc(100vh-5rem)]">
                     <ChatPanel
