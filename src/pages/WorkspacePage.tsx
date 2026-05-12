@@ -998,10 +998,9 @@ export default function WorkspacePage() {
         {/* ── 페이지 컨텐츠 ── */}
         <div className="w-full pb-6">
           <div
-            className="grid items-start gap-6"
+            className="grid items-start"
             style={{
-              gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr`,
-              paddingRight: isChatOpen ? chatWidth : 48,
+              gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr ${isChatOpen ? `${chatWidth}px` : "48px"}`,
             }}
           >
             {/* ══ 좌측: 멤버 사이드바 (펼침/접힘) ══
@@ -1339,70 +1338,57 @@ export default function WorkspacePage() {
               </section>
             </main>
 
+            {/* ══ 우측: AI 채팅 패널 (그리드 컬럼, 드래그로 폭 조절) ══ */}
+            {isChatOpen ? (
+              <aside className="sticky top-0 self-start h-[calc(100vh-5rem)] relative">
+                {/* 드래그 핸들 — 패널 왼쪽 경계에 위치, 구분선 겸용 */}
+                <div
+                  onMouseDown={handleResizeStart}
+                  className="absolute left-0 top-0 bottom-0 z-10 w-2 group"
+                  style={{ cursor: "ew-resize" }}
+                  aria-hidden
+                >
+                  <div className="absolute inset-y-0 left-[3px] w-px bg-gray-300 group-hover:bg-gray-500 transition-colors" />
+                </div>
+                <ChatPanel
+                  workspaceId={workspaceId}
+                  onScheduleSaved={loadSchedule}
+                  onCollapse={() => setIsChatOpen(false)}
+                  className="!rounded-none !rounded-bl-xl !border-0 border-l border-b border-gray-300 h-full"
+                />
+              </aside>
+            ) : (
+              <aside className="self-stretch">
+                <div
+                  className={[
+                    "h-full min-h-full",
+                    "bg-white",
+                    "rounded-bl-xl",
+                    "border border-r-0 border-t-0 border-gray-300",
+                    "flex flex-col items-center",
+                  ].join(" ")}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setIsChatOpen(true)}
+                    aria-label="채팅 패널 펼치기"
+                    className={[
+                      "sticky top-4",
+                      "mt-4",
+                      "p-1.5 rounded",
+                      "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+                      "transition-colors cursor-pointer",
+                      "border-none bg-transparent",
+                      "inline-flex items-center justify-center",
+                    ].join(" ")}
+                  >
+                    <LayoutLeftIcon className="w-4 h-4 -scale-x-100" />
+                  </button>
+                </div>
+              </aside>
+            )}
           </div>
         </div>
-
-        {/* ══ 우측: AI 채팅 패널 (fixed overlay, 리사이즈 가능) ══
-            - position: fixed → 메인 컨텐츠 위에 덮어씌움 (컨텐츠 비율 유지)
-            - 드래그 핸들로 폭 조절 가능 (min 280px, max 720px)
-            - 구분선은 핸들 안의 1px vertical bar */}
-        {isChatOpen ? (
-          <>
-            {/* 드래그 핸들 + 구분선 */}
-            <div
-              onMouseDown={handleResizeStart}
-              className="fixed z-50 top-[5rem] bottom-0 group"
-              style={{ right: chatWidth - 4, width: 8, cursor: "ew-resize" }}
-              aria-hidden
-            >
-              {/* 항상 보이는 1px 구분선 */}
-              <div className="absolute inset-y-0 left-[3px] w-px bg-gray-300 group-hover:bg-gray-500 transition-colors" />
-            </div>
-
-            {/* 채팅 패널 */}
-            <aside
-              className="fixed z-40 top-[5rem] bottom-0 right-0 bg-white"
-              style={{ width: chatWidth }}
-            >
-              <ChatPanel
-                workspaceId={workspaceId}
-                onScheduleSaved={loadSchedule}
-                onCollapse={() => setIsChatOpen(false)}
-                className="!rounded-none !border-0 border-l border-gray-300 h-full"
-              />
-            </aside>
-          </>
-        ) : (
-          /* 접힘 상태: 고정된 48px 탭 */
-          <aside className="fixed z-40 top-[5rem] bottom-0 right-0 w-[48px]">
-            <div
-              className={[
-                "h-full",
-                "bg-white",
-                "border-l border-gray-300",
-                "flex flex-col items-center",
-              ].join(" ")}
-            >
-              {/* 구분선 */}
-              <div className="absolute inset-y-0 left-0 w-px bg-gray-300" />
-              <button
-                type="button"
-                onClick={() => setIsChatOpen(true)}
-                aria-label="채팅 패널 펼치기"
-                className={[
-                  "mt-4",
-                  "p-1.5 rounded",
-                  "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-                  "transition-colors cursor-pointer",
-                  "border-none bg-transparent",
-                  "inline-flex items-center justify-center",
-                ].join(" ")}
-              >
-                <LayoutLeftIcon className="w-4 h-4 -scale-x-100" />
-              </button>
-            </div>
-          </aside>
-        )}
       </div>
 
       {/* ── 멤버 초대 모달 ── */}
