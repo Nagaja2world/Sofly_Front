@@ -373,8 +373,8 @@ export default function ItineraryDayCard({
   /** 편집 모드 여부 */
   const [isEditing, setIsEditing] = useState(false);
 
-  /** 지도 펼침 여부 */
-  const [showMap, setShowMap] = useState(false);
+  /** 지도 펼침 여부 (기본 열림) */
+  const [showMap, setShowMap] = useState(true);
 
   /** 편집 중 임시 rows (저장 시 onSave로 위임, 취소 시 폐기)
    *  보기 모드일 때는 이 state를 사용하지 않고 props.rows를 직접 렌더하므로
