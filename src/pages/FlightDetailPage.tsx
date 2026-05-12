@@ -454,14 +454,6 @@ export default function FlightDetailPage() {
                 </div>
               )}
 
-              {/* 워크스페이스에 저장 버튼 */}
-              <Button
-                btnType="solid"
-                className="w-full py-3.5"
-                onClick={() => setShowWorkspaceModal(true)}
-              >
-                워크스페이스에 저장
-              </Button>
             </aside>
           </div>
           {/* ── 데코레이션 ── */}
