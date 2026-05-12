@@ -3,6 +3,7 @@ import PinIcon from "@/assets/pin.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 import MapIcon from "@/assets/map.svg?react";
+import DayItineraryMap from "@/components/workspace/DayItineraryMap";
 
 /* ══════════════════════════════════════════
    타입
@@ -48,15 +49,8 @@ interface ItineraryDayCardProps {
    * (API 연결 시: 여기서 PATCH/PUT 호출 후 성공 시 state 갱신)
    */
   onSave?: (rows: ItineraryRow[]) => void;
-  /**
-   * 지도 버튼 클릭 콜백 (필수).
-   * 보기 모드 헤더 오른쪽 끝의 "지도" 버튼을 누르면 호출됨.
-   * 부모는 이 일정의 장소들을 지도에 표시하는 모달/페이지를 띄우는 등의 처리를 해야 함.
-   *
-   * 지도 버튼은 이 카드의 핵심 기능이므로 항상 노출되어야 하며,
-   * 따라서 부모는 반드시 이 핸들러를 구현해서 넘겨야 함 (옵셔널 아님).
-   */
-  onMapClick: (dayNumber: number) => void;
+  /** 지도 버튼 클릭 시 외부 콜백 (선택). 카드 내부 인라인 지도가 기본 동작. */
+  onMapClick?: (dayNumber: number) => void;
   /** 추가 클래스 */
   className?: string;
 }
@@ -380,6 +374,9 @@ export default function ItineraryDayCard({
   /** 편집 모드 여부 */
   const [isEditing, setIsEditing] = useState(false);
 
+  /** 지도 펼침 여부 */
+  const [showMap, setShowMap] = useState(false);
+
   /** 편집 중 임시 rows (저장 시 onSave로 위임, 취소 시 폐기)
    *  보기 모드일 때는 이 state를 사용하지 않고 props.rows를 직접 렌더하므로
    *  부모 props 변경을 useEffect로 동기화할 필요가 없음.
@@ -498,18 +495,20 @@ export default function ItineraryDayCard({
             {/* 지도 버튼 — 헤더 맨 오른쪽 끝 */}
             <button
               type="button"
-              onClick={() => onMapClick(dayNumber)}
-              aria-label={`${dayNumber}일차 지도 보기`}
+              onClick={() => setShowMap((v) => !v)}
+              aria-label={`${dayNumber}일차 지도 ${showMap ? '닫기' : '보기'}`}
               className={[
                 "ml-auto",
                 "inline-flex items-center gap-1 px-3 py-1.5 rounded-md",
-                "border border-gray-300 bg-white",
-                "font-pretendard text-body4 text-gray-700",
-                "hover:border-gray-700 hover:text-gray-900 transition-colors cursor-pointer",
+                "border transition-colors cursor-pointer",
+                "font-pretendard text-body4",
+                showMap
+                  ? "border-amber-400 bg-amber-50 text-amber-600"
+                  : "border-gray-300 bg-white text-gray-700 hover:border-gray-700 hover:text-gray-900",
               ].join(" ")}
             >
               <MapIcon className="w-4 h-4 shrink-0" />
-              <span>지도</span>
+              <span>{showMap ? "닫기" : "지도"}</span>
             </button>
           </>
         )}
@@ -519,6 +518,13 @@ export default function ItineraryDayCard({
       <div className="border-t border-gray-200 px-2">
         {isEditing ? <EditHeaderRow /> : <ViewHeaderRow />}
       </div>
+
+      {/* ── 지도 패널 (지도 버튼 클릭 시 펼침) ── */}
+      {showMap && !isEditing && (
+        <div className="border-t border-gray-200 px-2 py-2" style={{ height: 340 }}>
+          <DayItineraryMap rows={rows} dayNumber={dayNumber} />
+        </div>
+      )}
 
       {/* ── 데이터 행들 ── */}
       <div className="flex flex-col gap-2 px-2 pb-2">

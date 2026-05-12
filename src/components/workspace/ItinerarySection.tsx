@@ -15,7 +15,7 @@ interface ItinerarySectionProps {
   isSaving: boolean;
   onSelectVersion: (scheduleId: number) => void;
   onSaveDay: (dayNumber: number, rows: ItineraryRow[]) => void;
-  onMapClick: (dayNumber: number) => void;
+  onMapClick?: (dayNumber: number) => void;
 }
 
 export default function ItinerarySection({
