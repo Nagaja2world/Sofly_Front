@@ -239,6 +239,9 @@ export default function WorkspacePage() {
   const [snsLog, setSnsLog] = useState<SnsLogData | null>(null);
   const [showAddCard, setShowAddCard] = useState(false);
 
+  const handleOpenAddCard = () => setShowAddCard(true);
+  const handleCancelAddCard = () => setShowAddCard(false);
+
   const handleSaveTravelLog = (dayNumber: number, data: TravelLogData) => {
     setTravelLogs((prev) =>
       prev.map((log) => (log.dayNumber === dayNumber ? { ...log, ...data } : log)),
