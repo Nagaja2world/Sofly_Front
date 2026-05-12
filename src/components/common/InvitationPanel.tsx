@@ -85,7 +85,7 @@ export default function InvitationPanel({ onClose }: InvitationPanelProps) {
         {invitations.length === 0 ? (
           <div className="px-5 py-10 text-center">
             <p className="font-pretendard text-body3 text-gray-500 m-0">
-              새로운 초대가 없어요
+              새로운 알람이 없어요
             </p>
           </div>
         ) : (

@@ -998,7 +998,7 @@ export default function WorkspacePage() {
         {/* ── 페이지 컨텐츠 ── */}
         <div className="w-full pb-6">
           <div
-            className="grid items-start"
+            className="grid items-start gap-6"
             style={{
               gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr ${isChatOpen ? `${chatWidth}px` : "48px"}`,
             }}
@@ -1338,26 +1338,42 @@ export default function WorkspacePage() {
               </section>
             </main>
 
-            {/* ══ 우측: AI 채팅 패널 (그리드 컬럼, 드래그로 폭 조절) ══ */}
+            {/* ══ 우측: AI 채팅 패널 (그리드 컬럼, 드래그로 폭 조절) ══
+                - 좌측 사이드바와 동일한 self-stretch 구조:
+                  aside가 그리드 행 높이만큼 늘어나고 (content 높이까지만),
+                  내부 sticky div가 viewport 높이로 chat 영역을 고정 */}
             {isChatOpen ? (
-              <aside className="sticky top-0 self-start h-[calc(100vh-5rem)] relative">
-                {/* 드래그 핸들 — 패널 왼쪽 경계에 위치, 구분선 겸용 */}
+              <aside className="self-stretch">
                 <div
-                  onMouseDown={handleResizeStart}
-                  className="absolute left-0 top-0 bottom-0 z-10 w-2 group"
-                  style={{ cursor: "ew-resize" }}
-                  aria-hidden
+                  className={[
+                    "h-full min-h-full relative",
+                    "bg-white",
+                    "rounded-bl-xl",
+                    "border border-r-0 border-t-0 border-gray-300",
+                  ].join(" ")}
                 >
-                  <div className="absolute inset-y-0 left-[3px] w-px bg-gray-300 group-hover:bg-gray-500 transition-colors" />
+                  {/* 드래그 핸들 — 왼쪽 경계에 절대 위치 */}
+                  <div
+                    onMouseDown={handleResizeStart}
+                    className="absolute left-0 top-0 bottom-0 z-10 w-2 group"
+                    style={{ cursor: "ew-resize" }}
+                    aria-hidden
+                  >
+                    <div className="absolute inset-y-0 left-[3px] w-px bg-gray-300 group-hover:bg-gray-500 transition-colors" />
+                  </div>
+                  {/* sticky: content보다 길어지지 않고 viewport 높이만큼만 차지 */}
+                  <div className="sticky top-0 h-[calc(100vh-5rem)]">
+                    <ChatPanel
+                      workspaceId={workspaceId}
+                      onScheduleSaved={loadSchedule}
+                      onCollapse={() => setIsChatOpen(false)}
+                      className="!rounded-none !border-none h-full"
+                    />
+                  </div>
                 </div>
-                <ChatPanel
-                  workspaceId={workspaceId}
-                  onScheduleSaved={loadSchedule}
-                  onCollapse={() => setIsChatOpen(false)}
-                  className="!rounded-none !rounded-bl-xl !border-0 border-l border-b border-gray-300 h-full"
-                />
               </aside>
             ) : (
+              /* 접힘 상태: 좌측 사이드바와 동일한 구조 */
               <aside className="self-stretch">
                 <div
                   className={[
