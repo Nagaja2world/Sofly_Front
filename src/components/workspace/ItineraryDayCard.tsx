@@ -368,7 +368,6 @@ export default function ItineraryDayCard({
   dayNumber,
   rows,
   onSave,
-  onMapClick,
   className = "",
 }: ItineraryDayCardProps) {
   /** 편집 모드 여부 */

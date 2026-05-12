@@ -154,7 +154,7 @@ export default function DayItineraryMap({ rows, dayNumber }: DayItineraryMapProp
             version: 'weekly',
             mapIds: GOOGLE_MAP_ID ? [GOOGLE_MAP_ID] : undefined,
           });
-          (window as Record<string, unknown>).__tripItineraryMapsConfigured = true;
+          (window as unknown as Record<string, unknown>).__tripItineraryMapsConfigured = true;
         }
 
         await importLibrary('maps');
