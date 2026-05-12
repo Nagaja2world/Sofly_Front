@@ -51,6 +51,8 @@ interface ItineraryDayCardProps {
   onSave?: (rows: ItineraryRow[]) => void;
   /** 지도 버튼 클릭 시 외부 콜백 (선택). 카드 내부 인라인 지도가 기본 동작. */
   onMapClick?: (dayNumber: number) => void;
+  /** 보기 모드에서 행 삭제 콜백. itemId(숫자)를 넘겨줌. */
+  onDeleteItem?: (itemId: number) => void;
   /** 추가 클래스 */
   className?: string;
 }
@@ -101,7 +103,16 @@ function ViewHeaderRow() {
 }
 
 /** 보기 모드 데이터 행 */
-function ViewDataRow({ row }: { row: ItineraryRow }) {
+function ViewDataRow({
+  row,
+  onDelete,
+}: {
+  row: ItineraryRow;
+  onDelete?: () => void;
+}) {
+  const itemId = parseInt(row.id, 10);
+  const isDeletable = !isNaN(itemId) && onDelete;
+
   return (
     <div
       className={[
@@ -109,8 +120,9 @@ function ViewDataRow({ row }: { row: ItineraryRow }) {
         "px-5 py-4",
         "rounded-lg border border-gray-300 bg-gray-100",
         "font-pretendard text-body3 text-gray-900",
+        "group",
       ].join(" ")}
-      style={{ gridTemplateColumns: VIEW_GRID_COLS }}
+      style={{ gridTemplateColumns: isDeletable ? `${VIEW_GRID_COLS} 28px` : VIEW_GRID_COLS }}
     >
       <span className="text-gray-900 truncate">{row.title}</span>
       <span className="text-center text-gray-700">
@@ -120,6 +132,30 @@ function ViewDataRow({ row }: { row: ItineraryRow }) {
       <span className="text-center text-gray-700 truncate">
         {row.remark ?? ""}
       </span>
+      {isDeletable && (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label="일정 삭제"
+          className={[
+            "w-6 h-6 rounded",
+            "inline-flex items-center justify-center",
+            "border-none bg-transparent",
+            "text-gray-300 hover:text-red-500 hover:bg-red-50",
+            "opacity-0 group-hover:opacity-100",
+            "transition-all cursor-pointer",
+          ].join(" ")}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path
+              d="M2 2L10 10M10 2L2 10"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -368,6 +404,7 @@ export default function ItineraryDayCard({
   dayNumber,
   rows,
   onSave,
+  onDeleteItem,
   className = "",
 }: ItineraryDayCardProps) {
   /** 편집 모드 여부 */
@@ -570,7 +607,22 @@ export default function ItineraryDayCard({
             등록된 일정이 없습니다.
           </div>
         ) : (
-          rows.map((row) => <ViewDataRow key={row.id} row={row} />)
+          rows.map((row) => (
+            <ViewDataRow
+              key={row.id}
+              row={row}
+              onDelete={
+                onDeleteItem
+                  ? () => {
+                      const id = parseInt(row.id, 10);
+                      if (!isNaN(id) && confirm(`"${row.title}" 일정을 삭제할까요?`)) {
+                        onDeleteItem(id);
+                      }
+                    }
+                  : undefined
+              }
+            />
+          ))
         )}
       </div>
     </article>

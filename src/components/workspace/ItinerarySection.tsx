@@ -16,6 +16,7 @@ interface ItinerarySectionProps {
   onSelectVersion: (scheduleId: number) => void;
   onSaveDay: (dayNumber: number, rows: ItineraryRow[]) => void;
   onMapClick?: (dayNumber: number) => void;
+  onDeleteItem?: (itemId: number) => void;
 }
 
 export default function ItinerarySection({
@@ -27,6 +28,7 @@ export default function ItinerarySection({
   onSelectVersion,
   onSaveDay,
   onMapClick,
+  onDeleteItem,
 }: ItinerarySectionProps) {
   return (
     <section className="flex flex-col gap-3">
@@ -92,6 +94,7 @@ export default function ItinerarySection({
               rows={d.rows}
               onSave={(rows) => onSaveDay(d.dayNumber, rows)}
               onMapClick={onMapClick}
+              onDeleteItem={onDeleteItem}
             />
           ))}
         </div>

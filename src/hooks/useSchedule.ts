@@ -174,6 +174,17 @@ export function useSchedule(workspaceId: number) {
     }
   };
 
+  const handleDeleteItem = async (itemId: number) => {
+    if (!currentSchedule) return;
+    try {
+      await deleteScheduleItem(currentSchedule.id, itemId);
+      const updated = await fetchScheduleById(currentSchedule.id);
+      applySchedule(updated);
+    } catch (err) {
+      console.warn("[useSchedule] 아이템 삭제 실패:", err);
+    }
+  };
+
   return {
     currentSchedule,
     scheduleList,
@@ -183,5 +194,6 @@ export function useSchedule(workspaceId: number) {
     loadSchedule,
     handleSelectScheduleVersion,
     handleSaveItineraryDay,
+    handleDeleteItem,
   };
 }
