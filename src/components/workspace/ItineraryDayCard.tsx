@@ -402,9 +402,7 @@ export default function ItineraryDayCard({
       .map((r) => ({
         ...r,
         title: r.title.trim(),
-        stayDuration: r.stayDuration?.trim() || undefined,
-        transport: r.transport?.trim() || undefined,
-        moveDuration: r.moveDuration?.trim() || undefined,
+        visitTime: r.visitTime?.trim() || undefined,
         cost: r.cost?.trim() || undefined,
         remark: r.remark?.trim() || undefined,
       }))
