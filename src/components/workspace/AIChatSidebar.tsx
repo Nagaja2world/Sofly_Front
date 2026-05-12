@@ -13,7 +13,7 @@ interface AIChatSidebarProps {
 
 export default function AIChatSidebar({
   isOpen,
-  chatWidth,
+  // chatWidth,
   workspaceId,
   onResizeStart,
   onCollapse,

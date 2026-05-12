@@ -23,7 +23,6 @@ import {
   deleteFlightFromWorkspace,
   leaveWorkspace,
   inviteMember,
-  resolveCoverImage,
   type Workspace,
   type WorkspaceFlight,
   type WorkspaceMemberApi,
@@ -33,43 +32,19 @@ import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
 import MemberSidebar from "@/components/workspace/MemberSidebar";
-import FlightInfoCard, {
-  type FlightLegInfo,
-} from "@/components/workspace/FlightInfoCard";
-import ItineraryDayCard, {
-  type ItineraryRow,
-} from "@/components/workspace/ItineraryDayCard";
-import TravelLogCard, {
-  type WeatherType,
-  type TravelLogData,
-} from "@/components/workspace/TravelLogCard";
-import SnsLogCard, { type SnsLogData } from "@/components/workspace/SnsLogCard";
-import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
+import { type ItineraryRow } from "@/components/workspace/ItineraryDayCard";
+import { type TravelLogData } from "@/components/workspace/TravelLogCard";
+import { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
 import FlightDetailModal from "@/components/workspace/FlightDetailModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
-import PlusIcon from "@/assets/plus.svg?react";
-import type { JSONContent } from "@tiptap/core";
 import AIChatSidebar from "@/components/workspace/AIChatSidebar";
-
-/* ══════════════════════════════════════════
-   타입 (페이지 단위 데이터 모델)
-   ══════════════════════════════════════════ */
-
-interface FlightInfo {
-  id: number;
-  direction: "가는편" | "오는편";
-  date: string;
-  legs: FlightLegInfo[];
-  bookingUrl?: string;
-  bookingNumber?: string;
-}
-
-interface ItineraryDay {
-  dayNumber: number;
-  rows: ItineraryRow[];
-}
+import WorkspaceInfoBar from "@/components/workspace/WorkspaceInfoBar";
+import FlightSection, { type FlightInfo } from "@/components/workspace/FlightSection";
+import ItinerarySection, { type ItineraryDay } from "@/components/workspace/ItinerarySection";
+import TravelLogSection, { type TravelLog } from "@/components/workspace/TravelLogSection";
+import DangerZone from "@/components/workspace/DangerZone";
 
 /* ── Schedule API 데이터 변환 ── */
 
@@ -107,15 +82,6 @@ function parseCostString(cost?: string): number | undefined {
   if (!cost) return undefined;
   const n = parseFloat(cost.replace(/[^0-9.]/g, ""));
   return isNaN(n) ? undefined : n;
-}
-
-interface TravelLog {
-  dayNumber: number;
-  oneLineSummary?: string;
-  weather?: WeatherType;
-  /** 본문 (Tiptap JSON 문서). API 연결 시 백엔드도 동일한 JSON 포맷으로 주고받음. */
-  content?: JSONContent;
-  albumPhotos?: string[];
 }
 
 /* ══════════════════════════════════════════
@@ -244,235 +210,6 @@ const MOCK_TRAVEL_LOGS: TravelLog[] = [
   },
 ];
 
-
-/* ══════════════════════════════════════════
-   워크스페이스 정보 바 (조회 + 인라인 편집)
-   ══════════════════════════════════════════ */
-
-interface WorkspaceInfoBarProps {
-  workspace: Workspace;
-  onSave: (title: string, destination: string, startDate: string, endDate: string) => Promise<void>;
-  onSaveImage: (file: File) => Promise<void>;
-}
-
-function WorkspaceInfoBar({ workspace, onSave, onSaveImage }: WorkspaceInfoBarProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [title, setTitle] = useState(workspace.title);
-  const [destination, setDestination] = useState(workspace.destination);
-  const [startDate, setStartDate] = useState(workspace.startDate);
-  const [endDate, setEndDate] = useState(workspace.endDate);
-
-  /* 커버 이미지 */
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // workspace prop이 바뀌면 폼 초기화
-  useEffect(() => {
-    setTitle(workspace.title);
-    setDestination(workspace.destination);
-    setStartDate(workspace.startDate);
-    setEndDate(workspace.endDate);
-  }, [workspace]);
-
-  const handleCancel = () => {
-    setTitle(workspace.title);
-    setDestination(workspace.destination);
-    setStartDate(workspace.startDate);
-    setEndDate(workspace.endDate);
-    setImageFile(null);
-    setImagePreview(null);
-    setIsEditing(false);
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImageFile(file);
-    const url = URL.createObjectURL(file);
-    setImagePreview(url);
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await onSave(title, destination, startDate, endDate);
-      if (imageFile) {
-        await onSaveImage(imageFile);
-      }
-      setImageFile(null);
-      setImagePreview(null);
-      setIsEditing(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const inputClass = [
-    "font-pretendard text-body3 text-gray-900 rounded-lg border border-gray-300",
-    "px-2.5 py-1.5 focus:outline-none focus:border-primary bg-white w-full",
-  ].join(" ");
-
-  if (isEditing) {
-    const currentCover = resolveCoverImage(workspace.coverImageUrl, workspace.id);
-
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex flex-col gap-3">
-        {/* 커버 이미지 */}
-        <div className="flex flex-col gap-1">
-          <label className="font-pretendard text-body5 text-gray-500">커버 이미지</label>
-          <div className="flex items-center gap-3">
-            <img
-              src={imagePreview ?? currentCover}
-              alt="커버 이미지"
-              className="w-16 h-16 rounded-lg object-cover border border-gray-200 shrink-0"
-            />
-            <label className={[
-              "inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-gray-300",
-              "font-pretendard text-body4 text-gray-600 cursor-pointer",
-              "hover:border-gray-400 hover:bg-gray-50 transition-colors",
-              isSaving ? "opacity-50 pointer-events-none" : "",
-            ].join(" ")}>
-              이미지 변경
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageChange}
-                disabled={isSaving}
-              />
-            </label>
-            {imageFile && (
-              <span className="font-pretendard text-body5 text-gray-400 truncate max-w-[160px]">
-                {imageFile.name}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">여행 제목</label>
-            <input
-              className={inputClass}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="여행 제목"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">목적지</label>
-            <input
-              className={inputClass}
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="목적지"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">출발일</label>
-            <input
-              type="date"
-              className={inputClass}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">귀국일</label>
-            <input
-              type="date"
-              className={inputClass}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={isSaving}
-            className={[
-              "font-pretendard text-body4 px-4 py-1.5 rounded-lg border border-gray-300",
-              "text-gray-600 hover:bg-gray-50 cursor-pointer bg-transparent transition-colors",
-              isSaving ? "opacity-50 cursor-not-allowed" : "",
-            ].join(" ")}
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className={[
-              "font-pretendard text-body4 px-4 py-1.5 rounded-lg border-none",
-              "bg-primary text-gray-900 font-semibold cursor-pointer hover:brightness-95 transition-all",
-              isSaving ? "opacity-50 cursor-not-allowed" : "",
-            ].join(" ")}
-          >
-            {isSaving ? "저장 중..." : "저장"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-6 min-w-0">
-        <span className="font-pretendard text-body2 font-semibold text-gray-900 truncate">
-          {workspace.title}
-        </span>
-        <span className="font-pretendard text-body4 text-gray-500 shrink-0">
-          {workspace.destination !== "string" ? workspace.destination : "목적지 미정"}
-        </span>
-        <span className="font-pretendard text-body4 text-gray-500 shrink-0">
-          {workspace.startDate} ~ {workspace.endDate}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={() => setIsEditing(true)}
-        className={[
-          "shrink-0 font-pretendard text-body5 text-gray-500 px-3 py-1.5 rounded-lg",
-          "border border-gray-200 hover:border-gray-400 hover:text-gray-700",
-          "bg-transparent cursor-pointer transition-colors",
-        ].join(" ")}
-      >
-        편집
-      </button>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════
-   섹션 헤더 (항공 일정 / 여행 일정 / 여행 기록)
-   ══════════════════════════════════════════ */
-
-/**
- * 섹션 헤더.
- * `action` prop을 통해 헤더 제목 바로 오른쪽에 버튼 등을 추가할 수 있음.
- * (예: "여행 기록" 옆 "+" 버튼)
- */
-function SectionHeader({
-  title,
-  action,
-}: {
-  title: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <h2 className="font-pretendard text-title2 font-semibold text-gray-900 m-0">
-        {title}
-      </h2>
-      {action}
-    </div>
-  );
-}
 
 /* ══════════════════════════════════════════
    메인 컴포넌트
@@ -1077,265 +814,47 @@ export default function WorkspacePage() {
               )}
 
               {/* ── 항공 일정 ── */}
-              <section className="flex flex-col gap-3">
-                <SectionHeader title="항공 일정" />
-                {flights.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex flex-col items-center gap-2 text-center">
-                    <p className="font-pretendard text-body3 text-gray-700 m-0">
-                      저장된 항공편이 없어요
-                    </p>
-                    <p className="font-pretendard text-body4 text-gray-400 m-0">
-                      항공 검색에서 원하는 항공편을 찾아 이 워크스페이스에 저장해보세요.
-                    </p>
-                  </div>
-                ) : (
-                  /* 가는편 전체 왼쪽 컬럼, 오는편 전체 오른쪽 컬럼 */
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
-                    <div className="flex flex-col gap-3">
-                      {flights
-                        .filter((f) => f.direction === "가는편")
-                        .map((f) => (
-                          <FlightInfoCard
-                            key={f.id}
-                            direction={f.direction}
-                            date={f.date}
-                            legs={f.legs}
-                            bookingUrl={f.bookingUrl}
-                            bookingNumber={f.bookingNumber}
-                            onClick={() => {
-                              const raw = rawFlights.find((r) => r.id === f.id);
-                              if (raw) setSelectedFlight(raw);
-                            }}
-                            onDelete={() =>
-                              setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
-                            }
-                          />
-                        ))}
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      {flights
-                        .filter((f) => f.direction === "오는편")
-                        .map((f) => (
-                          <FlightInfoCard
-                            key={f.id}
-                            direction={f.direction}
-                            date={f.date}
-                            legs={f.legs}
-                            bookingUrl={f.bookingUrl}
-                            bookingNumber={f.bookingNumber}
-                            onClick={() => {
-                              const raw = rawFlights.find((r) => r.id === f.id);
-                              if (raw) setSelectedFlight(raw);
-                            }}
-                            onDelete={() =>
-                              setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
-                            }
-                          />
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </section>
+              <FlightSection
+                flights={flights}
+                rawFlights={rawFlights}
+                onFlightClick={setSelectedFlight}
+                onFlightDelete={(id, label) => setDeleteFlightTarget({ id, label })}
+              />
 
               {/* ── 여행 일정 ── */}
-              <section className="flex flex-col gap-3">
-                <SectionHeader title="여행 일정" />
+              <ItinerarySection
+                itineraryDays={itineraryDays}
+                scheduleList={scheduleList}
+                currentSchedule={currentSchedule}
+                isLoading={isLoadingSchedule}
+                isSaving={isSavingSchedule}
+                onSelectVersion={handleSelectScheduleVersion}
+                onSaveDay={handleSaveItineraryDay}
+                onMapClick={handleMapClick}
+              />
 
-                {/* 버전 탭 */}
-                {scheduleList.length > 1 && (
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                    {scheduleList.map((s) => {
-                      const isActive = currentSchedule?.id === s.id;
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => handleSelectScheduleVersion(s.id)}
-                          className={[
-                            "shrink-0 px-3 py-1.5 rounded-lg border",
-                            "font-pretendard text-body4 transition-colors cursor-pointer",
-                            isActive
-                              ? "border-gray-900 bg-gray-900 text-white"
-                              : "border-gray-300 bg-white text-gray-600 hover:border-gray-500",
-                          ].join(" ")}
-                        >
-                          {s.title || `v${s.version}`}
-                          <span className="ml-1.5 text-xs opacity-60">
-                            ({s.itemCount}개)
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* 저장 중 표시 */}
-                {isSavingSchedule && (
-                  <div className="font-pretendard text-body5 text-gray-400 text-right">
-                    저장 중...
-                  </div>
-                )}
-
-                {/* 일정 카드들 */}
-                {isLoadingSchedule ? (
-                  <div className="rounded-xl border border-gray-200 bg-white px-6 py-10 flex items-center justify-center">
-                    <span className="font-pretendard text-body3 text-gray-400">
-                      일정을 불러오는 중...
-                    </span>
-                  </div>
-                ) : itineraryDays.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex flex-col items-center gap-2 text-center">
-                    <p className="font-pretendard text-body3 text-gray-700 m-0">
-                      저장된 여행 일정이 없어요
-                    </p>
-                    <p className="font-pretendard text-body4 text-gray-400 m-0">
-                      AI 채팅에서 일정을 만들고 저장해 보세요.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {itineraryDays.map((d) => (
-                      <ItineraryDayCard
-                        key={d.dayNumber}
-                        dayNumber={d.dayNumber}
-                        rows={d.rows}
-                        onSave={(rows) =>
-                          handleSaveItineraryDay(d.dayNumber, rows)
-                        }
-                        onMapClick={handleMapClick}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {/* ── 여행 기록 ──
-                  이슈 #25: 섹션 헤더 옆 "+" 버튼으로 카드 추가 가능.
-                  - SNS 카드: 항상 맨 왼쪽 (있을 때만 렌더)
-                  - 일자별 카드: 1일차, 2일차, ... 순으로 정렬 (자동 dayNumber)
-                  - "+" 클릭 시 맨 끝(맨 오른쪽)에 AddTravelLogCard 표시 */}
-              <section className="flex flex-col gap-3">
-                <SectionHeader
-                  title="여행 기록"
-                  action={
-                    <button
-                      type="button"
-                      onClick={handleOpenAddCard}
-                      disabled={showAddCard}
-                      aria-label={
-                        showAddCard
-                          ? "여행 기록 카드 추가 (열림)"
-                          : "여행 기록 카드 추가"
-                      }
-                      className={[
-                        "inline-flex items-center justify-center",
-                        "w-8 h-8 rounded-full transition-colors border-none bg-transparent",
-                        showAddCard
-                          ? "text-gray-300 cursor-not-allowed"
-                          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer",
-                      ].join(" ")}
-                    >
-                      <PlusIcon className="w-4 h-4" />
-                    </button>
-                  }
-                />
-                {/* 가로 스크롤 컨테이너: 카드 폭이 396px이라 좁은 화면에선 1~2개,
-                    넓은 화면에선 3개 정도 자연스럽게 보임 */}
-                <div
-                  className={[
-                    "flex gap-3 overflow-x-auto pb-2",
-                    "[&::-webkit-scrollbar]:h-2",
-                    "[&::-webkit-scrollbar-thumb]:bg-gray-300",
-                    "[&::-webkit-scrollbar-thumb]:rounded",
-                  ].join(" ")}
-                >
-                  {/* SNS 카드: 항상 맨 왼쪽 (이슈 #25 명시) */}
-                  {snsLog && (
-                    <div className="shrink-0">
-                      <SnsLogCard
-                        caption={snsLog.caption}
-                        media={snsLog.media}
-                        onSave={handleSaveSnsLog}
-                        onDelete={handleDeleteSnsLog}
-                        onUpload={handleUploadSnsLog}
-                      />
-                    </div>
-                  )}
-
-                  {/* 일자별 카드들 */}
-                  {travelLogs.map((log) => (
-                    <div key={log.dayNumber} className="shrink-0">
-                      <TravelLogCard
-                        dayNumber={log.dayNumber}
-                        oneLineSummary={log.oneLineSummary}
-                        weather={log.weather}
-                        content={log.content}
-                        albumPhotos={log.albumPhotos}
-                        onSave={(data) =>
-                          handleSaveTravelLog(log.dayNumber, data)
-                        }
-                        onDelete={() => handleDeleteTravelLog(log.dayNumber)}
-                      />
-                    </div>
-                  ))}
-
-                  {/* 추가 카드: "+" 버튼 클릭 시 맨 끝에 표시.
-                      우상단 "×"를 누르면 onCancel이 호출되어 그냥 닫힘 (실행 취소). */}
-                  {showAddCard && (
-                    <AddTravelLogCard
-                      onAddDailyCard={handleAddDailyCard}
-                      onAddSnsCard={handleAddSnsCard}
-                      onCancel={handleCancelAddCard}
-                      disableSnsCard={snsLog !== null}
-                    />
-                  )}
-                </div>
-              </section>
+              {/* ── 여행 기록 ── */}
+              <TravelLogSection
+                travelLogs={travelLogs}
+                snsLog={snsLog}
+                showAddCard={showAddCard}
+                onOpenAddCard={handleOpenAddCard}
+                onCancelAddCard={handleCancelAddCard}
+                onAddDailyCard={handleAddDailyCard}
+                onAddSnsCard={handleAddSnsCard}
+                onSaveTravelLog={handleSaveTravelLog}
+                onDeleteTravelLog={handleDeleteTravelLog}
+                onSaveSnsLog={handleSaveSnsLog}
+                onDeleteSnsLog={handleDeleteSnsLog}
+                onUploadSnsLog={handleUploadSnsLog}
+              />
 
               {/* ── 위험 영역 (나가기 / 삭제) ── */}
-              <section className="flex flex-col gap-4 pb-6">
-                <div className="border-t border-gray-200 pt-6 flex flex-col gap-4">
-                  {/* 워크스페이스 나가기: OWNER가 아닌 멤버에게만 표시 */}
-                  {myRole !== null && myRole !== 'OWNER' && (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setShowLeaveConfirm(true)}
-                        className={[
-                          "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
-                          "border border-orange-300 text-orange-500 bg-transparent",
-                          "hover:bg-orange-50 hover:border-orange-400 transition-colors cursor-pointer",
-                        ].join(" ")}
-                      >
-                        워크스페이스 나가기
-                      </button>
-                      <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
-                        나가면 다시 초대를 받아야 참여할 수 있습니다.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* 워크스페이스 삭제: OWNER에게만 표시 */}
-                  {myRole === 'OWNER' && (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setShowDeleteWorkspace(true)}
-                        className={[
-                          "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
-                          "border border-red-300 text-red-500 bg-transparent",
-                          "hover:bg-red-50 hover:border-red-400 transition-colors cursor-pointer",
-                        ].join(" ")}
-                      >
-                        워크스페이스 삭제
-                      </button>
-                      <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
-                        삭제된 워크스페이스는 복구할 수 없습니다.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </section>
+              <DangerZone
+                myRole={myRole}
+                onLeave={() => setShowLeaveConfirm(true)}
+                onDelete={() => setShowDeleteWorkspace(true)}
+              />
             </main>
 
             {/* ══ 우측: AI 채팅 사이드바 (그리드 컬럼, 드래그로 폭 조절) ══ */}
