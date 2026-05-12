@@ -295,7 +295,7 @@ export default function WorkspacePage() {
           ══════════════════════════════════════════ */}
       <div className="hidden md:block bg-background flex-1">
         {/* ── 풀폭 Header ── */}
-        <div className="w-full bg-white border-b border-gray-300">
+        <div className="w-full bg-white border-b border-gray-300 sticky top-0 z-50">
           <div className="px-4">
             <Header variant="login" onLogout={handleLogout} />
           </div>

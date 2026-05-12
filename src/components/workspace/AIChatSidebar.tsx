@@ -33,8 +33,8 @@ export default function AIChatSidebar({
           ].join(" ")}
         >
           <div
-            className="sticky top-0 overflow-hidden"
-            style={{ height: "100vh" }}
+              className="sticky top-[80px] overflow-hidden"
+              style={{ height: "calc(100vh - 80px)" }}
           >
             {/* 드래그 핸들 — 커서만 제공, 별도 선 없음 */}
             <div
