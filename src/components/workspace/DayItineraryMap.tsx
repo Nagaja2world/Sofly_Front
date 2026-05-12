@@ -52,7 +52,7 @@ async function geocodeAddress(
   address: string,
 ): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
-    geocoder.geocode({ address }, (results: google.maps.GeocoderResult[] | null, status: google.maps.GeocoderStatus) => {
+    geocoder.geocode({ address }, (results, status) => {
       if (status === 'OK' && results?.[0]) {
         const loc = results[0].geometry.location;
         resolve({ lat: loc.lat(), lng: loc.lng() });
