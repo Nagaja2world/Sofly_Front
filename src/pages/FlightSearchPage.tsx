@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import SearchBar from "@/components/SearchBar";
-import HotelSearchBar from "@/components/HotelSearchBar";
-import TakeoffIcon from "@/assets/takeoff.svg?react";
+import SearchModeBar from "@/components/SearchModeBar";
 import FilterSidebar from "@/components/flightSearch/FilterSidebar";
 import FlightResultList from "@/components/flightSearch/FlightResultList";
 import {
@@ -77,12 +75,10 @@ const SORT_TO_API: Record<SortOption, "BEST" | "CHEAPEST" | "FASTEST"> = {
    컴포넌트
    ══════════════════════════════════════════ */
 
-type SearchMode = "flight" | "hotel";
-
 export default function FlightSearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchMode, setSearchMode] = useState<SearchMode>("flight");
+  const [isFlightMode, setIsFlightMode] = useState(true);
 
   /* ── URL 쿼리스트링 → SearchBar 초기값 ── */
   const searchBarInitialValues = useMemo(
@@ -394,119 +390,51 @@ export default function FlightSearchPage() {
       {/* 데스크톱 */}
       <div className="hidden md:block bg-background">
         <div className="max-w-[1200px] w-full mx-auto px-4 py-10">
-          {/* ── 모드 탭 토글 ── */}
-          <div className="flex items-center gap-2 mb-6">
-            {/* 항공편 버튼 */}
-            <button
-              type="button"
-              onClick={() => setSearchMode("flight")}
+          {/* ── 모드 토글 + 검색바 ── */}
+          <section className="mb-10">
+            <SearchModeBar
+              searchBarKey={searchBarKey}
+              onFlightSearch={handleReSearch}
+              initialValues={searchBarInitialValues}
+              onModeChange={(m) => setIsFlightMode(m === "flight")}
+            />
+          </section>
+
+          {/* ── 항공편 결과 (항공편 모드일 때만) ── */}
+          {isFlightMode && !searchInput ? (
+            <div
               className={[
-                "inline-flex items-center gap-2 px-4 py-2 rounded-full font-pretendard text-body3 font-semibold",
-                "border transition-all cursor-pointer",
-                searchMode === "flight"
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-white text-gray-600 border-gray-300 hover:border-gray-500",
+                "py-20 rounded-xl border-2 border-dashed border-gray-300",
+                "bg-white text-center",
               ].join(" ")}
             >
-              <TakeoffIcon className="w-4 h-4" />
-              항공편
-            </button>
-
-            {/* 호텔 버튼 */}
-            <button
-              type="button"
-              onClick={() => setSearchMode("hotel")}
-              className={[
-                "inline-flex items-center gap-2 px-4 py-2 rounded-full font-pretendard text-body3 font-semibold",
-                "border transition-all cursor-pointer",
-                searchMode === "hotel"
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-white text-gray-600 border-gray-300 hover:border-gray-500",
-              ].join(" ")}
-            >
-              {/* 침대 아이콘 (인라인 SVG) */}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 7v10M21 7v10M3 12h18M7 12V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5" />
-                <rect x="3" y="17" width="18" height="2" rx="1" />
-              </svg>
-              호텔
-            </button>
-          </div>
-
-          {searchMode === "flight" ? (
-            <>
-              <h1 className="font-pretendard text-title2 font-semibold text-gray-900 mb-6">
-                항공편 검색
-              </h1>
-
-              <section className="mb-10">
-                <SearchBar
-                  key={searchBarKey}
-                  onSearch={handleReSearch}
-                  initialValues={searchBarInitialValues}
-                />
-              </section>
-
-              {!searchInput ? (
-                <div
-                  className={[
-                    "py-20 rounded-xl border-2 border-dashed border-gray-300",
-                    "bg-white text-center",
-                  ].join(" ")}
-                >
-                  <p className="font-pretendard text-body2 text-gray-700 m-0">
-                    출발지, 도착지, 가는날을 입력해 주세요
-                  </p>
-                  <p className="font-pretendard text-body4 text-gray-500 mt-2">
-                    위 SearchBar에서 조건을 입력하고 검색하기 버튼을 눌러주세요.
-                  </p>
-                </div>
-              ) : (
-                <section className="flex gap-6 items-start">
-                  <FilterSidebar
-                    value={filter}
-                    onChange={setFilter}
-                    airlineList={airlineList}
-                  />
-                  <FlightResultList
-                    flights={filteredItems}
-                    isLoading={isLoading}
-                    error={error}
-                    sort={sort}
-                    onSortChange={handleSortChange}
-                    onCardClick={handleCardClick}
-                    isFetchingMore={isFetchingMore}
-                    hasMore={hasMore}
-                    sentinelRef={sentinelRef}
-                  />
-                </section>
-              )}
-            </>
-          ) : (
-            <>
-              <h1 className="font-pretendard text-title2 font-semibold text-gray-900 mb-6">
-                마음에 꼭 드는 호텔을 찾아보세요
-              </h1>
-
-              <section className="mb-10">
-                <HotelSearchBar />
-              </section>
-
-              <div
-                className={[
-                  "py-20 rounded-xl border-2 border-dashed border-gray-300",
-                  "bg-white text-center",
-                ].join(" ")}
-              >
-                <p className="font-pretendard text-body2 text-gray-700 m-0">
-                  호텔 검색 서비스 준비 중입니다
-                </p>
-                <p className="font-pretendard text-body4 text-gray-500 mt-2">
-                  목적지와 날짜를 입력하고 검색하기를 눌러보세요.
-                </p>
-              </div>
-            </>
-          )}
+              <p className="font-pretendard text-body2 text-gray-700 m-0">
+                출발지, 도착지, 가는날을 입력해 주세요
+              </p>
+              <p className="font-pretendard text-body4 text-gray-500 mt-2">
+                위 SearchBar에서 조건을 입력하고 검색하기 버튼을 눌러주세요.
+              </p>
+            </div>
+          ) : isFlightMode ? (
+            <section className="flex gap-6 items-start">
+              <FilterSidebar
+                value={filter}
+                onChange={setFilter}
+                airlineList={airlineList}
+              />
+              <FlightResultList
+                flights={filteredItems}
+                isLoading={isLoading}
+                error={error}
+                sort={sort}
+                onSortChange={handleSortChange}
+                onCardClick={handleCardClick}
+                isFetchingMore={isFetchingMore}
+                hasMore={hasMore}
+                sentinelRef={sentinelRef}
+              />
+            </section>
+          ) : null}
         </div>
       </div>
     </>

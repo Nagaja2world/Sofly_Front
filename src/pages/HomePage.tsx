@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/common/Header";
-import SearchBar from "@/components/SearchBar";
+import SearchModeBar from "@/components/SearchModeBar";
 import FeatureCard from "@/components/homepage/FeatureCard";
 import useAuthStore, { OAUTH_URLS } from "@/store/useAuthStore";
 //import type { Airport } from "@/components/searchbar/AirportSearchDropdown";
@@ -118,10 +118,10 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ── SearchBar: 고정 음수 마진으로 Hero 하단에 겹침 ── */}
+        {/* ── SearchModeBar: 고정 음수 마진으로 Hero 하단에 겹침 ── */}
         <div className="mt-[220px] z-10 px-4 relative">
           <div className="max-w-[1200px] w-full mx-auto">
-            <SearchBar onSearch={handleSearch} />
+            <SearchModeBar onFlightSearch={handleSearch} />
           </div>
         </div>
 
