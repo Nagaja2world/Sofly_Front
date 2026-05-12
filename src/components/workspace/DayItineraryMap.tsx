@@ -52,7 +52,7 @@ async function geocodeAddress(
   address: string,
 ): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
-    geocoder.geocode({ address }, (results, status) => {
+    geocoder.geocode({ address }, (results: google.maps.GeocoderResult[] | null, status: google.maps.GeocoderStatus) => {
       if (status === 'OK' && results?.[0]) {
         const loc = results[0].geometry.location;
         resolve({ lat: loc.lat(), lng: loc.lng() });
@@ -151,10 +151,10 @@ export default function DayItineraryMap({ rows, dayNumber }: DayItineraryMapProp
         if (!window.__tripItineraryMapsConfigured) {
           setOptions({
             key: GOOGLE_MAPS_API_KEY!,
-            version: 'weekly',
+            v: 'weekly',
             mapIds: GOOGLE_MAP_ID ? [GOOGLE_MAP_ID] : undefined,
           });
-          (window as unknown as Record<string, unknown>).__tripItineraryMapsConfigured = true;
+          window.__tripItineraryMapsConfigured = true;
         }
 
         await importLibrary('maps');
