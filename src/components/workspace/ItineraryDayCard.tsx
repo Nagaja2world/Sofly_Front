@@ -10,20 +10,30 @@ import MapIcon from "@/assets/map.svg?react";
 
 /** 한 일정 행 (테이블의 1행) */
 export interface ItineraryRow {
-  /** 고유 id (drag&drop, edit 등에 사용) */
+  /** 고유 id. API에서 온 항목은 숫자 문자열(e.g. "101"), 신규 항목은 "row-*" */
   id: string;
-  /** 제목 "공항 도착", "감자 레스토랑" 등 */
+  /** 장소명 */
   title: string;
-  /** 체류 시간 텍스트 "30분", "1시간 30분" — 없으면 "-" 표시 */
-  stayDuration?: string;
-  /** 이동 교통편 "대중교통" */
-  transport?: string;
-  /** 이동 시간 "1시간" */
-  moveDuration?: string;
-  /** 비용 "13,000원" */
+  /** 방문 시각 "09:30" (API visitTime) — 없으면 "-" 표시 */
+  visitTime?: string;
+  /** 예상 비용 "13,000원" (API estimatedCost 포맷) */
   cost?: string;
-  /** 비고 */
+  /** 메모 / 비고 (API memo) */
   remark?: string;
+  /** API 원본 카테고리 — 편집 시 보존 */
+  _category?: string;
+  /** API 원본 주소 — 편집 시 보존 */
+  _address?: string | null;
+  /** API 원본 위도 */
+  _latitude?: number | null;
+  /** API 원본 경도 */
+  _longitude?: number | null;
+  /** API 원본 placeId */
+  _placeId?: string | null;
+  /** API 원본 photoReference */
+  _photoReference?: string | null;
+  /** API 원본 estimatedCost (숫자) */
+  _estimatedCost?: number | null;
 }
 
 interface ItineraryDayCardProps {
@@ -56,24 +66,14 @@ interface ItineraryDayCardProps {
    ══════════════════════════════════════════ */
 
 /** 테이블 컬럼 비율 (보기 모드)
- *  제목 | 체류 시간 | 이동 교통편·시간·비용 | 비고 */
+ *  제목 | 방문 시각 | 예상 비용 | 비고 */
 const VIEW_GRID_COLS =
-  "minmax(140px, 2fr) minmax(100px, 1fr) minmax(180px, 2fr) minmax(80px, 1fr)";
+  "minmax(180px, 3fr) minmax(100px, 1fr) minmax(140px, 1.5fr) minmax(80px, 1fr)";
 
 /** 테이블 컬럼 비율 (편집 모드)
- *  드래그(28px) | 제목 | 체류 | 교통 | 이동시간 | 비용 | 비고 | 삭제(28px)
- *  편집 모드는 이동 정보를 분리해서 4개 컬럼으로 입력받기 때문에 보기 모드보다 컬럼 수가 많음 */
+ *  드래그(28px) | 제목 | 방문 시각 | 예상 비용 | 비고 | 삭제(28px) */
 const EDIT_GRID_COLS =
-  "28px minmax(120px, 2fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(80px, 1.5fr) 28px";
-
-/** 이동 정보(교통편 · 이동시간 · 비용) 한 줄 조립 */
-function buildMoveInfo(row: ItineraryRow): string {
-  const parts: string[] = [];
-  if (row.transport) parts.push(row.transport);
-  if (row.moveDuration) parts.push(row.moveDuration);
-  if (row.cost) parts.push(row.cost);
-  return parts.join(" · ");
-}
+  "28px minmax(160px, 3fr) minmax(100px, 1fr) minmax(120px, 1.5fr) minmax(120px, 2fr) 28px";
 
 /** 새 행 생성 */
 function createEmptyRow(): ItineraryRow {
@@ -99,8 +99,8 @@ function ViewHeaderRow() {
       style={{ gridTemplateColumns: VIEW_GRID_COLS }}
     >
       <span className="text-center">제목</span>
-      <span className="text-center">체류 시간</span>
-      <span className="text-center">이동 교통편 · 이동시간 · 비용</span>
+      <span className="text-center">방문 시각</span>
+      <span className="text-center">예상 비용</span>
       <span className="text-center">비고</span>
     </div>
   );
@@ -108,8 +108,6 @@ function ViewHeaderRow() {
 
 /** 보기 모드 데이터 행 */
 function ViewDataRow({ row }: { row: ItineraryRow }) {
-  const moveInfo = buildMoveInfo(row);
-
   return (
     <div
       className={[
@@ -122,9 +120,9 @@ function ViewDataRow({ row }: { row: ItineraryRow }) {
     >
       <span className="text-gray-900 truncate">{row.title}</span>
       <span className="text-center text-gray-700">
-        {row.stayDuration ?? "-"}
+        {row.visitTime ?? "-"}
       </span>
-      <span className="text-center text-gray-700">{moveInfo || "-"}</span>
+      <span className="text-center text-gray-700">{row.cost || "-"}</span>
       <span className="text-center text-gray-700 truncate">
         {row.remark ?? ""}
       </span>
@@ -149,10 +147,8 @@ function EditHeaderRow() {
     >
       <span />
       <span className="text-center">제목</span>
-      <span className="text-center">체류 시간</span>
-      <span className="text-center">교통편</span>
-      <span className="text-center">이동 시간</span>
-      <span className="text-center">비용</span>
+      <span className="text-center">방문 시각</span>
+      <span className="text-center">예상 비용</span>
       <span className="text-center">비고</span>
       <span />
     </div>
@@ -328,32 +324,18 @@ function EditDataRow({
         ariaLabel="제목"
       />
       <CellInput
-        value={row.stayDuration ?? ""}
-        onChange={(v) => onChange({ stayDuration: v })}
-        placeholder="30분"
+        value={row.visitTime ?? ""}
+        onChange={(v) => onChange({ visitTime: v })}
+        placeholder="09:30"
         align="center"
-        ariaLabel="체류 시간"
-      />
-      <CellInput
-        value={row.transport ?? ""}
-        onChange={(v) => onChange({ transport: v })}
-        placeholder="대중교통"
-        align="center"
-        ariaLabel="교통편"
-      />
-      <CellInput
-        value={row.moveDuration ?? ""}
-        onChange={(v) => onChange({ moveDuration: v })}
-        placeholder="1시간"
-        align="center"
-        ariaLabel="이동 시간"
+        ariaLabel="방문 시각"
       />
       <CellInput
         value={row.cost ?? ""}
         onChange={(v) => onChange({ cost: v })}
         placeholder="13,000원"
         align="center"
-        ariaLabel="비용"
+        ariaLabel="예상 비용"
       />
       <CellInput
         value={row.remark ?? ""}

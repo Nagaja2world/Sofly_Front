@@ -1,6 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  fetchLatestSchedule,
+  fetchScheduleList,
+  fetchScheduleById,
+  addScheduleItem,
+  updateScheduleItem,
+  deleteScheduleItem,
+  moveScheduleItem,
+  type ScheduleDetail,
+  type ScheduleSummary,
+  type ScheduleItem,
+  type ScheduleCategory,
+} from "@/api/scheduleApi";
+import {
   fetchWorkspaceFlights,
   fetchWorkspaceById,
   fetchWorkspaceMembers,
@@ -58,6 +71,44 @@ interface FlightInfo {
 interface ItineraryDay {
   dayNumber: number;
   rows: ItineraryRow[];
+}
+
+/* ── Schedule API 데이터 변환 ── */
+
+function scheduleItemToRow(item: ScheduleItem): ItineraryRow {
+  return {
+    id: String(item.id),
+    title: item.name,
+    visitTime: item.visitTime ?? undefined,
+    cost:
+      item.estimatedCost != null
+        ? `${item.estimatedCost.toLocaleString("ko-KR")}원`
+        : undefined,
+    remark: item.memo ?? undefined,
+    _category: item.category,
+    _address: item.address,
+    _latitude: item.latitude,
+    _longitude: item.longitude,
+    _placeId: item.placeId,
+    _photoReference: item.photoReference,
+    _estimatedCost: item.estimatedCost,
+  };
+}
+
+function scheduleDetailToItineraryDays(schedule: ScheduleDetail): ItineraryDay[] {
+  return Object.entries(schedule.itemsByDay)
+    .map(([dayStr, items]) => ({
+      dayNumber: parseInt(dayStr, 10),
+      rows: [...items].sort((a, b) => a.orderIndex - b.orderIndex).map(scheduleItemToRow),
+    }))
+    .sort((a, b) => a.dayNumber - b.dayNumber);
+}
+
+/** "13,000원" 또는 "15000" 문자열에서 숫자 파싱 */
+function parseCostString(cost?: string): number | undefined {
+  if (!cost) return undefined;
+  const n = parseFloat(cost.replace(/[^0-9.]/g, ""));
+  return isNaN(n) ? undefined : n;
 }
 
 interface TravelLog {
@@ -124,65 +175,7 @@ function mapWorkspaceFlightToFlightInfo(wf: WorkspaceFlight): FlightInfo {
   };
 }
 
-/* (목업 데이터 제거됨 — 멤버/항공편 모두 API에서 로드) */
-
-const MOCK_ITINERARY_DAYS: ItineraryDay[] = [
-  {
-    dayNumber: 1,
-    rows: [
-      {
-        id: "d1-1",
-        title: "공항 도착",
-        stayDuration: "30분",
-        transport: "대중교통",
-        moveDuration: "1시간",
-        cost: "13,000원",
-      },
-      {
-        id: "d1-2",
-        title: "감자 레스토랑",
-        stayDuration: "1시간",
-        transport: "대중교통",
-        moveDuration: "30분",
-        cost: "7,000원",
-      },
-      {
-        id: "d1-3",
-        title: "뢰머 광장",
-        stayDuration: "1시간 30분",
-        transport: "대중교통",
-        moveDuration: "1시간",
-      },
-      {
-        id: "d1-4",
-        title: "프랑크푸르트 호텔",
-        transport: "대중교통",
-        moveDuration: "1시간 30분",
-      },
-    ],
-  },
-  {
-    dayNumber: 2,
-    rows: [
-      { id: "d2-1", title: "호텔 조식", stayDuration: "1시간" },
-      { id: "d2-2", title: "프랑크푸르트 호텔 체크아웃" },
-      {
-        id: "d2-3",
-        title: "뢰머 광장",
-        stayDuration: "1시간 30분",
-        transport: "대중교통",
-        moveDuration: "1시간",
-      },
-      {
-        id: "d2-4",
-        title: "브렉퍼스트",
-        stayDuration: "2시간",
-        transport: "대중교통",
-        moveDuration: "1시간 30분",
-      },
-    ],
-  },
-];
+/* (목업 데이터 제거됨 — 멤버/항공편/일정 모두 API에서 로드) */
 
 /** 기존 본문을 Tiptap JSON으로 변환한 목업.
  *  실제 API 연결 시: 서버가 보내주는 Tiptap JSON 객체를 그대로 사용.
@@ -691,11 +684,58 @@ export default function WorkspacePage() {
   const [isMemberOpen, setIsMemberOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
 
-  /* ── 일정 / 여행 기록 상태 ──
-   * 카드별 편집 모드 → 저장 시 onSave 콜백으로 여기 state를 갱신.
-   * API 연결 시: onSave 안에서 PATCH 호출 후 응답으로 state 갱신하면 됨. */
-  const [itineraryDays, setItineraryDays] =
-    useState<ItineraryDay[]>(MOCK_ITINERARY_DAYS);
+  /* ── 여행 일정 (Schedule API) ── */
+  const [currentSchedule, setCurrentSchedule] = useState<ScheduleDetail | null>(null);
+  const [scheduleList, setScheduleList] = useState<ScheduleSummary[]>([]);
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+  /** API ScheduleItem 원본 보존 (id → item). 저장 시 category 등 비편집 필드 유지에 사용. */
+  const scheduleItemsRef = useRef<Map<number, ScheduleItem>>(new Map());
+
+  const applySchedule = useCallback((schedule: ScheduleDetail) => {
+    setCurrentSchedule(schedule);
+    setItineraryDays(scheduleDetailToItineraryDays(schedule));
+    // 원본 아이템 맵 갱신
+    const map = new Map<number, ScheduleItem>();
+    for (const items of Object.values(schedule.itemsByDay)) {
+      for (const item of items) map.set(item.id, item);
+    }
+    scheduleItemsRef.current = map;
+  }, []);
+
+  /** 최신 일정 + 버전 목록 로드 */
+  const loadSchedule = useCallback(async () => {
+    if (!workspaceId || isNaN(workspaceId)) return;
+    setIsLoadingSchedule(true);
+    try {
+      const [latest, list] = await Promise.all([
+        fetchLatestSchedule(workspaceId),
+        fetchScheduleList(workspaceId),
+      ]);
+      if (latest) applySchedule(latest);
+      else setItineraryDays([]);
+      setScheduleList(list);
+    } catch (err) {
+      console.warn("[WorkspacePage] 일정 로드 실패:", err);
+    } finally {
+      setIsLoadingSchedule(false);
+    }
+  }, [workspaceId, applySchedule]);
+
+  useEffect(() => { loadSchedule(); }, [loadSchedule]);
+
+  /** 버전 탭 선택 */
+  const handleSelectScheduleVersion = async (scheduleId: number) => {
+    try {
+      const schedule = await fetchScheduleById(scheduleId);
+      applySchedule(schedule);
+    } catch (err) {
+      console.warn("[WorkspacePage] 일정 버전 로드 실패:", err);
+    }
+  };
+
+  /* ── 일정 / 여행 기록 상태 ── */
+  const [itineraryDays, setItineraryDays] = useState<ItineraryDay[]>([]);
   const [travelLogs, setTravelLogs] = useState<TravelLog[]>(MOCK_TRAVEL_LOGS);
 
   /* ── SNS 카드 상태 ──
@@ -709,12 +749,88 @@ export default function WorkspacePage() {
    * 사용자가 옵션을 선택하면 실제 카드 추가 후 자동으로 false로 닫힘. */
   const [showAddCard, setShowAddCard] = useState(false);
 
-  /** 특정 일차의 일정 행을 갱신 */
-  const handleSaveItineraryDay = (dayNumber: number, rows: ItineraryRow[]) => {
-    setItineraryDays((prev) =>
-      prev.map((d) => (d.dayNumber === dayNumber ? { ...d, rows } : d)),
-    );
-    // TODO(API): PATCH /workspaces/:id/itinerary/:day { rows }
+  /** 특정 일차의 일정 행을 갱신 (API 연동) */
+  const handleSaveItineraryDay = async (dayNumber: number, newRows: ItineraryRow[]) => {
+    if (!currentSchedule) return;
+    const scheduleId = currentSchedule.id;
+    const originalRows =
+      itineraryDays.find((d) => d.dayNumber === dayNumber)?.rows ?? [];
+
+    setIsSavingSchedule(true);
+    try {
+      const originalIdSet = new Set(originalRows.map((r) => r.id));
+      const newIdSet = new Set(newRows.map((r) => r.id));
+
+      // 1. 삭제된 아이템
+      for (const row of originalRows) {
+        if (!newIdSet.has(row.id)) {
+          const numId = parseInt(row.id, 10);
+          if (!isNaN(numId)) await deleteScheduleItem(scheduleId, numId);
+        }
+      }
+
+      // 2. 추가 / 수정 / 위치 변경
+      for (let i = 0; i < newRows.length; i++) {
+        const row = newRows[i];
+        const isNew = row.id.startsWith("row-");
+
+        if (isNew) {
+          // 신규 아이템
+          await addScheduleItem(scheduleId, {
+            day: dayNumber,
+            orderIndex: i,
+            category: (row._category as ScheduleCategory) ?? "ATTRACTION",
+            name: row.title,
+            visitTime: row.visitTime || undefined,
+            estimatedCost: parseCostString(row.cost),
+            memo: row.remark || undefined,
+          });
+        } else {
+          const itemId = parseInt(row.id, 10);
+          if (isNaN(itemId)) continue;
+
+          const origItem = scheduleItemsRef.current.get(itemId);
+          const originalRow = originalRows.find((r) => r.id === row.id);
+
+          // 위치(일차 or 순서) 변경
+          const originalIndex = originalRows.findIndex((r) => r.id === row.id);
+          if (originalIndex !== i) {
+            await moveScheduleItem(scheduleId, itemId, dayNumber, i);
+          }
+
+          // 필드 변경
+          const changed =
+            !originalRow ||
+            row.title !== originalRow.title ||
+            row.visitTime !== originalRow.visitTime ||
+            row.cost !== originalRow.cost ||
+            row.remark !== originalRow.remark;
+
+          if (changed || !originalIdSet.has(row.id)) {
+            await updateScheduleItem(scheduleId, itemId, {
+              category: (origItem?.category ?? row._category ?? "ATTRACTION") as ScheduleCategory,
+              name: row.title,
+              visitTime: row.visitTime || undefined,
+              estimatedCost: parseCostString(row.cost),
+              memo: row.remark || undefined,
+              address: origItem?.address ?? undefined,
+              latitude: origItem?.latitude ?? undefined,
+              longitude: origItem?.longitude ?? undefined,
+              placeId: origItem?.placeId ?? undefined,
+              photoReference: origItem?.photoReference ?? undefined,
+            });
+          }
+        }
+      }
+
+      // 저장 후 최신 데이터 반영
+      const updated = await fetchScheduleById(scheduleId);
+      applySchedule(updated);
+    } catch (err) {
+      console.warn("[WorkspacePage] 일정 저장 실패:", err);
+    } finally {
+      setIsSavingSchedule(false);
+    }
   };
 
   /** 특정 일차의 여행 기록을 갱신 */
@@ -1033,19 +1149,73 @@ export default function WorkspacePage() {
               {/* ── 여행 일정 ── */}
               <section className="flex flex-col gap-3">
                 <SectionHeader title="여행 일정" />
-                <div className="flex flex-col gap-3">
-                  {itineraryDays.map((d) => (
-                    <ItineraryDayCard
-                      key={d.dayNumber}
-                      dayNumber={d.dayNumber}
-                      rows={d.rows}
-                      onSave={(rows) =>
-                        handleSaveItineraryDay(d.dayNumber, rows)
-                      }
-                      onMapClick={handleMapClick}
-                    />
-                  ))}
-                </div>
+
+                {/* 버전 탭 */}
+                {scheduleList.length > 1 && (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {scheduleList.map((s) => {
+                      const isActive = currentSchedule?.id === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleSelectScheduleVersion(s.id)}
+                          className={[
+                            "shrink-0 px-3 py-1.5 rounded-lg border",
+                            "font-pretendard text-body4 transition-colors cursor-pointer",
+                            isActive
+                              ? "border-gray-900 bg-gray-900 text-white"
+                              : "border-gray-300 bg-white text-gray-600 hover:border-gray-500",
+                          ].join(" ")}
+                        >
+                          {s.title || `v${s.version}`}
+                          <span className="ml-1.5 text-xs opacity-60">
+                            ({s.itemCount}개)
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 저장 중 표시 */}
+                {isSavingSchedule && (
+                  <div className="font-pretendard text-body5 text-gray-400 text-right">
+                    저장 중...
+                  </div>
+                )}
+
+                {/* 일정 카드들 */}
+                {isLoadingSchedule ? (
+                  <div className="rounded-xl border border-gray-200 bg-white px-6 py-10 flex items-center justify-center">
+                    <span className="font-pretendard text-body3 text-gray-400">
+                      일정을 불러오는 중...
+                    </span>
+                  </div>
+                ) : itineraryDays.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex flex-col items-center gap-2 text-center">
+                    <p className="font-pretendard text-body3 text-gray-700 m-0">
+                      저장된 여행 일정이 없어요
+                    </p>
+                    <p className="font-pretendard text-body4 text-gray-400 m-0">
+                      AI 채팅에서 일정을 만들고 저장해 보세요.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {itineraryDays.map((d) => (
+                      <ItineraryDayCard
+                        key={d.dayNumber}
+                        dayNumber={d.dayNumber}
+                        rows={d.rows}
+                        onSave={(rows) =>
+                          handleSaveItineraryDay(d.dayNumber, rows)
+                        }
+                        onMapClick={handleMapClick}
+                      />
+                    ))}
+                  </div>
+                )}
               </section>
 
               {/* ── 여행 기록 ──
