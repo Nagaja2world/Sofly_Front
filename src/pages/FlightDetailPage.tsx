@@ -31,7 +31,7 @@ interface FlightDetailLocationState {
    ══════════════════════════════════════════ */
 
 export default function FlightDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
 
