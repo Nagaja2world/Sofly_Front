@@ -32,6 +32,7 @@ import SnsLogCard, { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
+import FlightDetailModal from "@/components/workspace/FlightDetailModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import PlusIcon from "@/assets/plus.svg?react";
 import type { JSONContent } from "@tiptap/core";
@@ -595,11 +596,16 @@ export default function WorkspacePage() {
 
   /* ── 항공 일정 (API) ── */
   const [apiFlight, setApiFlight] = useState<FlightInfo[]>([]);
+  const [rawFlights, setRawFlights] = useState<WorkspaceFlight[]>([]);
+
+  /* 항공편 상세 모달 */
+  const [selectedFlight, setSelectedFlight] = useState<WorkspaceFlight | null>(null);
 
   const loadFlights = useCallback(async () => {
     if (!workspaceId || isNaN(workspaceId)) return;
     try {
       const data = await fetchWorkspaceFlights(workspaceId);
+      setRawFlights(data);
       setApiFlight(data.map(mapWorkspaceFlightToFlightInfo));
     } catch (err) {
       console.warn("[WorkspacePage] 항공 일정 로드 실패:", err);
@@ -925,6 +931,10 @@ export default function WorkspacePage() {
                             legs={f.legs}
                             bookingUrl={f.bookingUrl}
                             bookingNumber={f.bookingNumber}
+                            onClick={() => {
+                              const raw = rawFlights.find((r) => r.id === f.id);
+                              if (raw) setSelectedFlight(raw);
+                            }}
                             onDelete={() =>
                               setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
                             }
@@ -942,6 +952,10 @@ export default function WorkspacePage() {
                             legs={f.legs}
                             bookingUrl={f.bookingUrl}
                             bookingNumber={f.bookingNumber}
+                            onClick={() => {
+                              const raw = rawFlights.find((r) => r.id === f.id);
+                              if (raw) setSelectedFlight(raw);
+                            }}
                             onDelete={() =>
                               setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
                             }
@@ -1219,6 +1233,14 @@ export default function WorkspacePage() {
         cancelLabel="취소"
         variant="danger"
       />
+
+      {/* ── 항공편 상세 모달 ── */}
+      {selectedFlight && (
+        <FlightDetailModal
+          flight={selectedFlight}
+          onClose={() => setSelectedFlight(null)}
+        />
+      )}
     </>
   );
 }

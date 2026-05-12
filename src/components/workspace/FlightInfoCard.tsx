@@ -39,6 +39,8 @@ interface FlightInfoCardProps {
   bookingNumber?: string;
   /** 삭제 콜백 (있으면 삭제 버튼 표시) */
   onDelete?: () => void;
+  /** 카드 클릭 콜백 (있으면 클릭 가능한 카드로 표시) */
+  onClick?: () => void;
   /** 추가 클래스 */
   className?: string;
 }
@@ -239,12 +241,18 @@ export default function FlightInfoCard({
   bookingUrl,
   bookingNumber,
   onDelete,
+  onClick,
   className = "",
 }: FlightInfoCardProps) {
   return (
     <article
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
       className={[
         "bg-white rounded-xl border border-gray-200 overflow-hidden",
+        onClick ? "cursor-pointer hover:border-gray-400 hover:shadow-sm transition-all" : "",
         className,
       ].join(" ")}
     >
@@ -260,7 +268,7 @@ export default function FlightInfoCard({
         {onDelete && (
           <button
             type="button"
-            onClick={onDelete}
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
             aria-label="항공편 삭제"
             className={[
               "ml-auto p-1.5 rounded-lg border-none bg-transparent",
