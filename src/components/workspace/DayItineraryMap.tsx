@@ -348,6 +348,8 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     if (!map || !marker || !row) return;
     infoWindowRef.current?.setContent(buildInfoWindowContent(row, index, dayNumber));
     infoWindowRef.current?.open(map, marker);
+    const currentZoom = map.getZoom() ?? 0;
+    if (currentZoom < 15) map.setZoom(15);
     map.panTo(marker.getPosition()!);
     setActiveIndex(index);
   }
