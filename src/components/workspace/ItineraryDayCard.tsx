@@ -693,7 +693,12 @@ export default function ItineraryDayCard({
       {/* ── 지도 패널 ── */}
       {showMap && !isEditing && (
         <div className="border-t border-gray-100 px-2 py-2" style={{ height: 340 }}>
-          <DayItineraryMap rows={rows} dayNumber={dayNumber} selectedIndex={selectedRowIndex} />
+          <DayItineraryMap
+            key={rows.map((r) => r.id).join(",")}
+            rows={rows}
+            dayNumber={dayNumber}
+            selectedIndex={selectedRowIndex}
+          />
         </div>
       )}
 
