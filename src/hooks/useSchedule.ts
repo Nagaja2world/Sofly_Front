@@ -133,7 +133,7 @@ export function useSchedule(workspaceId: number) {
             latitude: row._latitude ?? undefined,
             longitude: row._longitude ?? undefined,
             placeId: row._placeId ?? undefined,
-            photoReference: row._photoReference ?? undefined,
+            // photoReference: Google Places 사진 이름이 varchar(255) 초과 → 저장 제외
           });
         } else {
           const itemId = parseInt(row.id, 10);
@@ -167,7 +167,7 @@ export function useSchedule(workspaceId: number) {
               latitude: row._latitude ?? origItem?.latitude ?? undefined,
               longitude: row._longitude ?? origItem?.longitude ?? undefined,
               placeId: row._placeId ?? origItem?.placeId ?? undefined,
-              photoReference: row._photoReference ?? origItem?.photoReference ?? undefined,
+              // photoReference: Google Places 사진 이름이 varchar(255) 초과 → 저장 제외
             });
           }
         }
