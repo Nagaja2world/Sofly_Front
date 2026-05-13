@@ -1,10 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import PinIcon from "@/assets/pin.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 import MapIcon from "@/assets/map.svg?react";
 import DayItineraryMap from "@/components/workspace/DayItineraryMap";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
+import {
+  searchPlaces,
+  fetchPlacePhotoBlobUrl,
+  type PlaceResult,
+} from "@/api/scheduleApi";
 
 /* ══════════════════════════════════════════
    타입
@@ -204,6 +209,251 @@ function CategoryIcon({ category, className }: { category?: string; className?: 
         </svg>
       );
   }
+}
+
+/* ══════════════════════════════════════════
+   장소 사진 (auth 포함 blob URL 로딩)
+   ══════════════════════════════════════════ */
+
+function PlacePhotoImg({ photoName, size = 40 }: { photoName: string; size?: number }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let url = "";
+    fetchPlacePhotoBlobUrl(photoName, size * 2)
+      .then((u) => { url = u; setBlobUrl(u); })
+      .catch(() => {});
+    return () => { if (url) URL.revokeObjectURL(url); };
+  }, [photoName, size]);
+
+  if (!blobUrl) {
+    return (
+      <div
+        style={{ width: size, height: size }}
+        className="rounded-md bg-gray-200 animate-pulse shrink-0"
+      />
+    );
+  }
+  return (
+    <img
+      src={blobUrl}
+      alt=""
+      style={{ width: size, height: size }}
+      className="rounded-md object-cover shrink-0"
+    />
+  );
+}
+
+/* ══════════════════════════════════════════
+   카테고리 선택 드롭다운
+   ══════════════════════════════════════════ */
+
+function CategoryPicker({
+  value,
+  onChange,
+}: {
+  value?: string;
+  onChange: (cat: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const config = getCategoryConfig(value);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="카테고리 변경"
+        className={[
+          "w-9 h-9 rounded-full flex items-center justify-center",
+          config.bgColor,
+          "cursor-pointer transition-opacity hover:opacity-80",
+          "border-2",
+          open ? "border-primary" : "border-transparent",
+        ].join(" ")}
+      >
+        <CategoryIcon category={value} className={`w-4 h-4 ${config.iconColor}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[120px]">
+          {(Object.keys(CATEGORY_CONFIG) as CategoryKey[]).map((key) => {
+            const c = CATEGORY_CONFIG[key];
+            const isSelected = (value ?? "ATTRACTION") === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => { onChange(key); setOpen(false); }}
+                className={[
+                  "flex items-center gap-2 w-full px-3 py-2",
+                  "bg-transparent border-none cursor-pointer text-left",
+                  "hover:bg-gray-50 transition-colors",
+                  isSelected ? "bg-gray-50" : "",
+                ].join(" ")}
+              >
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center ${c.bgColor} shrink-0`}
+                >
+                  <CategoryIcon category={key} className={`w-3 h-3 ${c.iconColor}`} />
+                </div>
+                <span className="font-pretendard text-[12px] text-gray-700">{c.label}</span>
+                {isSelected && (
+                  <svg
+                    className="ml-auto w-3 h-3 text-primary shrink-0"
+                    viewBox="0 0 12 10"
+                    fill="none"
+                  >
+                    <path
+                      d="M1 5L4.5 8.5L11 1.5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   장소명 검색 자동완성 인풋
+   ══════════════════════════════════════════ */
+
+function PlaceSearchInput({
+  value,
+  onChange,
+  onSelectPlace,
+}: {
+  value: string;
+  onChange: (title: string) => void;
+  onSelectPlace: (place: PlaceResult) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [results, setResults] = useState<PlaceResult[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node))
+        setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  const handleInput = (text: string) => {
+    setQuery(text);
+    onChange(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!text.trim()) {
+      setResults([]);
+      setIsOpen(false);
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const places = await searchPlaces(text);
+        setResults(places);
+        setIsOpen(places.length > 0);
+      } catch {
+        setResults([]);
+        setIsOpen(false);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 350);
+  };
+
+  const handleSelect = (place: PlaceResult) => {
+    setQuery(place.displayName.text);
+    setIsOpen(false);
+    setResults([]);
+    onSelectPlace(place);
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => handleInput(e.target.value)}
+          placeholder="장소명"
+          aria-label="제목"
+          className={[
+            "w-full px-2.5 py-1.5 pr-8",
+            "bg-gray-50 border border-gray-200 rounded-lg",
+            "font-pretendard text-body3 font-medium text-gray-900",
+            "placeholder:text-gray-400",
+            "outline-none focus:border-primary focus:bg-white transition-colors",
+          ].join(" ")}
+        />
+        {isLoading && (
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+          </div>
+        )}
+      </div>
+
+      {isOpen && results.length > 0 && (
+        <div className="absolute top-full left-0 mt-1 w-full min-w-[260px] z-50 bg-white border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.1)] overflow-hidden">
+          <div className="max-h-[220px] overflow-y-auto">
+            {results.map((place) => (
+              <button
+                key={place.id}
+                type="button"
+                onClick={() => handleSelect(place)}
+                className="flex items-center gap-2.5 w-full px-3 py-2.5 bg-transparent border-none cursor-pointer hover:bg-gray-50 transition-colors text-left"
+              >
+                {place.photos?.[0] ? (
+                  <PlacePhotoImg photoName={place.photos[0].name} size={40} />
+                ) : (
+                  <div className="w-10 h-10 rounded-md bg-gray-100 shrink-0 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-400" fill="currentColor">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+                    </svg>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-pretendard text-[13px] font-medium text-gray-900 m-0 truncate">
+                    {place.displayName.text}
+                  </p>
+                  <p className="font-pretendard text-[11px] text-gray-500 m-0 mt-0.5 truncate">
+                    {place.formattedAddress}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ══════════════════════════════════════════
@@ -424,7 +674,16 @@ function EditDataRow({
   isDragging: boolean;
   isDragOver: boolean;
 }) {
-  const config = getCategoryConfig(row._category);
+  const handlePlaceSelect = (place: PlaceResult) => {
+    onChange({
+      title: place.displayName.text,
+      _placeId: place.id,
+      _latitude: place.location.latitude,
+      _longitude: place.location.longitude,
+      _address: place.formattedAddress,
+      _photoReference: place.photos?.[0]?.name ?? null,
+    });
+  };
 
   return (
     <div
@@ -451,33 +710,19 @@ function EditDataRow({
         <DragHandleIcon />
       </div>
 
-      {/* 카테고리 아이콘 */}
-      <div
-        className={[
-          "w-9 h-9 rounded-full shrink-0",
-          "flex items-center justify-center",
-          config.bgColor,
-        ].join(" ")}
-      >
-        <CategoryIcon category={row._category} className={`w-4 h-4 ${config.iconColor}`} />
-      </div>
+      {/* 카테고리 선택 */}
+      <CategoryPicker
+        value={row._category}
+        onChange={(cat) => onChange({ _category: cat })}
+      />
 
       {/* 입력 필드 그룹 */}
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        {/* 제목 (전체 너비) */}
-        <input
-          type="text"
+        {/* 장소명 검색 자동완성 */}
+        <PlaceSearchInput
           value={row.title}
-          onChange={(e) => onChange({ title: e.target.value })}
-          placeholder="장소명"
-          aria-label="제목"
-          className={[
-            "w-full px-2.5 py-1.5",
-            "bg-gray-50 border border-gray-200 rounded-lg",
-            "font-pretendard text-body3 font-medium text-gray-900",
-            "placeholder:text-gray-400",
-            "outline-none focus:border-primary focus:bg-white transition-colors",
-          ].join(" ")}
+          onChange={(title) => onChange({ title })}
+          onSelectPlace={handlePlaceSelect}
         />
         {/* 시각 / 비용 / 비고 */}
         <div className="flex gap-1.5">

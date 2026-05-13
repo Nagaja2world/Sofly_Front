@@ -273,3 +273,49 @@ export const CATEGORY_LABEL: Record<ScheduleCategory, string> = {
   ATTRACTION: '관광지',
   TRANSPORT: '교통',
 };
+
+/* ══════════════════════════════════════════
+   장소 검색 API
+   ══════════════════════════════════════════ */
+
+export interface PlacePhoto {
+  name: string;
+  widthPx: number;
+  heightPx: number;
+}
+
+export interface PlaceResult {
+  id: string;
+  displayName: { text: string; languageCode: string };
+  primaryType: string;
+  formattedAddress: string;
+  location: { latitude: number; longitude: number };
+  rating?: number;
+  userRatingCount?: number;
+  photos?: PlacePhoto[];
+}
+
+/** 장소 검색 */
+export async function searchPlaces(text: string): Promise<PlaceResult[]> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/places?text=${encodeURIComponent(text)}`,
+    { headers: authHeaders() },
+  );
+  const data = await handleResponse<{ places: PlaceResult[] }>(res);
+  return data?.places ?? [];
+}
+
+/** 장소 사진 Blob URL 조회 (auth 필요) */
+export async function fetchPlacePhotoBlobUrl(
+  photoName: string,
+  maxWidthPx = 400,
+): Promise<string> {
+  const token = localStorage.getItem('accessToken');
+  const url = `${API_BASE}/api/v1/places/photo?name=${encodeURIComponent(photoName)}&maxWidthPx=${maxWidthPx}`;
+  const res = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error('사진 조회 실패');
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
