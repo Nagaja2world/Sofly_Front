@@ -229,11 +229,13 @@ function ViewTimelineRow({
   index,
   total,
   onDelete,
+  onRowClick,
 }: {
   row: ItineraryRow;
   index: number;
   total: number;
   onDelete?: () => void;
+  onRowClick?: (index: number) => void;
 }) {
   const config = getCategoryConfig(row._category);
   const itemId = parseInt(row.id, 10);
@@ -269,12 +271,17 @@ function ViewTimelineRow({
 
       {/* 오른쪽: 카드 */}
       <div
+        role="button"
+        tabIndex={0}
+        onClick={() => onRowClick?.(index)}
+        onKeyDown={(e) => e.key === "Enter" && onRowClick?.(index)}
         className={[
           "flex-1 min-w-0",
           "rounded-xl border border-gray-100 bg-white",
           "flex items-start gap-3 p-4",
           index < total - 1 ? "mb-3" : "",
           "group hover:border-gray-200 hover:shadow-sm transition-all",
+          onRowClick ? "cursor-pointer" : "",
         ].join(" ")}
       >
         {/* 카테고리 아이콘 */}
@@ -609,6 +616,7 @@ export default function ItineraryDayCard({
   const [showMap, setShowMap] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
   const [draftRows, setDraftRows] = useState<ItineraryRow[]>(rows);
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
 
   const enterEditMode = () => {
     setDraftRows(rows);
@@ -738,7 +746,7 @@ export default function ItineraryDayCard({
       {/* ── 지도 패널 ── */}
       {showMap && !isEditing && (
         <div className="border-t border-gray-100 px-2 py-2" style={{ height: 340 }}>
-          <DayItineraryMap rows={rows} dayNumber={dayNumber} />
+          <DayItineraryMap rows={rows} dayNumber={dayNumber} selectedIndex={selectedRowIndex} />
         </div>
       )}
 
@@ -800,6 +808,14 @@ export default function ItineraryDayCard({
                 row={row}
                 index={idx}
                 total={rows.length}
+                onRowClick={(i) => {
+                  if (showMap) {
+                    setSelectedRowIndex(i);
+                  } else {
+                    setShowMap(true);
+                    setSelectedRowIndex(i);
+                  }
+                }}
                 onDelete={
                   onDeleteItem
                     ? () => {

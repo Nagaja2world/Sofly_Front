@@ -33,7 +33,7 @@ const DARK_MAP_STYLES = [
    ══════════════════════════════════════════ */
 const CATEGORY_CONFIG: Record<string, { color: string; label: string }> = {
   TRANSPORT:     { color: '#6B7280', label: '교통' },
-  ACCOMMODATION: { color: '#3B82F6', label: '숙소' },
+  ACCOMMODATION: { color: '#8B5CF6', label: '숙소' },
   RESTAURANT:    { color: '#F59E0B', label: '식당' },
   CAFE:          { color: '#F59E0B', label: '카페' },
   ATTRACTION:    { color: '#10B981', label: '관광' },
@@ -115,12 +115,14 @@ interface ResolvedRow extends ItineraryRow {
 interface DayItineraryMapProps {
   rows: ItineraryRow[];
   dayNumber: number;
+  /** 타임라인 행 클릭 시 외부에서 지정하는 활성 인덱스 */
+  selectedIndex?: number | null;
 }
 
 /* ══════════════════════════════════════════
    메인 컴포넌트
    ══════════════════════════════════════════ */
-export default function DayItineraryMap({ rows, dayNumber }: DayItineraryMapProps) {
+export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayItineraryMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -349,6 +351,18 @@ export default function DayItineraryMap({ rows, dayNumber }: DayItineraryMapProp
     map.panTo(marker.getPosition()!);
     setActiveIndex(index);
   }
+
+  /* ── 외부 selectedIndex 변경 시 마커 InfoWindow 오픈 ── */
+  useEffect(() => {
+    if (selectedIndex == null) return;
+    // 마커가 아직 없으면(지도 초기화 중) 잠시 후 재시도
+    if (markersRef.current.length === 0) {
+      const timer = setTimeout(() => handleListItemClick(selectedIndex), 800);
+      return () => clearTimeout(timer);
+    }
+    handleListItemClick(selectedIndex);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIndex]);
 
   /* ── API 키 없음 UI ── */
   if (status === 'no-key') {
