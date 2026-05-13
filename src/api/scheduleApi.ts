@@ -305,17 +305,15 @@ export async function searchPlaces(text: string): Promise<PlaceResult[]> {
   return data?.places ?? [];
 }
 
-/** 장소 사진 Blob URL 조회 (auth 필요) */
-export async function fetchPlacePhotoBlobUrl(
+/** 장소 사진 URI 조회 — { success, data: { photoUri } } 응답에서 photoUri 반환 */
+export async function fetchPlacePhotoUri(
   photoName: string,
-  maxWidthPx = 400,
+  maxWidthPx = 800,
 ): Promise<string> {
-  const token = localStorage.getItem('accessToken');
-  const url = `${API_BASE}/api/v1/places/photo?name=${encodeURIComponent(photoName)}&maxWidthPx=${maxWidthPx}`;
-  const res = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) throw new Error('사진 조회 실패');
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  const res = await fetch(
+    `${API_BASE}/api/v1/places/photo?name=${encodeURIComponent(photoName)}&maxWidthPx=${maxWidthPx}`,
+    { headers: authHeaders() },
+  );
+  const data = await handleResponse<{ photoUri: string; name: string }>(res);
+  return data.photoUri;
 }

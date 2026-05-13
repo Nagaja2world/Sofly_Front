@@ -7,7 +7,7 @@ import DayItineraryMap from "@/components/workspace/DayItineraryMap";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import {
   searchPlaces,
-  fetchPlacePhotoBlobUrl,
+  fetchPlacePhotoUri,
   type PlaceResult,
 } from "@/api/scheduleApi";
 
@@ -215,31 +215,29 @@ function CategoryIcon({ category, className }: { category?: string; className?: 
    장소 사진 (auth 포함 blob URL 로딩)
    ══════════════════════════════════════════ */
 
-function PlacePhotoImg({ photoName, size = 40 }: { photoName: string; size?: number }) {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+function PlacePhotoImg({ photoName, size = 56 }: { photoName: string; size?: number }) {
+  const [uri, setUri] = useState<string | null>(null);
 
   useEffect(() => {
-    let url = "";
-    fetchPlacePhotoBlobUrl(photoName, size * 2)
-      .then((u) => { url = u; setBlobUrl(u); })
+    fetchPlacePhotoUri(photoName, 800)
+      .then(setUri)
       .catch(() => {});
-    return () => { if (url) URL.revokeObjectURL(url); };
-  }, [photoName, size]);
+  }, [photoName]);
 
-  if (!blobUrl) {
+  if (!uri) {
     return (
       <div
         style={{ width: size, height: size }}
-        className="rounded-md bg-gray-200 animate-pulse shrink-0"
+        className="rounded-xl bg-gray-200 animate-pulse shrink-0"
       />
     );
   }
   return (
     <img
-      src={blobUrl}
+      src={uri}
       alt=""
       style={{ width: size, height: size }}
-      className="rounded-md object-cover shrink-0"
+      className="rounded-xl object-cover shrink-0"
     />
   );
 }
@@ -421,31 +419,39 @@ function PlaceSearchInput({
       </div>
 
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full left-0 mt-1 w-full min-w-[260px] z-50 bg-white border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.1)] overflow-hidden">
-          <div className="max-h-[220px] overflow-y-auto">
+        <div className="absolute top-full left-0 mt-1 w-full min-w-[300px] z-50 bg-white border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+          <div className="max-h-[300px] overflow-y-auto">
             {results.map((place) => (
               <button
                 key={place.id}
                 type="button"
                 onClick={() => handleSelect(place)}
-                className="flex items-center gap-2.5 w-full px-3 py-2.5 bg-transparent border-none cursor-pointer hover:bg-gray-50 transition-colors text-left"
+                className="flex items-center gap-3 w-full px-3 py-3 bg-transparent border-none cursor-pointer hover:bg-gray-50 transition-colors text-left border-b border-gray-100 last:border-b-0"
               >
                 {place.photos?.[0] ? (
-                  <PlacePhotoImg photoName={place.photos[0].name} size={40} />
+                  <PlacePhotoImg photoName={place.photos[0].name} size={56} />
                 ) : (
-                  <div className="w-10 h-10 rounded-md bg-gray-100 shrink-0 flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-400" fill="currentColor">
+                  <div className="w-14 h-14 rounded-xl bg-gray-100 shrink-0 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" className="w-6 h-6 text-gray-400" fill="currentColor">
                       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
                     </svg>
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-pretendard text-[13px] font-medium text-gray-900 m-0 truncate">
+                  <p className="font-pretendard text-[14px] font-semibold text-gray-900 m-0 truncate">
                     {place.displayName.text}
                   </p>
                   <p className="font-pretendard text-[11px] text-gray-500 m-0 mt-0.5 truncate">
                     {place.formattedAddress}
                   </p>
+                  {place.rating != null && (
+                    <p className="font-pretendard text-[11px] text-amber-500 m-0 mt-0.5">
+                      ★ {place.rating.toFixed(1)}
+                      {place.userRatingCount != null && (
+                        <span className="text-gray-400 ml-1">({place.userRatingCount.toLocaleString()})</span>
+                      )}
+                    </p>
+                  )}
                 </div>
               </button>
             ))}
