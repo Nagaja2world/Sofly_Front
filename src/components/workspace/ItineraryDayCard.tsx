@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import PinIcon from "@/assets/pin.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
@@ -207,11 +207,8 @@ function CategoryIcon({ category, className }: { category?: string; className?: 
 }
 
 /* ══════════════════════════════════════════
-   편집 모드 컬럼 비율
+   편집 모드 서브 컴포넌트
    ══════════════════════════════════════════ */
-
-const EDIT_GRID_COLS =
-  "28px minmax(160px, 3fr) minmax(100px, 1fr) minmax(120px, 1.5fr) minmax(120px, 2fr) 28px";
 
 function createEmptyRow(): ItineraryRow {
   return {
@@ -389,214 +386,168 @@ function ViewFooter({ rows }: { rows: ItineraryRow[] }) {
 }
 
 /* ══════════════════════════════════════════
-   편집 모드 서브 컴포넌트 (기존 유지)
+   편집 모드 서브 컴포넌트 (드래그&드롭 재정렬)
    ══════════════════════════════════════════ */
 
-function EditHeaderRow() {
+/** 6점 그립 아이콘 */
+function DragHandleIcon() {
   return (
-    <div
-      className={[
-        "grid items-center gap-2",
-        "px-3 py-3",
-        "font-pretendard text-body4 text-gray-600",
-      ].join(" ")}
-      style={{ gridTemplateColumns: EDIT_GRID_COLS }}
-    >
-      <span />
-      <span className="text-center">제목</span>
-      <span className="text-center">방문 시각</span>
-      <span className="text-center">예상 비용</span>
-      <span className="text-center">비고</span>
-      <span />
-    </div>
-  );
-}
-
-function CellInput({
-  value,
-  onChange,
-  placeholder,
-  align = "left",
-  ariaLabel,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  align?: "left" | "center";
-  ariaLabel?: string;
-}) {
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-      className={[
-        "w-full min-w-0 px-2 py-1.5",
-        "bg-white border border-gray-300 rounded-md",
-        "font-pretendard text-body3 text-gray-900",
-        "placeholder:text-gray-500",
-        "outline-none focus:border-gray-700 transition-colors",
-        align === "center" ? "text-center" : "text-left",
-      ].join(" ")}
-    />
-  );
-}
-
-function MoveHandle({
-  onMoveUp,
-  onMoveDown,
-  canMoveUp,
-  canMoveDown,
-}: {
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center gap-0.5">
-      <button
-        type="button"
-        onClick={onMoveUp}
-        disabled={!canMoveUp}
-        aria-label="위로 이동"
-        className={[
-          "w-5 h-3 rounded-sm",
-          "inline-flex items-center justify-center",
-          "border-none bg-transparent",
-          "transition-colors",
-          canMoveUp
-            ? "text-gray-500 hover:text-gray-900 hover:bg-gray-200 cursor-pointer"
-            : "text-gray-300 cursor-not-allowed",
-        ].join(" ")}
-      >
-        <svg width="8" height="6" viewBox="0 0 8 6" fill="none" aria-hidden>
-          <path
-            d="M1 5L4 1L7 5"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      <button
-        type="button"
-        onClick={onMoveDown}
-        disabled={!canMoveDown}
-        aria-label="아래로 이동"
-        className={[
-          "w-5 h-3 rounded-sm",
-          "inline-flex items-center justify-center",
-          "border-none bg-transparent",
-          "transition-colors",
-          canMoveDown
-            ? "text-gray-500 hover:text-gray-900 hover:bg-gray-200 cursor-pointer"
-            : "text-gray-300 cursor-not-allowed",
-        ].join(" ")}
-      >
-        <svg width="8" height="6" viewBox="0 0 8 6" fill="none" aria-hidden>
-          <path
-            d="M1 1L4 5L7 1"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
-function DeleteRowButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="행 삭제"
-      className={[
-        "w-6 h-6 rounded",
-        "inline-flex items-center justify-center",
-        "border-none bg-transparent",
-        "text-gray-500 hover:text-gray-900 hover:bg-gray-200",
-        "transition-colors cursor-pointer",
-      ].join(" ")}
-    >
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-        <path
-          d="M2 2L10 10M10 2L2 10"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    </button>
+    <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden>
+      <circle cx="3" cy="2.5" r="1.5" />
+      <circle cx="7" cy="2.5" r="1.5" />
+      <circle cx="3" cy="8" r="1.5" />
+      <circle cx="7" cy="8" r="1.5" />
+      <circle cx="3" cy="13.5" r="1.5" />
+      <circle cx="7" cy="13.5" r="1.5" />
+    </svg>
   );
 }
 
 function EditDataRow({
   row,
-  index,
-  total,
   onChange,
   onDelete,
-  onMoveUp,
-  onMoveDown,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragging,
+  isDragOver,
 }: {
   row: ItineraryRow;
-  index: number;
-  total: number;
   onChange: (patch: Partial<ItineraryRow>) => void;
   onDelete: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
+  onDragStart: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
+  isDragOver: boolean;
 }) {
+  const config = getCategoryConfig(row._category);
+
   return (
     <div
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       className={[
-        "grid items-center gap-2",
-        "px-3 py-2",
-        "rounded-lg border border-gray-200 bg-gray-100",
-        "hover:border-gray-300 transition-colors",
+        "flex items-center gap-3 px-3 py-3",
+        "rounded-xl border bg-white",
+        "transition-all duration-150",
+        isDragging ? "opacity-40 scale-[0.98] shadow-inner" : "",
+        isDragOver
+          ? "border-primary border-2 shadow-md"
+          : "border-gray-200 hover:border-gray-300 hover:shadow-sm",
       ].join(" ")}
-      style={{ gridTemplateColumns: EDIT_GRID_COLS }}
     >
-      <MoveHandle
-        onMoveUp={onMoveUp}
-        onMoveDown={onMoveDown}
-        canMoveUp={index > 0}
-        canMoveDown={index < total - 1}
-      />
-      <CellInput
-        value={row.title}
-        onChange={(v) => onChange({ title: v })}
-        placeholder="공항 도착"
-        ariaLabel="제목"
-      />
-      <CellInput
-        value={row.visitTime ?? ""}
-        onChange={(v) => onChange({ visitTime: v })}
-        placeholder="09:30"
-        align="center"
-        ariaLabel="방문 시각"
-      />
-      <CellInput
-        value={row.cost ?? ""}
-        onChange={(v) => onChange({ cost: v })}
-        placeholder="13,000원"
-        align="center"
-        ariaLabel="예상 비용"
-      />
-      <CellInput
-        value={row.remark ?? ""}
-        onChange={(v) => onChange({ remark: v })}
-        placeholder="비고"
-        ariaLabel="비고"
-      />
-      <DeleteRowButton onClick={onDelete} />
+      {/* 드래그 핸들 */}
+      <div
+        className="shrink-0 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing transition-colors px-0.5"
+        aria-label="드래그하여 순서 변경"
+      >
+        <DragHandleIcon />
+      </div>
+
+      {/* 카테고리 아이콘 */}
+      <div
+        className={[
+          "w-9 h-9 rounded-full shrink-0",
+          "flex items-center justify-center",
+          config.bgColor,
+        ].join(" ")}
+      >
+        <CategoryIcon category={row._category} className={`w-4 h-4 ${config.iconColor}`} />
+      </div>
+
+      {/* 입력 필드 그룹 */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        {/* 제목 (전체 너비) */}
+        <input
+          type="text"
+          value={row.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+          placeholder="장소명"
+          aria-label="제목"
+          className={[
+            "w-full px-2.5 py-1.5",
+            "bg-gray-50 border border-gray-200 rounded-lg",
+            "font-pretendard text-body3 font-medium text-gray-900",
+            "placeholder:text-gray-400",
+            "outline-none focus:border-primary focus:bg-white transition-colors",
+          ].join(" ")}
+        />
+        {/* 시각 / 비용 / 비고 */}
+        <div className="flex gap-1.5">
+          <input
+            type="text"
+            value={row.visitTime ?? ""}
+            onChange={(e) => onChange({ visitTime: e.target.value })}
+            placeholder="09:30"
+            aria-label="방문 시각"
+            className={[
+              "w-20 shrink-0 px-2 py-1",
+              "bg-gray-50 border border-gray-200 rounded-lg text-center",
+              "font-pretendard text-[12px] text-gray-700",
+              "placeholder:text-gray-400",
+              "outline-none focus:border-primary focus:bg-white transition-colors",
+            ].join(" ")}
+          />
+          <input
+            type="text"
+            value={row.cost ?? ""}
+            onChange={(e) => onChange({ cost: e.target.value })}
+            placeholder="0원"
+            aria-label="예상 비용"
+            className={[
+              "w-24 shrink-0 px-2 py-1",
+              "bg-gray-50 border border-gray-200 rounded-lg text-center",
+              "font-pretendard text-[12px] text-gray-700",
+              "placeholder:text-gray-400",
+              "outline-none focus:border-primary focus:bg-white transition-colors",
+            ].join(" ")}
+          />
+          <input
+            type="text"
+            value={row.remark ?? ""}
+            onChange={(e) => onChange({ remark: e.target.value })}
+            placeholder="메모 (선택)"
+            aria-label="비고"
+            className={[
+              "flex-1 min-w-0 px-2 py-1",
+              "bg-gray-50 border border-gray-200 rounded-lg",
+              "font-pretendard text-[12px] text-gray-700",
+              "placeholder:text-gray-400",
+              "outline-none focus:border-primary focus:bg-white transition-colors",
+            ].join(" ")}
+          />
+        </div>
+      </div>
+
+      {/* 삭제 버튼 */}
+      <button
+        type="button"
+        onClick={onDelete}
+        aria-label="행 삭제"
+        className={[
+          "shrink-0 w-6 h-6 rounded-md",
+          "inline-flex items-center justify-center",
+          "border-none bg-transparent",
+          "text-gray-300 hover:text-red-500 hover:bg-red-50",
+          "transition-colors cursor-pointer",
+        ].join(" ")}
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+          <path
+            d="M2 2L10 10M10 2L2 10"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -617,6 +568,11 @@ export default function ItineraryDayCard({
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
   const [draftRows, setDraftRows] = useState<ItineraryRow[]>(rows);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+
+  /* 드래그&드롭 */
+  const dragIndexRef = React.useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
 
   const enterEditMode = () => {
     setDraftRows(rows);
@@ -750,32 +706,49 @@ export default function ItineraryDayCard({
         </div>
       )}
 
-      {/* ── 편집 모드 컬럼 헤더 ── */}
-      {isEditing && (
-        <div className="border-t border-gray-200 px-2">
-          <EditHeaderRow />
-        </div>
-      )}
-
       {/* ── 데이터 행들 ── */}
-      <div className={isEditing ? "flex flex-col gap-2 px-2 pb-2" : "px-4 pt-4 pb-3"}>
+      <div className={isEditing ? "flex flex-col gap-2 px-3 pt-3 pb-3" : "px-4 pt-4 pb-3"}>
         {isEditing ? (
           <>
             {draftRows.length === 0 ? (
-              <div className="px-5 py-8 text-center font-pretendard text-body3 text-gray-500 rounded-lg border border-dashed border-gray-300 bg-white">
-                아래 "+ 행 추가" 버튼으로 일정을 추가하세요.
+              <div className="px-5 py-8 text-center font-pretendard text-body3 text-gray-500 rounded-xl border border-dashed border-gray-300 bg-gray-50">
+                아래 "+ 일정 추가" 버튼으로 일정을 추가하세요.
               </div>
             ) : (
               draftRows.map((row, idx) => (
                 <EditDataRow
                   key={row.id}
                   row={row}
-                  index={idx}
-                  total={draftRows.length}
                   onChange={(patch) => updateRow(row.id, patch)}
                   onDelete={() => deleteRow(row.id)}
-                  onMoveUp={() => moveRow(idx, -1)}
-                  onMoveDown={() => moveRow(idx, 1)}
+                  isDragging={draggingIndex === idx}
+                  isDragOver={dragOverIndex === idx}
+                  onDragStart={() => {
+                    dragIndexRef.current = idx;
+                    setDraggingIndex(idx);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragIndexRef.current !== idx) setDragOverIndex(idx);
+                  }}
+                  onDrop={() => {
+                    const from = dragIndexRef.current;
+                    if (from == null || from === idx) return;
+                    setDraftRows((prev) => {
+                      const next = [...prev];
+                      const [item] = next.splice(from, 1);
+                      next.splice(idx, 0, item);
+                      return next;
+                    });
+                    dragIndexRef.current = null;
+                    setDraggingIndex(null);
+                    setDragOverIndex(null);
+                  }}
+                  onDragEnd={() => {
+                    dragIndexRef.current = null;
+                    setDraggingIndex(null);
+                    setDragOverIndex(null);
+                  }}
                 />
               ))
             )}
@@ -784,16 +757,16 @@ export default function ItineraryDayCard({
               type="button"
               onClick={addRow}
               className={[
-                "mt-1 mb-1 px-5 py-3",
-                "rounded-lg border border-dashed border-gray-300 bg-white",
-                "font-pretendard text-body3 text-gray-500",
-                "hover:border-gray-700 hover:text-gray-900 hover:bg-gray-100",
+                "mt-1 px-5 py-3",
+                "rounded-xl border-2 border-dashed border-gray-200 bg-gray-50",
+                "font-pretendard text-body3 text-gray-400",
+                "hover:border-primary hover:text-primary hover:bg-amber-50",
                 "transition-colors cursor-pointer",
-                "inline-flex items-center justify-center gap-1.5",
+                "inline-flex items-center justify-center gap-2",
               ].join(" ")}
             >
               <PlusIcon className="w-4 h-4" />
-              <span>행 추가</span>
+              <span>일정 추가</span>
             </button>
           </>
         ) : rows.length === 0 ? (

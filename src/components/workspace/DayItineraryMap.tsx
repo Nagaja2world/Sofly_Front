@@ -32,7 +32,7 @@ const DARK_MAP_STYLES = [
    카테고리별 색상 / 라벨
    ══════════════════════════════════════════ */
 const CATEGORY_CONFIG: Record<string, { color: string; label: string }> = {
-  TRANSPORT:     { color: '#6B7280', label: '교통' },
+  TRANSPORT:     { color: '#0EA5E9', label: '교통' },
   ACCOMMODATION: { color: '#8B5CF6', label: '숙소' },
   RESTAURANT:    { color: '#F59E0B', label: '식당' },
   CAFE:          { color: '#F59E0B', label: '카페' },
