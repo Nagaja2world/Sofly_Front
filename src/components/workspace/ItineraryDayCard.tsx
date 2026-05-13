@@ -10,69 +10,209 @@ import ConfirmPopup from "@/components/common/ConfirmPopup";
    타입
    ══════════════════════════════════════════ */
 
-/** 한 일정 행 (테이블의 1행) */
 export interface ItineraryRow {
-  /** 고유 id. API에서 온 항목은 숫자 문자열(e.g. "101"), 신규 항목은 "row-*" */
   id: string;
-  /** 장소명 */
   title: string;
-  /** 방문 시각 "09:30" (API visitTime) — 없으면 "-" 표시 */
   visitTime?: string;
-  /** 예상 비용 "13,000원" (API estimatedCost 포맷) */
   cost?: string;
-  /** 메모 / 비고 (API memo) */
   remark?: string;
-  /** API 원본 카테고리 — 편집 시 보존 */
   _category?: string;
-  /** API 원본 주소 — 편집 시 보존 */
   _address?: string | null;
-  /** API 원본 위도 */
   _latitude?: number | null;
-  /** API 원본 경도 */
   _longitude?: number | null;
-  /** API 원본 placeId */
   _placeId?: string | null;
-  /** API 원본 photoReference */
   _photoReference?: string | null;
-  /** API 원본 estimatedCost (숫자) */
   _estimatedCost?: number | null;
 }
 
 interface ItineraryDayCardProps {
-  /** 일차 번호 (1, 2, 3 ...) */
   dayNumber: number;
-  /** 일정 행 목록 */
   rows: ItineraryRow[];
-  /**
-   * 편집 저장 콜백.
-   * 편집 모드에서 "저장"을 누르면 호출됨.
-   * 부모 컴포넌트는 이 rows로 자신의 state를 갱신해야 함.
-   * (API 연결 시: 여기서 PATCH/PUT 호출 후 성공 시 state 갱신)
-   */
   onSave?: (rows: ItineraryRow[]) => void;
-  /** 지도 버튼 클릭 시 외부 콜백 (선택). 카드 내부 인라인 지도가 기본 동작. */
   onMapClick?: (dayNumber: number) => void;
-  /** 보기 모드에서 행 삭제 콜백. itemId(숫자)를 넘겨줌. */
   onDeleteItem?: (itemId: number) => void;
-  /** 추가 클래스 */
   className?: string;
 }
 
 /* ══════════════════════════════════════════
-   공통 상수
+   카테고리 설정
    ══════════════════════════════════════════ */
 
-/** 테이블 컬럼 비율 (보기 모드)
- *  제목 | 방문 시각 | 예상 비용 | 비고 */
-const VIEW_GRID_COLS =
-  "minmax(180px, 3fr) minmax(100px, 1fr) minmax(140px, 1.5fr) minmax(80px, 1fr)";
+const CATEGORY_CONFIG = {
+  TRANSPORT: {
+    label: "교통",
+    bgColor: "bg-sky-100",
+    iconColor: "text-sky-500",
+    badgeBg: "bg-sky-50",
+    badgeText: "text-sky-600",
+    badgeBorder: "border-sky-200",
+    circleFrom: "from-sky-400",
+    circleTo: "to-sky-500",
+  },
+  ACCOMMODATION: {
+    label: "숙소",
+    bgColor: "bg-violet-100",
+    iconColor: "text-violet-500",
+    badgeBg: "bg-violet-50",
+    badgeText: "text-violet-600",
+    badgeBorder: "border-violet-200",
+    circleFrom: "from-violet-400",
+    circleTo: "to-violet-500",
+  },
+  RESTAURANT: {
+    label: "식당",
+    bgColor: "bg-orange-100",
+    iconColor: "text-orange-500",
+    badgeBg: "bg-orange-50",
+    badgeText: "text-orange-600",
+    badgeBorder: "border-orange-200",
+    circleFrom: "from-orange-400",
+    circleTo: "to-orange-500",
+  },
+  CAFE: {
+    label: "카페",
+    bgColor: "bg-amber-100",
+    iconColor: "text-amber-600",
+    badgeBg: "bg-amber-50",
+    badgeText: "text-amber-700",
+    badgeBorder: "border-amber-200",
+    circleFrom: "from-amber-400",
+    circleTo: "to-amber-500",
+  },
+  ATTRACTION: {
+    label: "관광",
+    bgColor: "bg-emerald-100",
+    iconColor: "text-emerald-600",
+    badgeBg: "bg-emerald-50",
+    badgeText: "text-emerald-700",
+    badgeBorder: "border-emerald-200",
+    circleFrom: "from-emerald-400",
+    circleTo: "to-emerald-500",
+  },
+} as const;
 
-/** 테이블 컬럼 비율 (편집 모드)
- *  드래그(28px) | 제목 | 방문 시각 | 예상 비용 | 비고 | 삭제(28px) */
+type CategoryKey = keyof typeof CATEGORY_CONFIG;
+
+function getCategoryConfig(category?: string) {
+  return CATEGORY_CONFIG[(category as CategoryKey) ?? "ATTRACTION"] ?? CATEGORY_CONFIG.ATTRACTION;
+}
+
+/* ══════════════════════════════════════════
+   카테고리 아이콘 (인라인 SVG)
+   ══════════════════════════════════════════ */
+
+function CategoryIcon({ category, className }: { category?: string; className?: string }) {
+  const cls = className ?? "w-6 h-6";
+
+  switch (category as CategoryKey) {
+    case "TRANSPORT":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
+          <path
+            d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case "ACCOMMODATION":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
+          <path
+            d="M2 20v-8l10-7 10 7v8"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M9 20v-6h6v6"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M2 20h20"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "RESTAURANT":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
+          <path
+            d="M18 2v6c0 1.66-1.34 3-3 3h0v9a1 1 0 0 1-2 0V2"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M7 2v4M7 10v10a1 1 0 0 1-2 0V10M7 6A3 3 0 0 1 4 9v1h6V9A3 3 0 0 1 7 6z"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case "CAFE":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
+          <path
+            d="M17 8h1a4 4 0 0 1 0 8h-1"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M6.5 1v2M9.5 1v2M12.5 1v2"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "ATTRACTION":
+    default:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
+          <path
+            d="M3 21h18M6 21V9M18 21V9M12 3l9 6H3l9-6z"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M9 21v-6h6v6"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+  }
+}
+
+/* ══════════════════════════════════════════
+   편집 모드 컬럼 비율
+   ══════════════════════════════════════════ */
+
 const EDIT_GRID_COLS =
   "28px minmax(160px, 3fr) minmax(100px, 1fr) minmax(120px, 1.5fr) minmax(120px, 2fr) 28px";
 
-/** 새 행 생성 */
 function createEmptyRow(): ItineraryRow {
   return {
     id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -81,91 +221,170 @@ function createEmptyRow(): ItineraryRow {
 }
 
 /* ══════════════════════════════════════════
-   보기 모드 서브 컴포넌트
+   보기 모드 — 타임라인 카드
    ══════════════════════════════════════════ */
 
-/** 보기 모드 컬럼 헤더 */
-function ViewHeaderRow() {
-  return (
-    <div
-      className={[
-        "grid items-center",
-        "px-5 py-3",
-        "font-pretendard text-body4 text-gray-600",
-      ].join(" ")}
-      style={{ gridTemplateColumns: VIEW_GRID_COLS }}
-    >
-      <span className="text-center">제목</span>
-      <span className="text-center">방문 시각</span>
-      <span className="text-center">예상 비용</span>
-      <span className="text-center">비고</span>
-    </div>
-  );
-}
-
-/** 보기 모드 데이터 행 */
-function ViewDataRow({
+function ViewTimelineRow({
   row,
+  index,
+  total,
   onDelete,
 }: {
   row: ItineraryRow;
+  index: number;
+  total: number;
   onDelete?: () => void;
 }) {
+  const config = getCategoryConfig(row._category);
   const itemId = parseInt(row.id, 10);
-  const isDeletable = !isNaN(itemId) && onDelete;
+  const isDeletable = !isNaN(itemId) && !!onDelete;
+  const hasCost = row._estimatedCost != null && row._estimatedCost > 0;
 
   return (
-    <div
-      className={[
-        "grid items-center",
-        "px-5 py-4",
-        "rounded-lg border border-gray-300 bg-gray-100",
-        "font-pretendard text-body3 text-gray-900",
-        "group",
-      ].join(" ")}
-      style={{ gridTemplateColumns: isDeletable ? `${VIEW_GRID_COLS} 28px` : VIEW_GRID_COLS }}
-    >
-      <span className="text-gray-900 truncate">{row.title}</span>
-      <span className="text-center text-gray-700">
-        {row.visitTime ?? "-"}
-      </span>
-      <span className="text-center text-gray-700">{row.cost || "-"}</span>
-      <span className="text-center text-gray-700 truncate">
-        {row.remark ?? ""}
-      </span>
-      {isDeletable && (
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label="일정 삭제"
+    <div className="flex gap-3">
+      {/* 왼쪽: 번호 배지 + 시각 + 연결선 */}
+      <div className="flex flex-col items-center" style={{ width: 48, minWidth: 48 }}>
+        <div
           className={[
-            "w-6 h-6 rounded",
-            "inline-flex items-center justify-center",
-            "border-none bg-transparent",
-            "text-gray-300 hover:text-red-500 hover:bg-red-50",
-            "opacity-0 group-hover:opacity-100",
-            "transition-all cursor-pointer",
+            "w-7 h-7 rounded-full shrink-0",
+            "bg-gradient-to-b",
+            config.circleFrom,
+            config.circleTo,
+            "flex items-center justify-center",
+            "text-white font-pretendard text-xs font-bold",
+            "shadow-sm",
           ].join(" ")}
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-            <path
-              d="M2 2L10 10M10 2L2 10"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      )}
+          {index + 1}
+        </div>
+        {row.visitTime && (
+          <span className="font-pretendard text-[11px] text-gray-500 mt-1 leading-tight text-center">
+            {row.visitTime}
+          </span>
+        )}
+        {index < total - 1 && (
+          <div className="w-px bg-gray-200 flex-1 mt-2" style={{ minHeight: 16 }} />
+        )}
+      </div>
+
+      {/* 오른쪽: 카드 */}
+      <div
+        className={[
+          "flex-1 min-w-0",
+          "rounded-xl border border-gray-100 bg-white",
+          "flex items-start gap-3 p-4",
+          index < total - 1 ? "mb-3" : "",
+          "group hover:border-gray-200 hover:shadow-sm transition-all",
+        ].join(" ")}
+      >
+        {/* 카테고리 아이콘 */}
+        <div
+          className={[
+            "w-11 h-11 rounded-full shrink-0",
+            "flex items-center justify-center",
+            config.bgColor,
+          ].join(" ")}
+        >
+          <CategoryIcon category={row._category} className={`w-5 h-5 ${config.iconColor}`} />
+        </div>
+
+        {/* 텍스트 */}
+        <div className="flex-1 min-w-0">
+          <span
+            className={[
+              "inline-flex items-center px-2 py-0.5 rounded-full",
+              "font-pretendard text-[11px] font-medium",
+              "border",
+              config.badgeBg,
+              config.badgeText,
+              config.badgeBorder,
+              "mb-1",
+            ].join(" ")}
+          >
+            {config.label}
+          </span>
+          <div className="font-pretendard text-body3 font-semibold text-gray-900 leading-snug">
+            {row.title}
+          </div>
+          {row.remark && (
+            <div className="font-pretendard text-[12px] text-gray-400 mt-0.5 line-clamp-1">
+              {row.remark}
+            </div>
+          )}
+        </div>
+
+        {/* 예상 비용 배지 */}
+        <div
+          className={[
+            "shrink-0 px-3 py-1 rounded-full",
+            "font-pretendard text-[13px] font-medium",
+            hasCost
+              ? "bg-orange-50 text-orange-600 border border-orange-200"
+              : "bg-emerald-50 text-emerald-600 border border-emerald-200",
+          ].join(" ")}
+        >
+          {row.cost || "0원"}
+        </div>
+
+        {/* 삭제 버튼 */}
+        {isDeletable && (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="일정 삭제"
+            className={[
+              "shrink-0 w-6 h-6 rounded",
+              "inline-flex items-center justify-center",
+              "border-none bg-transparent",
+              "text-gray-300 hover:text-red-500 hover:bg-red-50",
+              "opacity-0 group-hover:opacity-100",
+              "transition-all cursor-pointer",
+            ].join(" ")}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path
+                d="M2 2L10 10M10 2L2 10"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 /* ══════════════════════════════════════════
-   편집 모드 서브 컴포넌트
+   보기 모드 — 하단 요약 푸터
    ══════════════════════════════════════════ */
 
-/** 편집 모드 컬럼 헤더 */
+function ViewFooter({ rows }: { rows: ItineraryRow[] }) {
+  const totalCost = rows.reduce((sum, r) => sum + (r._estimatedCost ?? 0), 0);
+
+  return (
+    <div className="mt-1 mx-0 rounded-xl border border-gray-100 bg-gray-50 grid grid-cols-2 divide-x divide-gray-200">
+      <div className="flex flex-col items-center py-3 px-4">
+        <span className="font-pretendard text-[11px] text-gray-400 mb-0.5">총 일정</span>
+        <span className="font-pretendard text-body3 font-semibold text-gray-800">
+          {rows.length}개
+        </span>
+      </div>
+      <div className="flex flex-col items-center py-3 px-4">
+        <span className="font-pretendard text-[11px] text-gray-400 mb-0.5">총 예상 비용</span>
+        <span className="font-pretendard text-body3 font-semibold text-orange-500">
+          {totalCost > 0 ? `${totalCost.toLocaleString("ko-KR")}원` : "0원"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   편집 모드 서브 컴포넌트 (기존 유지)
+   ══════════════════════════════════════════ */
+
 function EditHeaderRow() {
   return (
     <div
@@ -186,7 +405,6 @@ function EditHeaderRow() {
   );
 }
 
-/** 편집 모드용 input — 셀 내부 공간을 꽉 채우는 미니멀 입력 */
 function CellInput({
   value,
   onChange,
@@ -219,7 +437,6 @@ function CellInput({
   );
 }
 
-/** 행 순서 변경 핸들 (위/아래 이동) */
 function MoveHandle({
   onMoveUp,
   onMoveDown,
@@ -287,7 +504,6 @@ function MoveHandle({
   );
 }
 
-/** 행 삭제 버튼 (X) */
 function DeleteRowButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -314,7 +530,6 @@ function DeleteRowButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-/** 편집 모드 데이터 행 */
 function EditDataRow({
   row,
   index,
@@ -383,24 +598,6 @@ function EditDataRow({
    메인 컴포넌트
    ══════════════════════════════════════════ */
 
-/**
- * 워크스페이스 페이지의 여행 일정 N일차 카드
- *
- * 두 가지 모드를 가짐:
- *
- * 1) 보기 모드 (기본)
- *    - 헤더: 📍 + "1일차" + 편집 버튼(edit2) + 지도 버튼
- *    - 본문: 4컬럼 테이블 (제목 | 체류 | 이동 | 비고)
- *
- * 2) 편집 모드 (헤더 편집 버튼 클릭 시 진입)
- *    - 헤더: 📍 + "1일차" + 취소 / 저장 버튼
- *    - 본문: 8컬럼 편집 테이블 (이동 | 제목 | 체류 | 교통편 | 이동시간 | 비용 | 비고 | 삭제)
- *    - 하단: "+ 행 추가" 버튼
- *    - 저장 시 onSave(rows) 호출 → 부모가 state 갱신 (API 연결 시 PATCH)
- *    - 취소 시 진입 시점의 rows로 되돌림
- *
- * 부모는 보기/편집 모드 전환을 신경 쓸 필요 없이 rows + onSave + onMapClick만 넘기면 됨.
- */
 export default function ItineraryDayCard({
   dayNumber,
   rows,
@@ -408,19 +605,9 @@ export default function ItineraryDayCard({
   onDeleteItem,
   className = "",
 }: ItineraryDayCardProps) {
-  /** 편집 모드 여부 */
   const [isEditing, setIsEditing] = useState(false);
-
-  /** 지도 펼침 여부 (기본 열림) */
   const [showMap, setShowMap] = useState(true);
-
-  /** 삭제 확인 모달 대상 (null이면 닫힘) */
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
-
-  /** 편집 중 임시 rows (저장 시 onSave로 위임, 취소 시 폐기)
-   *  보기 모드일 때는 이 state를 사용하지 않고 props.rows를 직접 렌더하므로
-   *  부모 props 변경을 useEffect로 동기화할 필요가 없음.
-   *  (편집 모드 진입 시점에 enterEditMode에서 한 번만 초기화하면 충분) */
   const [draftRows, setDraftRows] = useState<ItineraryRow[]>(rows);
 
   const enterEditMode = () => {
@@ -434,7 +621,6 @@ export default function ItineraryDayCard({
   };
 
   const saveEdit = () => {
-    /* 빈 제목인 행은 저장에서 제외 (사용자가 깜빡한 빈 행 방지) */
     const cleaned = draftRows
       .map((r) => ({
         ...r,
@@ -449,11 +635,8 @@ export default function ItineraryDayCard({
     setIsEditing(false);
   };
 
-  /* ── draft 조작 헬퍼 ── */
   const updateRow = (id: string, patch: Partial<ItineraryRow>) => {
-    setDraftRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-    );
+    setDraftRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   };
   const deleteRow = (id: string) => {
     setDraftRows((prev) => prev.filter((r) => r.id !== id));
@@ -474,7 +657,7 @@ export default function ItineraryDayCard({
   return (
     <article
       className={[
-        "bg-white rounded-xl border border-gray-300 overflow-hidden",
+        "bg-white rounded-xl border border-gray-200 overflow-hidden",
         "transition-shadow duration-200",
         isEditing ? "shadow-md" : "",
         className,
@@ -487,7 +670,6 @@ export default function ItineraryDayCard({
           {dayNumber}일차
         </span>
 
-        {/* 보기 모드: edit2 버튼 + 지도 버튼 / 편집 모드: 취소·저장 버튼 */}
         {isEditing ? (
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -532,11 +714,10 @@ export default function ItineraryDayCard({
               <Edit2Icon className="w-4 h-4" />
             </button>
 
-            {/* 지도 버튼 — 헤더 맨 오른쪽 끝 */}
             <button
               type="button"
               onClick={() => setShowMap((v) => !v)}
-              aria-label={`${dayNumber}일차 지도 ${showMap ? '닫기' : '보기'}`}
+              aria-label={`${dayNumber}일차 지도 ${showMap ? "닫기" : "보기"}`}
               className={[
                 "ml-auto",
                 "inline-flex items-center gap-1 px-3 py-1.5 rounded-md",
@@ -554,20 +735,22 @@ export default function ItineraryDayCard({
         )}
       </header>
 
-      {/* ── 지도 패널 (지도 버튼 클릭 시 펼침) ── */}
+      {/* ── 지도 패널 ── */}
       {showMap && !isEditing && (
-        <div className="border-t border-gray-200 px-2 py-2" style={{ height: 340 }}>
+        <div className="border-t border-gray-100 px-2 py-2" style={{ height: 340 }}>
           <DayItineraryMap rows={rows} dayNumber={dayNumber} />
         </div>
       )}
 
-      {/* ── 컬럼 헤더 ── */}
-      <div className="border-t border-gray-200 px-2">
-        {isEditing ? <EditHeaderRow /> : <ViewHeaderRow />}
-      </div>
+      {/* ── 편집 모드 컬럼 헤더 ── */}
+      {isEditing && (
+        <div className="border-t border-gray-200 px-2">
+          <EditHeaderRow />
+        </div>
+      )}
 
       {/* ── 데이터 행들 ── */}
-      <div className="flex flex-col gap-2 px-2 pb-2">
+      <div className={isEditing ? "flex flex-col gap-2 px-2 pb-2" : "px-4 pt-4 pb-3"}>
         {isEditing ? (
           <>
             {draftRows.length === 0 ? (
@@ -589,7 +772,6 @@ export default function ItineraryDayCard({
               ))
             )}
 
-            {/* 행 추가 버튼 */}
             <button
               type="button"
               onClick={addRow}
@@ -607,24 +789,29 @@ export default function ItineraryDayCard({
             </button>
           </>
         ) : rows.length === 0 ? (
-          <div className="px-5 py-8 text-center font-pretendard text-body3 text-gray-500 rounded-lg border border-gray-300 bg-gray-100">
+          <div className="px-5 py-8 text-center font-pretendard text-body3 text-gray-500 rounded-lg border border-dashed border-gray-300">
             등록된 일정이 없습니다.
           </div>
         ) : (
-          rows.map((row) => (
-            <ViewDataRow
-              key={row.id}
-              row={row}
-              onDelete={
-                onDeleteItem
-                  ? () => {
-                      const id = parseInt(row.id, 10);
-                      if (!isNaN(id)) setDeleteTarget({ id, title: row.title });
-                    }
-                  : undefined
-              }
-            />
-          ))
+          <>
+            {rows.map((row, idx) => (
+              <ViewTimelineRow
+                key={row.id}
+                row={row}
+                index={idx}
+                total={rows.length}
+                onDelete={
+                  onDeleteItem
+                    ? () => {
+                        const id = parseInt(row.id, 10);
+                        if (!isNaN(id)) setDeleteTarget({ id, title: row.title });
+                      }
+                    : undefined
+                }
+              />
+            ))}
+            <ViewFooter rows={rows} />
+          </>
         )}
       </div>
 
