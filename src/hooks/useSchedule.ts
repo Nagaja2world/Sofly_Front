@@ -6,6 +6,7 @@ import {
   addScheduleItem,
   updateScheduleItem,
   deleteScheduleItem,
+  deleteSchedule,
   moveScheduleItem,
   type ScheduleDetail,
   type ScheduleSummary,
@@ -185,6 +186,24 @@ export function useSchedule(workspaceId: number) {
     }
   };
 
+  const handleDeleteSchedule = async () => {
+    if (!currentSchedule) return;
+    try {
+      await deleteSchedule(currentSchedule.id);
+      setCurrentSchedule(null);
+      setItineraryDays([]);
+      scheduleItemsRef.current = new Map();
+      const list = await fetchScheduleList(workspaceId);
+      setScheduleList(list);
+      if (list.length > 0) {
+        const latest = await fetchScheduleById(list[list.length - 1].id);
+        applySchedule(latest);
+      }
+    } catch (err) {
+      console.warn("[useSchedule] 일정 삭제 실패:", err);
+    }
+  };
+
   return {
     currentSchedule,
     scheduleList,
@@ -195,5 +214,6 @@ export function useSchedule(workspaceId: number) {
     handleSelectScheduleVersion,
     handleSaveItineraryDay,
     handleDeleteItem,
+    handleDeleteSchedule,
   };
 }

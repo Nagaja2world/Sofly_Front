@@ -554,17 +554,17 @@ export default function ItineraryDayCard({
         )}
       </header>
 
-      {/* ── 컬럼 헤더 ── */}
-      <div className="border-t border-gray-200 px-2">
-        {isEditing ? <EditHeaderRow /> : <ViewHeaderRow />}
-      </div>
-
       {/* ── 지도 패널 (지도 버튼 클릭 시 펼침) ── */}
       {showMap && !isEditing && (
         <div className="border-t border-gray-200 px-2 py-2" style={{ height: 340 }}>
           <DayItineraryMap rows={rows} dayNumber={dayNumber} />
         </div>
       )}
+
+      {/* ── 컬럼 헤더 ── */}
+      <div className="border-t border-gray-200 px-2">
+        {isEditing ? <EditHeaderRow /> : <ViewHeaderRow />}
+      </div>
 
       {/* ── 데이터 행들 ── */}
       <div className="flex flex-col gap-2 px-2 pb-2">

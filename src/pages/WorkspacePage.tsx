@@ -208,6 +208,7 @@ export default function WorkspacePage() {
     handleSelectScheduleVersion,
     handleSaveItineraryDay,
     handleDeleteItem,
+    handleDeleteSchedule,
   } = useSchedule(workspaceId);
 
   const { chatWidth, handleResizeStart } = useChatResize();
@@ -402,6 +403,7 @@ export default function WorkspacePage() {
                 onSaveDay={handleSaveItineraryDay}
                 onMapClick={handleMapClick}
                 onDeleteItem={handleDeleteItem}
+                onDeleteSchedule={handleDeleteSchedule}
               />
 
               {/* ── 여행 기록 ── */}
