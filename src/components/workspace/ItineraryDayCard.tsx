@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import PinIcon from "@/assets/pin.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
@@ -347,7 +348,7 @@ function PlaceSearchInput({
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setQuery(value); }, [value]);
@@ -355,7 +356,7 @@ function PlaceSearchInput({
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node))
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node))
         setIsOpen(false);
     };
     document.addEventListener("mousedown", handler);
@@ -394,8 +395,22 @@ function PlaceSearchInput({
     onSelectPlace(place);
   };
 
+  /* Portal 드롭다운의 fixed 위치 계산 */
+  const getDropdownStyle = (): React.CSSProperties => {
+    if (!wrapperRef.current) return {};
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const dropdownH = 320;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const minWidth = Math.max(rect.width, 300);
+
+    if (spaceBelow < dropdownH && rect.top > spaceBelow) {
+      return { position: "fixed", bottom: window.innerHeight - rect.top + 4, left: rect.left, width: minWidth, zIndex: 9999 };
+    }
+    return { position: "fixed", top: rect.bottom + 4, left: rect.left, width: minWidth, zIndex: 9999 };
+  };
+
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={wrapperRef} className="relative w-full">
       <div className="relative">
         <input
           type="text"
@@ -418,14 +433,17 @@ function PlaceSearchInput({
         )}
       </div>
 
-      {isOpen && results.length > 0 && (
-        <div className="absolute top-full left-0 mt-1 w-full min-w-[300px] z-50 bg-white border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+      {isOpen && results.length > 0 && createPortal(
+        <div
+          style={getDropdownStyle()}
+          className="bg-white border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] overflow-hidden"
+        >
           <div className="max-h-[300px] overflow-y-auto">
             {results.map((place) => (
               <button
                 key={place.id}
                 type="button"
-                onClick={() => handleSelect(place)}
+                onMouseDown={(e) => { e.preventDefault(); handleSelect(place); }}
                 className="flex items-center gap-3 w-full px-3 py-3 bg-transparent border-none cursor-pointer hover:bg-gray-50 transition-colors text-left border-b border-gray-100 last:border-b-0"
               >
                 {place.photos?.[0] ? (
@@ -456,7 +474,8 @@ function PlaceSearchInput({
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

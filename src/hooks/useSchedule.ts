@@ -129,6 +129,11 @@ export function useSchedule(workspaceId: number) {
             visitTime: row.visitTime || undefined,
             estimatedCost: parseCostString(row.cost),
             memo: row.remark || undefined,
+            address: row._address ?? undefined,
+            latitude: row._latitude ?? undefined,
+            longitude: row._longitude ?? undefined,
+            placeId: row._placeId ?? undefined,
+            photoReference: row._photoReference ?? undefined,
           });
         } else {
           const itemId = parseInt(row.id, 10);
@@ -147,20 +152,22 @@ export function useSchedule(workspaceId: number) {
             row.title !== originalRow.title ||
             row.visitTime !== originalRow.visitTime ||
             row.cost !== originalRow.cost ||
-            row.remark !== originalRow.remark;
+            row.remark !== originalRow.remark ||
+            row._category !== originalRow._category ||
+            row._placeId !== originalRow._placeId;
 
           if (changed || !originalIdSet.has(row.id)) {
             await updateScheduleItem(scheduleId, itemId, {
-              category: (origItem?.category ?? row._category ?? "ATTRACTION") as ScheduleCategory,
+              category: (row._category ?? "ATTRACTION") as ScheduleCategory,
               name: row.title,
               visitTime: row.visitTime || undefined,
               estimatedCost: parseCostString(row.cost),
               memo: row.remark || undefined,
-              address: origItem?.address ?? undefined,
-              latitude: origItem?.latitude ?? undefined,
-              longitude: origItem?.longitude ?? undefined,
-              placeId: origItem?.placeId ?? undefined,
-              photoReference: origItem?.photoReference ?? undefined,
+              address: row._address ?? origItem?.address ?? undefined,
+              latitude: row._latitude ?? origItem?.latitude ?? undefined,
+              longitude: row._longitude ?? origItem?.longitude ?? undefined,
+              placeId: row._placeId ?? origItem?.placeId ?? undefined,
+              photoReference: row._photoReference ?? origItem?.photoReference ?? undefined,
             });
           }
         }

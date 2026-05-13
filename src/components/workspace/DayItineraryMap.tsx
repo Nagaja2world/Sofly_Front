@@ -125,6 +125,7 @@ interface DayItineraryMapProps {
 export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayItineraryMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const mapInitializedRef = useRef(false);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const polylinesRef = useRef<google.maps.Polyline[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -205,6 +206,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
         if (!cancelled) {
           setResolvedRows(resolved);
           setStatus('ready');
+          mapInitializedRef.current = true;
         }
       } catch (err) {
         if (!cancelled) console.error('[DayItineraryMap]', err);
@@ -214,7 +216,45 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     init();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // rows가 바뀌면 아래 useEffect에서 처리
+  }, []);
+
+  /* ── rows 변경 시 재지오코딩 (지도 초기화 이후) ── */
+  useEffect(() => {
+    if (!mapInitializedRef.current || !mapInstanceRef.current) return;
+
+    let cancelled = false;
+    setStatus('geocoding');
+
+    async function regeocode() {
+      try {
+        const geocoder = new google.maps.Geocoder();
+        const resolved: ResolvedRow[] = [];
+
+        for (const row of rows) {
+          if (cancelled) break;
+          if (row._latitude && row._longitude) {
+            resolved.push({ ...row, resolvedLat: row._latitude, resolvedLng: row._longitude });
+          } else if (row._address) {
+            const coords = await geocodeAddress(geocoder, row._address);
+            resolved.push({ ...row, resolvedLat: coords?.lat ?? null, resolvedLng: coords?.lng ?? null });
+          } else {
+            resolved.push({ ...row, resolvedLat: null, resolvedLng: null });
+          }
+        }
+
+        if (!cancelled) {
+          setResolvedRows(resolved);
+          setStatus('ready');
+        }
+      } catch (err) {
+        if (!cancelled) console.error('[DayItineraryMap] regeocode', err);
+      }
+    }
+
+    regeocode();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   /* ── 마커 + 경로 그리기 ── */
   useEffect(() => {
