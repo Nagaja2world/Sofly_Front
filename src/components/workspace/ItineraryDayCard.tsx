@@ -608,15 +608,6 @@ export default function ItineraryDayCard({
   const addRow = () => {
     setDraftRows((prev) => [...prev, createEmptyRow()]);
   };
-  const moveRow = (index: number, direction: -1 | 1) => {
-    setDraftRows((prev) => {
-      const next = [...prev];
-      const target = index + direction;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  };
 
   return (
     <article
