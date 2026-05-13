@@ -176,7 +176,7 @@ export function useSchedule(workspaceId: number) {
       const updated = await fetchScheduleById(scheduleId);
       applySchedule(updated);
     } catch (err) {
-      console.warn("[useSchedule] 일정 저장 실패:", err);
+      console.error("[useSchedule] 일정 저장 실패:", err);
     } finally {
       setIsSavingSchedule(false);
     }

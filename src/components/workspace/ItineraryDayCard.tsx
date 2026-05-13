@@ -349,6 +349,8 @@ function PlaceSearchInput({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // portal 드롭다운 DOM ref — 포털은 wrapperRef 바깥 DOM에 있어서 별도로 추적 필요
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setQuery(value); }, [value]);
@@ -356,8 +358,13 @@ function PlaceSearchInput({
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node))
-        setIsOpen(false);
+      const target = e.target as Node;
+      // wrapper 또는 portal 드롭다운 내부 클릭이면 닫지 않음
+      if (
+        wrapperRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      ) return;
+      setIsOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -435,6 +442,7 @@ function PlaceSearchInput({
 
       {isOpen && results.length > 0 && createPortal(
         <div
+          ref={dropdownRef}
           style={getDropdownStyle()}
           className="bg-white border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] overflow-hidden"
         >
@@ -443,7 +451,7 @@ function PlaceSearchInput({
               <button
                 key={place.id}
                 type="button"
-                onMouseDown={(e) => { e.preventDefault(); handleSelect(place); }}
+                onClick={() => handleSelect(place)}
                 className="flex items-center gap-3 w-full px-3 py-3 bg-transparent border-none cursor-pointer hover:bg-gray-50 transition-colors text-left border-b border-gray-100 last:border-b-0"
               >
                 {place.photos?.[0] ? (
