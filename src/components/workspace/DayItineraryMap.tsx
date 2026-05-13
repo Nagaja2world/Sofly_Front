@@ -224,6 +224,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
 
     let cancelled = false;
     setStatus('geocoding');
+    directionsAvailableRef.current = true;
 
     async function regeocode() {
       try {
@@ -329,6 +330,10 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
               drawFallback(map!, validItems);
               return;
             }
+            if (routeStatus === 'MAX_WAYPOINTS_EXCEEDED') {
+              drawFallback(map!, validItems);
+              return;
+            }
             if (routeStatus !== 'OK' || !result?.routes?.length) {
               if (travelMode === google.maps.TravelMode.DRIVING) {
                 tryRoute(google.maps.TravelMode.WALKING);
@@ -373,8 +378,20 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
       path: items.map((r) => ({ lat: r.resolvedLat!, lng: r.resolvedLng! })),
       geodesic: true,
       strokeColor: '#F59E0B',
-      strokeOpacity: 0.4,
-      strokeWeight: 2,
+      strokeOpacity: 0.55,
+      strokeWeight: 3,
+      icons: [
+        {
+          icon: {
+            path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
+            scale: 2,
+            strokeColor: '#F59E0B',
+            strokeOpacity: 0.9,
+          },
+          offset: '100%',
+          repeat: '80px',
+        },
+      ],
       map,
     });
     polylinesRef.current.push(poly);
