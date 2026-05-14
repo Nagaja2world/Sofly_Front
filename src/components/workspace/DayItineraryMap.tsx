@@ -140,7 +140,9 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
 
   /* ── 언마운트 시 애니메이션 정리 ── */
   useEffect(() => {
-    return () => { if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current); };
+    return () => {
+      if (animFrameRef.current !== null) clearTimeout(animFrameRef.current as unknown as number);
+    };
   }, []);
 
   /* ── API 키 없음 처리 ── */
@@ -405,65 +407,47 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     polylinesRef.current.push(poly);
   }
 
-  /* ── 경로 위에서 가장 가까운 인덱스 찾기 ── */
-  function findClosestPathIndex(path: google.maps.LatLng[], point: google.maps.LatLng): number {
-    let minDist = Infinity;
-    let minIdx = 0;
-    path.forEach((p, i) => {
-      const d = google.maps.geometry.spherical.computeDistanceBetween(p, point);
-      if (d < minDist) { minDist = d; minIdx = i; }
-    });
-    return minIdx;
-  }
-
-  /* ── 경로를 따라 지도 이동 ── */
-  function animateAlongRoute(
+  /* ── 줌 아웃 → 이동 → 줌 인 애니메이션 ── */
+  function animateZoomTransit(
     map: google.maps.Map,
     targetPos: google.maps.LatLng,
     onDone: () => void,
   ) {
-    if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current);
-
-    const path = routePathRef.current;
-    if (!path.length) {
-      map.panTo(targetPos);
-      onDone();
-      return;
+    if (animFrameRef.current !== null) {
+      clearTimeout(animFrameRef.current as unknown as number);
+      animFrameRef.current = null;
     }
 
     const currentCenter = map.getCenter()!;
-    const startIdx = findClosestPathIndex(path, currentCenter);
-    const endIdx   = findClosestPathIndex(path, targetPos);
+    const targetZoom = Math.max(map.getZoom() ?? 13, 15);
 
-    if (startIdx === endIdx) {
+    // 현재 위치와 목적지가 거의 같으면 바로 인포윈도우만
+    const dist = google.maps.geometry.spherical.computeDistanceBetween(currentCenter, targetPos);
+    if (dist < 200) {
       map.panTo(targetPos);
       onDone();
       return;
     }
 
-    const forward = endIdx > startIdx;
-    const subPath = forward
-      ? path.slice(startIdx, endIdx + 1)
-      : [...path.slice(endIdx, startIdx + 1)].reverse();
+    // Step 1: 두 지점을 모두 포함하는 bounds로 줌 아웃
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(currentCenter);
+    bounds.extend(targetPos);
+    map.fitBounds(bounds, { top: 80, right: 80, bottom: 80, left: 80 });
 
-    const DURATION = Math.min(300 + subPath.length * 8, 1200); // 거리에 비례, 최대 1.2초
-    const startTime = performance.now();
+    // Step 2: 줌 아웃 완료 후 목적지로 panTo
+    animFrameRef.current = setTimeout(() => {
+      map.panTo(targetPos);
 
-    function ease(t: number) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
-
-    function tick(now: number) {
-      const progress = Math.min((now - startTime) / DURATION, 1);
-      const idx = Math.round(ease(progress) * (subPath.length - 1));
-      map.panTo(subPath[idx]);
-      if (progress < 1) {
-        animFrameRef.current = requestAnimationFrame(tick);
-      } else {
-        map.panTo(targetPos);
-        onDone();
-      }
-    }
-
-    animFrameRef.current = requestAnimationFrame(tick);
+      // Step 3: pan 완료 후 줌 인
+      animFrameRef.current = setTimeout(() => {
+        map.setZoom(targetZoom);
+        animFrameRef.current = setTimeout(() => {
+          onDone();
+          animFrameRef.current = null;
+        }, 300) as unknown as number;
+      }, 400) as unknown as number;
+    }, 500) as unknown as number;
   }
 
   /* ── 사이드 목록에서 마커 클릭 ── */
@@ -473,13 +457,10 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     const row = resolvedRows[index];
     if (!map || !marker || !row) return;
 
-    const targetPos = marker.getPosition()!;
-    const currentZoom = map.getZoom() ?? 0;
-    if (currentZoom < 15) map.setZoom(15);
-
+    infoWindowRef.current?.close();
     setActiveIndex(index);
 
-    animateAlongRoute(map, targetPos, () => {
+    animateZoomTransit(map, marker.getPosition()!, () => {
       infoWindowRef.current?.setContent(buildInfoWindowContent(row, index, dayNumber));
       infoWindowRef.current?.open(map, marker);
     });
