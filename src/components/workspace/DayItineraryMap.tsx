@@ -132,7 +132,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
   const directionsAvailableRef = useRef(true);
   const routePathRef = useRef<google.maps.LatLng[]>([]);
-  const animFrameRef = useRef<number | null>(null);
+  const transitionListenersRef = useRef<google.maps.MapsEventListener[]>([]);
 
   const [resolvedRows, setResolvedRows] = useState<ResolvedRow[]>([]);
   const [status, setStatus] = useState<'loading' | 'geocoding' | 'ready' | 'no-key'>('loading');
@@ -141,7 +141,8 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
   /* ── 언마운트 시 애니메이션 정리 ── */
   useEffect(() => {
     return () => {
-      if (animFrameRef.current !== null) clearTimeout(animFrameRef.current as unknown as number);
+      transitionListenersRef.current.forEach((l) => google.maps.event.removeListener(l));
+      transitionListenersRef.current = [];
     };
   }, []);
 
@@ -407,47 +408,55 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     polylinesRef.current.push(poly);
   }
 
-  /* ── 줌 아웃 → 이동 → 줌 인 애니메이션 ── */
+  /* ── 진행 중인 idle 리스너 전부 제거 ── */
+  function cancelTransition() {
+    transitionListenersRef.current.forEach((l) => google.maps.event.removeListener(l));
+    transitionListenersRef.current = [];
+  }
+
+  /* ── 줌 아웃 → 줌 인 (fitBounds + idle 체이닝) ── */
   function animateZoomTransit(
     map: google.maps.Map,
     targetPos: google.maps.LatLng,
     onDone: () => void,
   ) {
-    if (animFrameRef.current !== null) {
-      clearTimeout(animFrameRef.current as unknown as number);
-      animFrameRef.current = null;
-    }
+    cancelTransition();
 
     const currentCenter = map.getCenter()!;
-    const targetZoom = Math.max(map.getZoom() ?? 13, 15);
-
-    // 현재 위치와 목적지가 거의 같으면 바로 인포윈도우만
     const dist = google.maps.geometry.spherical.computeDistanceBetween(currentCenter, targetPos);
-    if (dist < 200) {
+
+    // 300m 이내면 바로 panTo
+    if (dist < 300) {
       map.panTo(targetPos);
-      onDone();
+      const l = google.maps.event.addListenerOnce(map, 'idle', onDone);
+      transitionListenersRef.current = [l];
       return;
     }
 
-    // Step 1: 두 지점을 모두 포함하는 bounds로 줌 아웃
-    const bounds = new google.maps.LatLngBounds();
-    bounds.extend(currentCenter);
-    bounds.extend(targetPos);
-    map.fitBounds(bounds, { top: 80, right: 80, bottom: 80, left: 80 });
+    // Phase 1: 두 지점이 모두 보이도록 fitBounds (줌 아웃 + 센터 이동)
+    const outBounds = new google.maps.LatLngBounds();
+    outBounds.extend(currentCenter);
+    outBounds.extend(targetPos);
+    map.fitBounds(outBounds, { top: 80, right: 80, bottom: 80, left: 80 });
 
-    // Step 2: 줌 아웃 완료 후 목적지로 panTo
-    animFrameRef.current = setTimeout(() => {
-      map.panTo(targetPos);
+    // Phase 2: idle 뒤 목적지 주변으로 fitBounds (줌 인)
+    const l1 = google.maps.event.addListenerOnce(map, 'idle', () => {
+      transitionListenersRef.current = [];
 
-      // Step 3: pan 완료 후 줌 인
-      animFrameRef.current = setTimeout(() => {
-        map.setZoom(targetZoom);
-        animFrameRef.current = setTimeout(() => {
-          onDone();
-          animFrameRef.current = null;
-        }, 300) as unknown as number;
-      }, 400) as unknown as number;
-    }, 500) as unknown as number;
+      const DELTA = 0.004; // 목적지 주변 ~400m
+      const inBounds = new google.maps.LatLngBounds(
+        { lat: targetPos.lat() - DELTA, lng: targetPos.lng() - DELTA },
+        { lat: targetPos.lat() + DELTA, lng: targetPos.lng() + DELTA },
+      );
+      map.fitBounds(inBounds, { top: 48, right: 48, bottom: 48, left: 48 });
+
+      const l2 = google.maps.event.addListenerOnce(map, 'idle', () => {
+        transitionListenersRef.current = [];
+        onDone();
+      });
+      transitionListenersRef.current = [l2];
+    });
+    transitionListenersRef.current = [l1];
   }
 
   /* ── 사이드 목록에서 마커 클릭 ── */
