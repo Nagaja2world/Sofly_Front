@@ -972,7 +972,7 @@ export default function ItineraryDayCard({
       {showMap && !isEditing && (
         <div className="border-t border-gray-100 px-2 py-2" style={{ height: 340 }}>
           <DayItineraryMap
-            key={rows.map((r) => r.id).join(",")}
+            key={rows.map((r) => `${r.id}|${r._placeId ?? ''}|${r._address ?? ''}|${r._latitude ?? ''}|${r._longitude ?? ''}`).join(",")}
             rows={rows}
             dayNumber={dayNumber}
             selectedIndex={selectedRowIndex}
