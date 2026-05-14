@@ -10,6 +10,7 @@ import {
   searchPlaces,
   fetchPlacePhotoUri,
   type PlaceResult,
+  type ScheduleCategory,
 } from "@/api/scheduleApi";
 
 /* ══════════════════════════════════════════
@@ -37,7 +38,7 @@ interface ItineraryDayCardProps {
   onSave?: (rows: ItineraryRow[]) => void;
   onMapClick?: (dayNumber: number) => void;
   onDeleteItem?: (itemId: number) => void;
-  onCategoryChange?: (itemId: number, category: string) => void;
+  onCategoryChange?: (itemId: number, category: ScheduleCategory) => void;
   className?: string;
 }
 
@@ -254,7 +255,7 @@ function CategoryPicker({
   size = 'sm',
 }: {
   value?: string;
-  onChange: (cat: string) => void;
+  onChange: (cat: ScheduleCategory) => void;
   /** 'sm': 편집 모드 (36px), 'lg': 보기 모드 (44px) */
   size?: 'sm' | 'lg';
 }) {
@@ -524,7 +525,7 @@ function ViewTimelineRow({
   total: number;
   onDelete?: () => void;
   onRowClick?: (index: number) => void;
-  onCategoryChange?: (category: string) => void;
+  onCategoryChange?: (category: ScheduleCategory) => void;
 }) {
   const config = getCategoryConfig(row._category);
   const itemId = parseInt(row.id, 10);

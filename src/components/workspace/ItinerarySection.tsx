@@ -1,7 +1,7 @@
 import { useState } from "react";
 import SectionHeader from "@/components/workspace/SectionHeader";
 import ItineraryDayCard, { type ItineraryRow } from "@/components/workspace/ItineraryDayCard";
-import { type ScheduleSummary, type ScheduleDetail } from "@/api/scheduleApi";
+import { type ScheduleSummary, type ScheduleDetail, type ScheduleCategory } from "@/api/scheduleApi";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 
 export interface ItineraryDay {
@@ -19,7 +19,7 @@ interface ItinerarySectionProps {
   onSaveDay: (dayNumber: number, rows: ItineraryRow[]) => void;
   onMapClick?: (dayNumber: number) => void;
   onDeleteItem?: (itemId: number) => void;
-  onCategoryChange?: (itemId: number, category: string) => void;
+  onCategoryChange?: (itemId: number, category: ScheduleCategory) => void;
   onDeleteSchedule?: () => void;
 }
 
