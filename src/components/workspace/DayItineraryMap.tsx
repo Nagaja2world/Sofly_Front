@@ -131,10 +131,17 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
   const directionsAvailableRef = useRef(true);
+  const routePathRef = useRef<google.maps.LatLng[]>([]);
+  const animFrameRef = useRef<number | null>(null);
 
   const [resolvedRows, setResolvedRows] = useState<ResolvedRow[]>([]);
   const [status, setStatus] = useState<'loading' | 'geocoding' | 'ready' | 'no-key'>('loading');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  /* ── 언마운트 시 애니메이션 정리 ── */
+  useEffect(() => {
+    return () => { if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current); };
+  }, []);
 
   /* ── API 키 없음 처리 ── */
   useEffect(() => {
@@ -342,6 +349,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
               }
               return;
             }
+            routePathRef.current = result.routes[0].overview_path;
             const path = result.routes[0].overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
             const poly = new google.maps.Polyline({
               path,
@@ -397,18 +405,84 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     polylinesRef.current.push(poly);
   }
 
+  /* ── 경로 위에서 가장 가까운 인덱스 찾기 ── */
+  function findClosestPathIndex(path: google.maps.LatLng[], point: google.maps.LatLng): number {
+    let minDist = Infinity;
+    let minIdx = 0;
+    path.forEach((p, i) => {
+      const d = google.maps.geometry.spherical.computeDistanceBetween(p, point);
+      if (d < minDist) { minDist = d; minIdx = i; }
+    });
+    return minIdx;
+  }
+
+  /* ── 경로를 따라 지도 이동 ── */
+  function animateAlongRoute(
+    map: google.maps.Map,
+    targetPos: google.maps.LatLng,
+    onDone: () => void,
+  ) {
+    if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current);
+
+    const path = routePathRef.current;
+    if (!path.length) {
+      map.panTo(targetPos);
+      onDone();
+      return;
+    }
+
+    const currentCenter = map.getCenter()!;
+    const startIdx = findClosestPathIndex(path, currentCenter);
+    const endIdx   = findClosestPathIndex(path, targetPos);
+
+    if (startIdx === endIdx) {
+      map.panTo(targetPos);
+      onDone();
+      return;
+    }
+
+    const forward = endIdx > startIdx;
+    const subPath = forward
+      ? path.slice(startIdx, endIdx + 1)
+      : [...path.slice(endIdx, startIdx + 1)].reverse();
+
+    const DURATION = Math.min(300 + subPath.length * 8, 1200); // 거리에 비례, 최대 1.2초
+    const startTime = performance.now();
+
+    function ease(t: number) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
+
+    function tick(now: number) {
+      const progress = Math.min((now - startTime) / DURATION, 1);
+      const idx = Math.round(ease(progress) * (subPath.length - 1));
+      map.panTo(subPath[idx]);
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(tick);
+      } else {
+        map.panTo(targetPos);
+        onDone();
+      }
+    }
+
+    animFrameRef.current = requestAnimationFrame(tick);
+  }
+
   /* ── 사이드 목록에서 마커 클릭 ── */
   function handleListItemClick(index: number) {
     const map = mapInstanceRef.current;
     const marker = markersRef.current[index];
     const row = resolvedRows[index];
     if (!map || !marker || !row) return;
-    infoWindowRef.current?.setContent(buildInfoWindowContent(row, index, dayNumber));
-    infoWindowRef.current?.open(map, marker);
+
+    const targetPos = marker.getPosition()!;
     const currentZoom = map.getZoom() ?? 0;
     if (currentZoom < 15) map.setZoom(15);
-    map.panTo(marker.getPosition()!);
+
     setActiveIndex(index);
+
+    animateAlongRoute(map, targetPos, () => {
+      infoWindowRef.current?.setContent(buildInfoWindowContent(row, index, dayNumber));
+      infoWindowRef.current?.open(map, marker);
+    });
   }
 
   /* ── 외부 selectedIndex 변경 시 마커 InfoWindow 오픈 ── */
