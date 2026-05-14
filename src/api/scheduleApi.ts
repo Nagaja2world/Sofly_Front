@@ -252,6 +252,23 @@ export async function deleteScheduleItem(scheduleId: number, itemId: number): Pr
   if (!res.ok && res.status !== 204) throw new Error(`API 오류: ${res.status}`);
 }
 
+/** 아이템 카테고리 수정 */
+export async function updateScheduleItemCategory(
+  scheduleId: number,
+  itemId: number,
+  category: ScheduleCategory,
+): Promise<ScheduleItem> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/schedules/${scheduleId}/items/${itemId}/category`,
+    {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ category }),
+    },
+  );
+  return handleResponse<ScheduleItem>(res);
+}
+
 /** 딥링크 클릭 추적 */
 export async function trackDeepLinkClick(scheduleId: number, itemId: number): Promise<void> {
   const res = await fetch(

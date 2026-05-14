@@ -5,6 +5,7 @@ import {
   fetchScheduleById,
   addScheduleItem,
   updateScheduleItem,
+  updateScheduleItemCategory,
   deleteScheduleItem,
   deleteSchedule,
   moveScheduleItem,
@@ -182,6 +183,27 @@ export function useSchedule(workspaceId: number) {
     }
   };
 
+  const handleCategoryChange = async (itemId: number, category: ScheduleCategory) => {
+    if (!currentSchedule) return;
+    try {
+      const updatedItem = await updateScheduleItemCategory(currentSchedule.id, itemId, category);
+      // 로컬 state 즉시 반영 (전체 재조회 없이)
+      setItineraryDays((prev) =>
+        prev.map((day) => ({
+          ...day,
+          rows: day.rows.map((row) =>
+            row.id === String(updatedItem.id)
+              ? { ...row, _category: updatedItem.category }
+              : row,
+          ),
+        })),
+      );
+      scheduleItemsRef.current.set(itemId, updatedItem);
+    } catch (err) {
+      console.warn("[useSchedule] 카테고리 변경 실패:", err);
+    }
+  };
+
   const handleDeleteItem = async (itemId: number) => {
     if (!currentSchedule) return;
     try {
@@ -220,6 +242,7 @@ export function useSchedule(workspaceId: number) {
     loadSchedule,
     handleSelectScheduleVersion,
     handleSaveItineraryDay,
+    handleCategoryChange,
     handleDeleteItem,
     handleDeleteSchedule,
   };

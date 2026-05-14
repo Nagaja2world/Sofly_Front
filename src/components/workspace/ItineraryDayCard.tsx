@@ -37,6 +37,7 @@ interface ItineraryDayCardProps {
   onSave?: (rows: ItineraryRow[]) => void;
   onMapClick?: (dayNumber: number) => void;
   onDeleteItem?: (itemId: number) => void;
+  onCategoryChange?: (itemId: number, category: string) => void;
   className?: string;
 }
 
@@ -250,13 +251,18 @@ function PlacePhotoImg({ photoName, size = 56 }: { photoName: string; size?: num
 function CategoryPicker({
   value,
   onChange,
+  size = 'sm',
 }: {
   value?: string;
   onChange: (cat: string) => void;
+  /** 'sm': 편집 모드 (36px), 'lg': 보기 모드 (44px) */
+  size?: 'sm' | 'lg';
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const config = getCategoryConfig(value);
+  const btnSize = size === 'lg' ? 'w-11 h-11' : 'w-9 h-9';
+  const iconSize = size === 'lg' ? 'w-5 h-5' : 'w-4 h-4';
 
   useEffect(() => {
     if (!open) return;
@@ -274,14 +280,15 @@ function CategoryPicker({
         onClick={() => setOpen((v) => !v)}
         title="카테고리 변경"
         className={[
-          "w-9 h-9 rounded-full flex items-center justify-center",
+          btnSize,
+          "rounded-full flex items-center justify-center",
           config.bgColor,
           "cursor-pointer transition-opacity hover:opacity-80",
           "border-2",
           open ? "border-primary" : "border-transparent",
         ].join(" ")}
       >
-        <CategoryIcon category={value} className={`w-4 h-4 ${config.iconColor}`} />
+        <CategoryIcon category={value} className={`${iconSize} ${config.iconColor}`} />
       </button>
 
       {open && (
@@ -510,12 +517,14 @@ function ViewTimelineRow({
   total,
   onDelete,
   onRowClick,
+  onCategoryChange,
 }: {
   row: ItineraryRow;
   index: number;
   total: number;
   onDelete?: () => void;
   onRowClick?: (index: number) => void;
+  onCategoryChange?: (category: string) => void;
 }) {
   const config = getCategoryConfig(row._category);
   const itemId = parseInt(row.id, 10);
@@ -564,16 +573,26 @@ function ViewTimelineRow({
           onRowClick ? "cursor-pointer" : "",
         ].join(" ")}
       >
-        {/* 카테고리 아이콘 */}
-        <div
-          className={[
-            "w-11 h-11 rounded-full shrink-0",
-            "flex items-center justify-center",
-            config.bgColor,
-          ].join(" ")}
-        >
-          <CategoryIcon category={row._category} className={`w-5 h-5 ${config.iconColor}`} />
-        </div>
+        {/* 카테고리 아이콘 — onCategoryChange 있으면 클릭 가능한 CategoryPicker */}
+        {onCategoryChange ? (
+          <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <CategoryPicker
+              value={row._category}
+              onChange={onCategoryChange}
+              size="lg"
+            />
+          </div>
+        ) : (
+          <div
+            className={[
+              "w-11 h-11 rounded-full shrink-0",
+              "flex items-center justify-center",
+              config.bgColor,
+            ].join(" ")}
+          >
+            <CategoryIcon category={row._category} className={`w-5 h-5 ${config.iconColor}`} />
+          </div>
+        )}
 
         {/* 텍스트 */}
         <div className="flex-1 min-w-0">
@@ -839,6 +858,7 @@ export default function ItineraryDayCard({
   rows,
   onSave,
   onDeleteItem,
+  onCategoryChange,
   className = "",
 }: ItineraryDayCardProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -1068,6 +1088,14 @@ export default function ItineraryDayCard({
                     ? () => {
                         const id = parseInt(row.id, 10);
                         if (!isNaN(id)) setDeleteTarget({ id, title: row.title });
+                      }
+                    : undefined
+                }
+                onCategoryChange={
+                  onCategoryChange
+                    ? (cat) => {
+                        const id = parseInt(row.id, 10);
+                        if (!isNaN(id)) onCategoryChange(id, cat);
                       }
                     : undefined
                 }

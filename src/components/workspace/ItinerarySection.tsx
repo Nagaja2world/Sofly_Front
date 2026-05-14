@@ -19,6 +19,7 @@ interface ItinerarySectionProps {
   onSaveDay: (dayNumber: number, rows: ItineraryRow[]) => void;
   onMapClick?: (dayNumber: number) => void;
   onDeleteItem?: (itemId: number) => void;
+  onCategoryChange?: (itemId: number, category: string) => void;
   onDeleteSchedule?: () => void;
 }
 
@@ -32,6 +33,7 @@ export default function ItinerarySection({
   onSaveDay,
   onMapClick,
   onDeleteItem,
+  onCategoryChange,
   onDeleteSchedule,
 }: ItinerarySectionProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -130,6 +132,7 @@ export default function ItinerarySection({
               onSave={(rows) => onSaveDay(d.dayNumber, rows)}
               onMapClick={onMapClick}
               onDeleteItem={onDeleteItem}
+              onCategoryChange={onCategoryChange}
             />
           ))}
         </div>

@@ -137,6 +137,7 @@ export default function WorkspacePage() {
     loadSchedule,
     handleSelectScheduleVersion,
     handleSaveItineraryDay,
+    handleCategoryChange,
     handleDeleteItem,
     handleDeleteSchedule,
   } = useSchedule(workspaceId);
@@ -330,6 +331,7 @@ export default function WorkspacePage() {
                 onSaveDay={handleSaveItineraryDay}
                 onMapClick={handleMapClick}
                 onDeleteItem={handleDeleteItem}
+                onCategoryChange={handleCategoryChange}
                 onDeleteSchedule={handleDeleteSchedule}
               />
 
