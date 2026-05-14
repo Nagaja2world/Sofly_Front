@@ -11,9 +11,7 @@ import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
 import MemberSidebar from "@/components/workspace/MemberSidebar";
-import { type TravelLogData } from "@/components/workspace/TravelLogCard";
 import { type SnsLogData } from "@/components/workspace/SnsLogCard";
-import type { JSONContent } from "@tiptap/core";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
 import FlightDetailModal from "@/components/workspace/FlightDetailModal";
@@ -22,83 +20,15 @@ import AIChatSidebar from "@/components/workspace/AIChatSidebar";
 import WorkspaceInfoBar from "@/components/workspace/WorkspaceInfoBar";
 import FlightSection from "@/components/workspace/FlightSection";
 import ItinerarySection from "@/components/workspace/ItinerarySection";
-import TravelLogSection, { type TravelLog } from "@/components/workspace/TravelLogSection";
+import TravelLogSection from "@/components/workspace/TravelLogSection";
 import DangerZone from "@/components/workspace/DangerZone";
 import { useSchedule } from "@/hooks/useSchedule";
 import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { useWorkspaceFlights } from "@/hooks/useWorkspaceFlights";
 import { useChatResize } from "@/hooks/useChatResize";
+import { useTravelLogs } from "@/hooks/useTravelLogs";
 
-/* (목업 데이터 제거됨 — 멤버/항공편/일정 모두 API에서 로드) */
-
-/** 기존 본문을 Tiptap JSON으로 변환한 목업.
- *  실제 API 연결 시: 서버가 보내주는 Tiptap JSON 객체를 그대로 사용.
- *  (각 paragraph가 한 문단, image 노드로 사진을 본문 사이사이 끼워넣을 수 있음) */
-const MOCK_BODY_CONTENT: JSONContent = {
-  type: "doc",
-  content: [
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "프랑크푸르트 공항에 도착해 본격적인 여행을 시작했다.",
-        },
-      ],
-    },
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "간단히 이동 후 감자 레스토랑에 들러 가볍게 식사를 하고,",
-        },
-      ],
-    },
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "뢰머 광장을 둘러보며 첫 도시의 분위기를 느꼈다.",
-        },
-      ],
-    },
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "이후 호텔에 체크인하며 하루를 마무리했다.",
-        },
-      ],
-    },
-  ],
-};
-
-const MOCK_TRAVEL_LOGS: TravelLog[] = [
-  {
-    dayNumber: 1,
-    oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
-    weather: "sunny",
-    content: MOCK_BODY_CONTENT,
-    albumPhotos: [],
-  },
-  {
-    dayNumber: 2,
-    oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
-    weather: "sunny",
-    content: MOCK_BODY_CONTENT,
-    albumPhotos: [],
-  },
-  {
-    dayNumber: 3,
-    oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
-    weather: "sunny",
-    content: MOCK_BODY_CONTENT,
-    albumPhotos: [],
-  },
-];
+/* (목업 데이터 제거됨 — 멤버/항공편/일정/여행기록 모두 API에서 로드) */
 
 
 /* ══════════════════════════════════════════
@@ -236,28 +166,25 @@ export default function WorkspacePage() {
   const [isMemberOpen, setIsMemberOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
 
-  /* ── 여행 기록 상태 ── */
-  const [travelLogs, setTravelLogs] = useState<TravelLog[]>(MOCK_TRAVEL_LOGS);
+  /* ── 여행 기록 ── */
+  const {
+    travelLogs,
+    loadTravelLogs,
+    handleAddDailyCard: addDailyCard,
+    handleSaveTravelLog,
+    handleDeleteTravelLog,
+  } = useTravelLogs(workspaceId);
+
+  useEffect(() => { loadTravelLogs(); }, [loadTravelLogs]);
+
   const [snsLog, setSnsLog] = useState<SnsLogData | null>(null);
   const [showAddCard, setShowAddCard] = useState(false);
 
   const handleOpenAddCard = () => setShowAddCard(true);
   const handleCancelAddCard = () => setShowAddCard(false);
 
-  const handleSaveTravelLog = (dayNumber: number, data: TravelLogData) => {
-    setTravelLogs((prev) =>
-      prev.map((log) => (log.dayNumber === dayNumber ? { ...log, ...data } : log)),
-    );
-  };
-  const handleDeleteTravelLog = (dayNumber: number) => {
-    setTravelLogs((prev) => prev.filter((log) => log.dayNumber !== dayNumber));
-  };
   const handleAddDailyCard = () => {
-    setTravelLogs((prev) => {
-      const nextDayNumber =
-        prev.length > 0 ? Math.max(...prev.map((l) => l.dayNumber)) + 1 : 1;
-      return [...prev, { dayNumber: nextDayNumber, albumPhotos: [] }];
-    });
+    addDailyCard();
     setShowAddCard(false);
   };
   const handleAddSnsCard = () => {

@@ -6,11 +6,15 @@ import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
 import type { JSONContent } from "@tiptap/core";
 
 export interface TravelLog {
+  /** API에서 받은 여행기 ID (undefined면 로컬 임시 카드) */
+  id?: number;
   dayNumber: number;
   oneLineSummary?: string;
   weather?: WeatherType;
   content?: JSONContent;
   albumPhotos?: string[];
+  /** 앨범 사진 ID 목록 (사진 해제 시 사용) */
+  _photoIds?: number[];
 }
 
 interface TravelLogSectionProps {
@@ -21,8 +25,8 @@ interface TravelLogSectionProps {
   onCancelAddCard: () => void;
   onAddDailyCard: () => void;
   onAddSnsCard: () => void;
-  onSaveTravelLog: (dayNumber: number, data: TravelLogData) => void;
-  onDeleteTravelLog: (dayNumber: number) => void;
+  onSaveTravelLog: (id: number, data: TravelLogData) => void;
+  onDeleteTravelLog: (id: number) => void;
   onSaveSnsLog: (data: SnsLogData) => void;
   onDeleteSnsLog: () => void;
   onUploadSnsLog: (data: SnsLogData) => void;
@@ -93,15 +97,15 @@ export default function TravelLogSection({
 
         {/* 일자별 카드들 */}
         {travelLogs.map((log) => (
-          <div key={log.dayNumber} className="shrink-0">
+          <div key={log.id ?? log.dayNumber} className="shrink-0">
             <TravelLogCard
               dayNumber={log.dayNumber}
               oneLineSummary={log.oneLineSummary}
               weather={log.weather}
               content={log.content}
               albumPhotos={log.albumPhotos}
-              onSave={(data) => onSaveTravelLog(log.dayNumber, data)}
-              onDelete={() => onDeleteTravelLog(log.dayNumber)}
+              onSave={(data) => log.id != null && onSaveTravelLog(log.id, data)}
+              onDelete={() => log.id != null && onDeleteTravelLog(log.id)}
             />
           </div>
         ))}
