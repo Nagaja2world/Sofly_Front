@@ -51,11 +51,11 @@ interface TravelLog {
 const MOCK_WORKSPACE_NAME = "프랑크푸르트 여행";
 
 const MOCK_MEMBERS: WorkspaceMember[] = [
-  { id: "1", name: "홍길동", isHost: true },
-  { id: "2", name: "이대화" },
-  { id: "3", name: "김갑자" },
-  { id: "4", name: "박조원" },
-  { id: "5", name: "조마마" },
+  { id: 1, userId: 101, name: "홍길동", isHost: true },
+  { id: 2, userId: 102, name: "이대화" },
+  { id: 3, userId: 103, name: "김갑자" },
+  { id: 4, userId: 104, name: "박조원" },
+  { id: 5, userId: 105, name: "조마마" },
 ];
 
 const MOCK_FLIGHTS: FlightInfo[] = [
@@ -113,6 +113,10 @@ const MOCK_FLIGHTS: FlightInfo[] = [
   },
 ];
 
+/* ItineraryRow 스키마는 schedule API 통합 이후 다음과 같이 재설계됨:
+ *  - title, visitTime, cost, remark + 내부용 _category, _latitude, _longitude 등
+ *  - 옛날 stayDuration / transport / moveDuration 필드는 제거됨.
+ * mock 데이터에서는 체류시간/교통편 정보를 remark에 묶어 표현. */
 const MOCK_ITINERARY_DAYS: ItineraryDay[] = [
   {
     dayNumber: 1,
@@ -120,52 +124,66 @@ const MOCK_ITINERARY_DAYS: ItineraryDay[] = [
       {
         id: "d1-1",
         title: "공항 도착",
-        stayDuration: "30분",
-        transport: "대중교통",
-        moveDuration: "1시간",
+        visitTime: "09:00",
         cost: "13,000원",
+        remark: "체류 30분 · 대중교통 1시간",
+        _category: "TRANSPORT",
+        _estimatedCost: 13000,
       },
       {
         id: "d1-2",
         title: "감자 레스토랑",
-        stayDuration: "1시간",
-        transport: "대중교통",
-        moveDuration: "30분",
+        visitTime: "11:00",
         cost: "7,000원",
+        remark: "체류 1시간 · 대중교통 30분",
+        _category: "RESTAURANT",
+        _estimatedCost: 7000,
       },
       {
         id: "d1-3",
         title: "뢰머 광장",
-        stayDuration: "1시간 30분",
-        transport: "대중교통",
-        moveDuration: "1시간",
+        visitTime: "13:00",
+        remark: "체류 1시간 30분 · 대중교통 1시간",
+        _category: "ATTRACTION",
       },
       {
         id: "d1-4",
         title: "프랑크푸르트 호텔",
-        transport: "대중교통",
-        moveDuration: "1시간 30분",
+        visitTime: "16:00",
+        remark: "대중교통 1시간 30분",
+        _category: "ACCOMMODATION",
       },
     ],
   },
   {
     dayNumber: 2,
     rows: [
-      { id: "d2-1", title: "호텔 조식", stayDuration: "1시간" },
-      { id: "d2-2", title: "프랑크푸르트 호텔 체크아웃" },
+      {
+        id: "d2-1",
+        title: "호텔 조식",
+        visitTime: "08:00",
+        remark: "체류 1시간",
+        _category: "RESTAURANT",
+      },
+      {
+        id: "d2-2",
+        title: "프랑크푸르트 호텔 체크아웃",
+        visitTime: "10:00",
+        _category: "ACCOMMODATION",
+      },
       {
         id: "d2-3",
         title: "뢰머 광장",
-        stayDuration: "1시간 30분",
-        transport: "대중교통",
-        moveDuration: "1시간",
+        visitTime: "11:00",
+        remark: "체류 1시간 30분 · 대중교통 1시간",
+        _category: "ATTRACTION",
       },
       {
         id: "d2-4",
         title: "브렉퍼스트",
-        stayDuration: "2시간",
-        transport: "대중교통",
-        moveDuration: "1시간 30분",
+        visitTime: "13:30",
+        remark: "체류 2시간 · 대중교통 1시간 30분",
+        _category: "RESTAURANT",
       },
     ],
   },
@@ -258,7 +276,11 @@ function SectionHeader({ title }: { title: string }) {
  * SNS용 워크스페이스 미리보기 페이지 (이슈 #24)
  *
  * - 다른 사람이 SNS 페이지에 게시한 워크스페이스를 "구경"만 하는 페이지.
- * - 편집/삭제/추가 등 모든 변경 동작이 비활성화됨 (각 카드에 readOnly={true}).
+ * - 편집/삭제/추가 등 모든 변경 동작이 비활성화됨.
+ *   · ItineraryDayCard는 readOnly={true}로 편집 버튼이 사라지고, 행 삭제 및
+ *     카테고리 변경도 부모가 콜백을 넘기지 않아 자동으로 비활성화됨.
+ *   · TravelLogCard는 onSave/onDelete를 넘기지 않아 편집/삭제 버튼이 사라짐.
+ *     (TravelLogCard 자체의 readOnly prop은 별도 이슈에서 도입 예정.)
  * - 좌측 멤버 사이드바, 우측 AI 채팅 패널 모두 없음.
  *
  * 레이아웃 (데스크톱)
@@ -395,7 +417,10 @@ export default function WorkspacePreviewPage() {
                 </div>
               </section>
 
-              {/* ── 여행 일정 ── */}
+              {/* ── 여행 일정 ──
+                  readOnly={true}: 편집 버튼 사라짐. 지도 보기는 그대로 동작.
+                  onDeleteItem / onCategoryChange를 넘기지 않음으로써
+                  행별 삭제 / 카테고리 변경도 자동으로 비활성화됨. */}
               <section className="flex flex-col gap-3">
                 <SectionHeader title="여행 일정" />
                 <div className="flex flex-col gap-3">
@@ -405,9 +430,6 @@ export default function WorkspacePreviewPage() {
                       dayNumber={d.dayNumber}
                       rows={d.rows}
                       readOnly
-                      /* onMapClick은 의도적으로 넘기지 않음.
-                         미리보기에서도 지도 보기는 의미가 있지만, 별도 이슈에서 결정 후 추가 예정.
-                         (이슈 #24 범위에서는 편집/추가/삭제 등 변경 동작 차단에 집중.) */
                     />
                   ))}
                 </div>
@@ -415,7 +437,9 @@ export default function WorkspacePreviewPage() {
 
               {/* ── 여행 기록 ──
                   - SNS 카드는 표시하지 않음 (이미 SNS 페이지에서 본 카드를 클릭해서 들어왔으므로).
-                  - 일자별 카드만 렌더. 모두 readOnly.
+                  - 일자별 카드만 렌더.
+                  - onSave / onDelete를 넘기지 않아 편집/삭제 버튼이 사라짐.
+                    (TravelLogCard에 명시적 readOnly prop을 도입하는 건 별도 이슈에서 처리 예정.)
                   - "+" 추가 버튼도 없음.
                   - 가로 스크롤은 워크스페이스 페이지와 동일하게 유지. */}
               <section className="flex flex-col gap-3">
@@ -436,7 +460,6 @@ export default function WorkspacePreviewPage() {
                         weather={log.weather}
                         content={log.content}
                         albumPhotos={log.albumPhotos}
-                        readOnly
                       />
                     </div>
                   ))}

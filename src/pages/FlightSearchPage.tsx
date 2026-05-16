@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import SearchBar from "@/components/SearchBar";
+import SearchModeBar from "@/components/SearchModeBar";
 import FilterSidebar from "@/components/flightSearch/FilterSidebar";
 import FlightResultList from "@/components/flightSearch/FlightResultList";
 import {
@@ -78,6 +78,7 @@ const SORT_TO_API: Record<SortOption, "BEST" | "CHEAPEST" | "FASTEST"> = {
 export default function FlightSearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isFlightMode, setIsFlightMode] = useState(true);
 
   /* ── URL 쿼리스트링 → SearchBar 초기값 ── */
   const searchBarInitialValues = useMemo(
@@ -389,19 +390,18 @@ export default function FlightSearchPage() {
       {/* 데스크톱 */}
       <div className="hidden md:block bg-background">
         <div className="max-w-[1200px] w-full mx-auto px-4 py-10">
-          <h1 className="font-pretendard text-title2 font-semibold text-gray-900 mb-6">
-            항공편 검색
-          </h1>
-
+          {/* ── 모드 토글 + 검색바 ── */}
           <section className="mb-10">
-            <SearchBar
-              key={searchBarKey}
-              onSearch={handleReSearch}
+            <SearchModeBar
+              searchBarKey={searchBarKey}
+              onFlightSearch={handleReSearch}
               initialValues={searchBarInitialValues}
+              onModeChange={(m) => setIsFlightMode(m === "flight")}
             />
           </section>
 
-          {!searchInput ? (
+          {/* ── 항공편 결과 (항공편 모드일 때만) ── */}
+          {isFlightMode && !searchInput ? (
             <div
               className={[
                 "py-20 rounded-xl border-2 border-dashed border-gray-300",
@@ -415,7 +415,7 @@ export default function FlightSearchPage() {
                 위 SearchBar에서 조건을 입력하고 검색하기 버튼을 눌러주세요.
               </p>
             </div>
-          ) : (
+          ) : isFlightMode ? (
             <section className="flex gap-6 items-start">
               <FilterSidebar
                 value={filter}
@@ -434,7 +434,7 @@ export default function FlightSearchPage() {
                 sentinelRef={sentinelRef}
               />
             </section>
-          )}
+          ) : null}
         </div>
       </div>
     </>

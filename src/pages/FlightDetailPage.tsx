@@ -4,6 +4,7 @@ import ReadGuideBox from "@/components/flightDetail/Readguidebox";
 import BrandedFareCard from "@/components/flightDetail/Providercard";
 import ItinerarySummaryCard from "@/components/flightDetail/Itinerarysummarycard";
 import WorkspaceSelectModal from "@/components/flightDetail/WorkspaceSelectModal";
+import FareActionModal from "@/components/flightDetail/FareActionModal";
 import Button from "@/components/common/Button";
 import { getFlightDetails } from "@/api/flightApi";
 import {
@@ -30,7 +31,7 @@ interface FlightDetailLocationState {
    ══════════════════════════════════════════ */
 
 export default function FlightDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -52,6 +53,9 @@ export default function FlightDetailPage() {
 
   /* 워크스페이스 저장 모달 */
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
+
+  /* 운임 옵션 미니 모달 */
+  const [activeFareToken, setActiveFareToken] = useState<string | null>(null);
 
   /* ── getFlightDetails 호출 ── */
   useEffect(() => {
@@ -112,16 +116,19 @@ export default function FlightDetailPage() {
     return `여행객 1명 ㅣ 편도 ㅣ ${cabinLabel}`;
   }, [detailsData, offer]);
 
-  /* ── 가격 분해 ── */
+  /* ── 가격 분해: 선택된 운임 기준 ── */
   const priceBreakdown = useMemo(() => {
-    if (!detailsData?.priceBreakdown) return null;
-    const pb = detailsData.priceBreakdown;
+    const selectedFareOffer = detailsData?.brandedFareOffers?.find(
+      (f) => f.token === selectedToken,
+    );
+    const pb = selectedFareOffer?.priceBreakdown ?? detailsData?.priceBreakdown;
+    if (!pb) return null;
     return {
       baseFare: toKrwInt(pb.baseFare),
       tax: toKrwInt(pb.tax),
       total: toKrwInt(pb.total),
     };
-  }, [detailsData]);
+  }, [detailsData, selectedToken]);
 
   /* ── 잔여 좌석 경고 ── */
   const seatsLeft = detailsData?.seatAvailability?.numberOfSeatsAvailable ?? null;
@@ -172,8 +179,15 @@ export default function FlightDetailPage() {
 
   const handleFareClick = (token: string) => {
     setSelectedToken(token);
-    console.log("[BrandedFare] selected token:", token, "for offer:", id);
+    setActiveFareToken(token);
   };
+
+  /* 미니 모달에서 선택된 운임 이름 조회 */
+  const activeFareName = useMemo(() => {
+    if (!activeFareToken) return "";
+    const fare = detailsData?.brandedFareOffers?.find((f) => f.token === activeFareToken);
+    return fare?.brandedFareInfo?.fareName ?? detailsData?.brandedFareInfo?.fareName ?? "";
+  }, [activeFareToken, detailsData]);
 
   /* ── offer → SaveFlightPayload 변환 ── */
   const flightPayloads = useMemo<SaveFlightPayload[]>(() => {
@@ -440,14 +454,6 @@ export default function FlightDetailPage() {
                 </div>
               )}
 
-              {/* 워크스페이스에 저장 버튼 */}
-              <Button
-                btnType="solid"
-                className="w-full py-3.5"
-                onClick={() => setShowWorkspaceModal(true)}
-              >
-                워크스페이스에 저장
-              </Button>
             </aside>
           </div>
           {/* ── 데코레이션 ── */}
@@ -461,6 +467,19 @@ export default function FlightDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* ── 운임 옵션 미니 모달 ── */}
+      {activeFareToken && !showWorkspaceModal && (
+        <FareActionModal
+          fareName={activeFareName}
+          onReserve={() => setActiveFareToken(null)}
+          onSaveToWorkspace={() => {
+            setActiveFareToken(null);
+            setShowWorkspaceModal(true);
+          }}
+          onClose={() => setActiveFareToken(null)}
+        />
+      )}
 
       {/* ── 워크스페이스 선택 모달 ── */}
       {showWorkspaceModal && (

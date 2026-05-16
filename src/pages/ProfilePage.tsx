@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import SearchBar from "@/components/SearchBar";
+import SearchModeBar from "@/components/SearchModeBar";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
 import Button from "@/components/common/Button";
 import Header from "@/components/common/Header";
@@ -163,13 +163,10 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* ── 항공편 검색 ── */}
+        {/* ── 검색 ── */}
         <div className="mt-[40px] z-10 px-4 relative">
           <div className="max-w-[1200px] w-full mx-auto">
-            <h2 className="font-pretendard text-title2 font-semibold text-gray-900 mb-6">
-              항공편 검색
-            </h2>
-            <SearchBar onSearch={handleSearch} />
+            <SearchModeBar onFlightSearch={handleSearch} />
           </div>
         </div>
 

@@ -1,437 +1,34 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  fetchWorkspaceFlights,
   fetchWorkspaceById,
-  fetchWorkspaceMembers,
   updateWorkspace,
+  uploadCoverImage,
   deleteWorkspace,
-  deleteFlightFromWorkspace,
-  leaveWorkspace,
-  inviteMember,
   type Workspace,
-  type WorkspaceFlight,
-  type WorkspaceMemberApi,
 } from "@/api/workspaceApi";
-import { type UserSearchResult } from "@/api/userApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
 import MemberSidebar from "@/components/workspace/MemberSidebar";
-import FlightInfoCard, {
-  type FlightLegInfo,
-} from "@/components/workspace/FlightInfoCard";
-import ItineraryDayCard, {
-  type ItineraryRow,
-} from "@/components/workspace/ItineraryDayCard";
-import TravelLogCard, {
-  type WeatherType,
-  type TravelLogData,
-} from "@/components/workspace/TravelLogCard";
-import SnsLogCard, { type SnsLogData } from "@/components/workspace/SnsLogCard";
-import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
+import { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
+import FlightDetailModal from "@/components/workspace/FlightDetailModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
-import PlusIcon from "@/assets/plus.svg?react";
-import type { JSONContent } from "@tiptap/core";
-import ChatPanel, {
-  type ChatMessageData,
-} from "@/components/chatting/ChatPanel";
+import AIChatSidebar from "@/components/workspace/AIChatSidebar";
+import WorkspaceInfoBar from "@/components/workspace/WorkspaceInfoBar";
+import FlightSection from "@/components/workspace/FlightSection";
+import ItinerarySection from "@/components/workspace/ItinerarySection";
+import TravelLogSection from "@/components/workspace/TravelLogSection";
+import DangerZone from "@/components/workspace/DangerZone";
+import { useSchedule } from "@/hooks/useSchedule";
+import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
+import { useWorkspaceFlights } from "@/hooks/useWorkspaceFlights";
+import { useChatResize } from "@/hooks/useChatResize";
+import { useTravelLogs } from "@/hooks/useTravelLogs";
 
-/* ══════════════════════════════════════════
-   타입 (페이지 단위 데이터 모델)
-   ══════════════════════════════════════════ */
-
-interface FlightInfo {
-  id: number;
-  direction: "가는편" | "오는편";
-  date: string;
-  legs: FlightLegInfo[];
-  bookingUrl?: string;
-  bookingNumber?: string;
-}
-
-interface ItineraryDay {
-  dayNumber: number;
-  rows: ItineraryRow[];
-}
-
-interface TravelLog {
-  dayNumber: number;
-  oneLineSummary?: string;
-  weather?: WeatherType;
-  /** 본문 (Tiptap JSON 문서). API 연결 시 백엔드도 동일한 JSON 포맷으로 주고받음. */
-  content?: JSONContent;
-  albumPhotos?: string[];
-}
-
-/* ══════════════════════════════════════════
-   API 데이터 변환
-   ══════════════════════════════════════════ */
-
-function formatKoreanTime(iso: string): { meridiem: "오전" | "오후"; time: string } {
-  const d = new Date(iso);
-  const h = d.getHours();
-  const m = d.getMinutes();
-  const meridiem: "오전" | "오후" = h < 12 ? "오전" : "오후";
-  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return { meridiem, time: `${hour}:${String(m).padStart(2, "0")}` };
-}
-
-function formatKoreanDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
-}
-
-function mapWorkspaceFlightToFlightInfo(wf: WorkspaceFlight): FlightInfo {
-  const dep = formatKoreanTime(wf.departureTime);
-  const arr = formatKoreanTime(wf.arrivalTime);
-
-  const durationStr = wf.durationMinutes != null
-    ? `${Math.floor(wf.durationMinutes / 60)}시간${wf.durationMinutes % 60 > 0 ? ` ${wf.durationMinutes % 60}분` : ""}`
-    : "";
-
-  return {
-    id: wf.id,
-    direction: wf.flightType === "OUTBOUND" ? "가는편" : "오는편",
-    date: formatKoreanDate(wf.departureTime),
-    legs: [
-      {
-        meridiem: dep.meridiem,
-        time: dep.time,
-        airportCode: wf.departureAirport,
-        airportName: wf.departureCity ?? wf.departureAirport,
-        duration: durationStr,
-        airline: wf.airline,
-        airlineLogo: wf.airlineLogo ?? undefined,
-        flightNo: wf.flightNumber,
-      },
-      {
-        meridiem: arr.meridiem,
-        time: arr.time,
-        airportCode: wf.arrivalAirport,
-        airportName: wf.arrivalCity ?? wf.arrivalAirport,
-        duration: durationStr,
-        airline: wf.airline,
-        airlineLogo: wf.airlineLogo ?? undefined,
-        flightNo: wf.flightNumber,
-      },
-    ],
-  };
-}
-
-/* (목업 데이터 제거됨 — 멤버/항공편 모두 API에서 로드) */
-
-const MOCK_ITINERARY_DAYS: ItineraryDay[] = [
-  {
-    dayNumber: 1,
-    rows: [
-      {
-        id: "d1-1",
-        title: "공항 도착",
-        stayDuration: "30분",
-        transport: "대중교통",
-        moveDuration: "1시간",
-        cost: "13,000원",
-      },
-      {
-        id: "d1-2",
-        title: "감자 레스토랑",
-        stayDuration: "1시간",
-        transport: "대중교통",
-        moveDuration: "30분",
-        cost: "7,000원",
-      },
-      {
-        id: "d1-3",
-        title: "뢰머 광장",
-        stayDuration: "1시간 30분",
-        transport: "대중교통",
-        moveDuration: "1시간",
-      },
-      {
-        id: "d1-4",
-        title: "프랑크푸르트 호텔",
-        transport: "대중교통",
-        moveDuration: "1시간 30분",
-      },
-    ],
-  },
-  {
-    dayNumber: 2,
-    rows: [
-      { id: "d2-1", title: "호텔 조식", stayDuration: "1시간" },
-      { id: "d2-2", title: "프랑크푸르트 호텔 체크아웃" },
-      {
-        id: "d2-3",
-        title: "뢰머 광장",
-        stayDuration: "1시간 30분",
-        transport: "대중교통",
-        moveDuration: "1시간",
-      },
-      {
-        id: "d2-4",
-        title: "브렉퍼스트",
-        stayDuration: "2시간",
-        transport: "대중교통",
-        moveDuration: "1시간 30분",
-      },
-    ],
-  },
-];
-
-/** 기존 본문을 Tiptap JSON으로 변환한 목업.
- *  실제 API 연결 시: 서버가 보내주는 Tiptap JSON 객체를 그대로 사용.
- *  (각 paragraph가 한 문단, image 노드로 사진을 본문 사이사이 끼워넣을 수 있음) */
-const MOCK_BODY_CONTENT: JSONContent = {
-  type: "doc",
-  content: [
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "프랑크푸르트 공항에 도착해 본격적인 여행을 시작했다.",
-        },
-      ],
-    },
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "간단히 이동 후 감자 레스토랑에 들러 가볍게 식사를 하고,",
-        },
-      ],
-    },
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "뢰머 광장을 둘러보며 첫 도시의 분위기를 느꼈다.",
-        },
-      ],
-    },
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "이후 호텔에 체크인하며 하루를 마무리했다.",
-        },
-      ],
-    },
-  ],
-};
-
-const MOCK_TRAVEL_LOGS: TravelLog[] = [
-  {
-    dayNumber: 1,
-    oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
-    weather: "sunny",
-    content: MOCK_BODY_CONTENT,
-    albumPhotos: [],
-  },
-  {
-    dayNumber: 2,
-    oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
-    weather: "sunny",
-    content: MOCK_BODY_CONTENT,
-    albumPhotos: [],
-  },
-  {
-    dayNumber: 3,
-    oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
-    weather: "sunny",
-    content: MOCK_BODY_CONTENT,
-    albumPhotos: [],
-  },
-];
-
-const MOCK_INITIAL_MESSAGES: ChatMessageData[] = [
-  {
-    id: "m1",
-    role: "user",
-    text: "여자 3명이서 오사카 여행가는데 일정 짜줘.",
-    pageIndex: 1,
-    pageTotal: 1,
-  },
-];
-
-/* ══════════════════════════════════════════
-   워크스페이스 정보 바 (조회 + 인라인 편집)
-   ══════════════════════════════════════════ */
-
-interface WorkspaceInfoBarProps {
-  workspace: Workspace;
-  onSave: (title: string, destination: string, startDate: string, endDate: string) => Promise<void>;
-}
-
-function WorkspaceInfoBar({ workspace, onSave }: WorkspaceInfoBarProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [title, setTitle] = useState(workspace.title);
-  const [destination, setDestination] = useState(workspace.destination);
-  const [startDate, setStartDate] = useState(workspace.startDate);
-  const [endDate, setEndDate] = useState(workspace.endDate);
-
-  // workspace prop이 바뀌면 폼 초기화
-  useEffect(() => {
-    setTitle(workspace.title);
-    setDestination(workspace.destination);
-    setStartDate(workspace.startDate);
-    setEndDate(workspace.endDate);
-  }, [workspace]);
-
-  const handleCancel = () => {
-    setTitle(workspace.title);
-    setDestination(workspace.destination);
-    setStartDate(workspace.startDate);
-    setEndDate(workspace.endDate);
-    setIsEditing(false);
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await onSave(title, destination, startDate, endDate);
-      setIsEditing(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const inputClass = [
-    "font-pretendard text-body3 text-gray-900 rounded-lg border border-gray-300",
-    "px-2.5 py-1.5 focus:outline-none focus:border-primary bg-white w-full",
-  ].join(" ");
-
-  if (isEditing) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">여행 제목</label>
-            <input
-              className={inputClass}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="여행 제목"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">목적지</label>
-            <input
-              className={inputClass}
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="목적지"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">출발일</label>
-            <input
-              type="date"
-              className={inputClass}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">귀국일</label>
-            <input
-              type="date"
-              className={inputClass}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={isSaving}
-            className={[
-              "font-pretendard text-body4 px-4 py-1.5 rounded-lg border border-gray-300",
-              "text-gray-600 hover:bg-gray-50 cursor-pointer bg-transparent transition-colors",
-              isSaving ? "opacity-50 cursor-not-allowed" : "",
-            ].join(" ")}
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className={[
-              "font-pretendard text-body4 px-4 py-1.5 rounded-lg border-none",
-              "bg-primary text-gray-900 font-semibold cursor-pointer hover:brightness-95 transition-all",
-              isSaving ? "opacity-50 cursor-not-allowed" : "",
-            ].join(" ")}
-          >
-            {isSaving ? "저장 중..." : "저장"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-6 min-w-0">
-        <span className="font-pretendard text-body2 font-semibold text-gray-900 truncate">
-          {workspace.title}
-        </span>
-        <span className="font-pretendard text-body4 text-gray-500 shrink-0">
-          {workspace.destination !== "string" ? workspace.destination : "목적지 미정"}
-        </span>
-        <span className="font-pretendard text-body4 text-gray-500 shrink-0">
-          {workspace.startDate} ~ {workspace.endDate}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={() => setIsEditing(true)}
-        className={[
-          "shrink-0 font-pretendard text-body5 text-gray-500 px-3 py-1.5 rounded-lg",
-          "border border-gray-200 hover:border-gray-400 hover:text-gray-700",
-          "bg-transparent cursor-pointer transition-colors",
-        ].join(" ")}
-      >
-        편집
-      </button>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════
-   섹션 헤더 (항공 일정 / 여행 일정 / 여행 기록)
-   ══════════════════════════════════════════ */
-
-/**
- * 섹션 헤더.
- * `action` prop을 통해 헤더 제목 바로 오른쪽에 버튼 등을 추가할 수 있음.
- * (예: "여행 기록" 옆 "+" 버튼)
- */
-function SectionHeader({
-  title,
-  action,
-}: {
-  title: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <h2 className="font-pretendard text-title2 font-semibold text-gray-900 m-0">
-        {title}
-      </h2>
-      {action}
-    </div>
-  );
-}
+/* (목업 데이터 제거됨 — 멤버/항공편/일정/여행기록 모두 API에서 로드) */
 
 /* ══════════════════════════════════════════
    메인 컴포넌트
@@ -459,6 +56,9 @@ function SectionHeader({
  *
  *  컨텐츠 전체 폭은 max-w-[1440px]로 제한 (워크스페이스는 1200px보다 더 넓게).
  *  Layout의 Header/Footer 안에서 렌더되므로 여기서는 자체 헤더 X.
+ *
+ *  여행 일정의 지도 보기는 ItineraryDayCard 내부에서 인라인 패널로
+ *  처리되므로 부모(WorkspacePage)에서 별도 콜백을 넘길 필요 없음.
  */
 export default function WorkspacePage() {
   const navigate = useNavigate();
@@ -472,13 +72,17 @@ export default function WorkspacePage() {
   };
 
   /* ── 워크스페이스 상세 (API) ── */
-  const [workspaceDetail, setWorkspaceDetail] = useState<Workspace | null>(null);
+  const [workspaceDetail, setWorkspaceDetail] = useState<Workspace | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!workspaceId || isNaN(workspaceId)) return;
     fetchWorkspaceById(workspaceId)
       .then(setWorkspaceDetail)
-      .catch((err) => console.warn("[WorkspacePage] 워크스페이스 조회 실패:", err));
+      .catch((err) =>
+        console.warn("[WorkspacePage] 워크스페이스 조회 실패:", err),
+      );
   }, [workspaceId]);
 
   const handleWorkspaceUpdate = async (
@@ -500,70 +104,68 @@ export default function WorkspacePage() {
     setWorkspaceDetail(updated);
   };
 
-  /* ── 멤버 목록 (API) ── */
-  const [apiMembers, setApiMembers] = useState<WorkspaceMemberApi[]>([]);
-
-  const loadMembers = useCallback(async () => {
-    if (!workspaceId || isNaN(workspaceId)) return;
-    try {
-      const data = await fetchWorkspaceMembers(workspaceId);
-      setApiMembers(data);
-    } catch (err) {
-      console.warn("[WorkspacePage] 멤버 로드 실패:", err);
-    }
-  }, [workspaceId]);
-
-  useEffect(() => { loadMembers(); }, [loadMembers]);
-
-  /* 현재 로그인 유저의 memberId */
-  const myMemberId = apiMembers.find((m) => m.userId === user?.id)?.memberId ?? null;
-  const myRole = apiMembers.find((m) => m.userId === user?.id)?.role ?? null;
-
-  /* ── 나가기(탈퇴) ── */
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const [isLeaving, setIsLeaving] = useState(false);
-
-  const handleLeaveWorkspace = async () => {
-    if (myMemberId === null) return;
-    setIsLeaving(true);
-    try {
-      await leaveWorkspace(workspaceId, myMemberId);
-      navigate("/");
-    } catch (err) {
-      console.warn("[WorkspacePage] 나가기 실패:", err);
-      setIsLeaving(false);
-    }
+  const handleCoverImageUpload = async (file: File) => {
+    const updated = await uploadCoverImage(workspaceId, file);
+    setWorkspaceDetail(updated);
   };
 
-  /* ── 멤버 초대 ── */
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteTarget, setInviteTarget] = useState<UserSearchResult | null>(null);
-  const [isInviting, setIsInviting] = useState(false);
-  const [inviteToast, setInviteToast] = useState<string | null>(null);
+  /* ── 커스텀 훅 ── */
+  const {
+    members,
+    myRole,
+    loadMembers,
+    showLeaveConfirm,
+    setShowLeaveConfirm,
+    isLeaving,
+    handleLeaveWorkspace,
+    showInviteModal,
+    setShowInviteModal,
+    inviteTarget,
+    setInviteTarget,
+    isInviting,
+    inviteToast,
+    handleInviteSelect,
+    handleInviteConfirm,
+  } = useWorkspaceMembers(workspaceId, user?.id);
 
-  const handleInviteSelect = (selectedUser: UserSearchResult) => {
-    setShowInviteModal(false);
-    setInviteTarget(selectedUser);
-  };
+  const {
+    flights,
+    rawFlights,
+    loadFlights,
+    selectedFlight,
+    setSelectedFlight,
+    deleteFlightTarget,
+    setDeleteFlightTarget,
+    handleDeleteFlightConfirm,
+  } = useWorkspaceFlights(workspaceId);
 
-  const handleInviteConfirm = async () => {
-    if (!inviteTarget) return;
-    setIsInviting(true);
-    try {
-      await inviteMember(workspaceId, inviteTarget.id);
-      setInviteToast(`${inviteTarget.nickname}님에게 초대 요청을 보냈습니다.`);
-      setTimeout(() => setInviteToast(null), 3500);
-    } catch (err) {
-      console.warn("[WorkspacePage] 초대 실패:", err);
-      setInviteToast("초대 요청에 실패했습니다. 다시 시도해주세요.");
-      setTimeout(() => setInviteToast(null), 3500);
-    } finally {
-      setIsInviting(false);
-      setInviteTarget(null);
-    }
-  };
+  const {
+    currentSchedule,
+    scheduleList,
+    itineraryDays,
+    isLoadingSchedule,
+    isSavingSchedule,
+    loadSchedule,
+    handleSelectScheduleVersion,
+    handleSaveItineraryDay,
+    handleCategoryChange,
+    handleDeleteItem,
+    handleDeleteSchedule,
+  } = useSchedule(workspaceId);
 
-  /* ── 워크스페이스 삭제 모달 ── */
+  const { chatWidth, handleResizeStart } = useChatResize();
+
+  useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
+  useEffect(() => {
+    loadFlights();
+  }, [loadFlights]);
+  useEffect(() => {
+    loadSchedule();
+  }, [loadSchedule]);
+
+  /* ── 워크스페이스 삭제 ── */
   const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
   const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
 
@@ -578,219 +180,47 @@ export default function WorkspacePage() {
     }
   };
 
-  /* ── 항공편 삭제 확인 팝업 ── */
-  const [deleteFlightTarget, setDeleteFlightTarget] = useState<{ id: number; label: string } | null>(null);
-
-  const handleDeleteFlightConfirm = async () => {
-    if (!deleteFlightTarget) return;
-    try {
-      await deleteFlightFromWorkspace(workspaceId, deleteFlightTarget.id);
-      setApiFlight((prev) => prev.filter((f) => f.id !== deleteFlightTarget.id));
-    } catch (err) {
-      console.warn("[WorkspacePage] 항공편 삭제 실패:", err);
-    } finally {
-      setDeleteFlightTarget(null);
-    }
-  };
-
-  /* ── 항공 일정 (API) ── */
-  const [apiFlight, setApiFlight] = useState<FlightInfo[]>([]);
-
-  const loadFlights = useCallback(async () => {
-    if (!workspaceId || isNaN(workspaceId)) return;
-    try {
-      const data = await fetchWorkspaceFlights(workspaceId);
-      setApiFlight(data.map(mapWorkspaceFlightToFlightInfo));
-    } catch (err) {
-      console.warn("[WorkspacePage] 항공 일정 로드 실패:", err);
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    loadFlights();
-  }, [loadFlights]);
-
-  /* ── 채팅 상태 ── */
-  const [messages, setMessages] = useState<ChatMessageData[]>(
-    MOCK_INITIAL_MESSAGES,
-  );
-  const [isThinking, setIsThinking] = useState(false);
-
-  /* ── 사이드바 토글 상태 ──
-   * 좌(멤버) / 우(채팅) 각각 독립적으로 펼침/접힘 제어.
-   * 접히면 collapsed bar(48px)만 남고, 그 안의 토글 버튼으로 다시 펼칠 수 있음. */
+  /* ── 사이드바 토글 ── */
   const [isMemberOpen, setIsMemberOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
 
-  /* ── 일정 / 여행 기록 상태 ──
-   * 카드별 편집 모드 → 저장 시 onSave 콜백으로 여기 state를 갱신.
-   * API 연결 시: onSave 안에서 PATCH 호출 후 응답으로 state 갱신하면 됨. */
-  const [itineraryDays, setItineraryDays] =
-    useState<ItineraryDay[]>(MOCK_ITINERARY_DAYS);
-  const [travelLogs, setTravelLogs] = useState<TravelLog[]>(MOCK_TRAVEL_LOGS);
+  /* ── 여행 기록 ── */
+  const {
+    travelLogs,
+    loadTravelLogs,
+    handleAddDailyCard: addDailyCard,
+    handleSaveTravelLog,
+    handleDeleteTravelLog,
+  } = useTravelLogs(workspaceId);
 
-  /* ── SNS 카드 상태 ──
-   * 워크스페이스당 1개. null이면 아직 만들어지지 않은 상태.
-   * 항상 여행 기록 배열의 맨 왼쪽(첫 번째)에 렌더됨. */
+  useEffect(() => {
+    loadTravelLogs();
+  }, [loadTravelLogs]);
+
   const [snsLog, setSnsLog] = useState<SnsLogData | null>(null);
-
-  /* ── "추가 카드" 표시 토글 ──
-   * "여행 기록" 섹션 헤더 옆 "+" 버튼 클릭 시 토글.
-   * true면 카드 배열 맨 끝에 AddTravelLogCard 렌더 (선택 카드).
-   * 사용자가 옵션을 선택하면 실제 카드 추가 후 자동으로 false로 닫힘. */
   const [showAddCard, setShowAddCard] = useState(false);
 
-  /** 특정 일차의 일정 행을 갱신 */
-  const handleSaveItineraryDay = (dayNumber: number, rows: ItineraryRow[]) => {
-    setItineraryDays((prev) =>
-      prev.map((d) => (d.dayNumber === dayNumber ? { ...d, rows } : d)),
-    );
-    // TODO(API): PATCH /workspaces/:id/itinerary/:day { rows }
-  };
+  const handleOpenAddCard = () => setShowAddCard(true);
+  const handleCancelAddCard = () => setShowAddCard(false);
 
-  /** 특정 일차의 여행 기록을 갱신 */
-  const handleSaveTravelLog = (dayNumber: number, data: TravelLogData) => {
-    setTravelLogs((prev) =>
-      prev.map((log) =>
-        log.dayNumber === dayNumber ? { ...log, ...data } : log,
-      ),
-    );
-    // TODO(API): PATCH /workspaces/:id/travel-log/:day { ...data }
-  };
-
-  /** 특정 일차의 여행 기록 카드를 삭제.
-   *  주의: 삭제 후에도 다른 카드의 dayNumber는 변경하지 않음 (3일차 삭제 → 1, 2, 4일차 그대로).
-   *  이렇게 하는 이유:
-   *    - 데이터 안정성: 다른 곳에서 dayNumber를 참조하고 있을 수 있음
-   *    - UX: 갑자기 4일차가 3일차로 바뀌면 사용자 혼란
-   *  추후 "일차 재정렬" 기능이 필요하면 별도로 추가. */
-  const handleDeleteTravelLog = (dayNumber: number) => {
-    setTravelLogs((prev) => prev.filter((log) => log.dayNumber !== dayNumber));
-    // TODO(API): DELETE /workspaces/:id/travel-log/:day
-  };
-
-  /* ──────────────────────────────────────────
-     이슈 #25: 여행 기록 추가 기능 관련 핸들러
-     ────────────────────────────────────────── */
-
-  /** "+" 버튼 클릭 → 추가 카드 열기.
-   *  닫히는 경우는 두 가지:
-   *    1) 사용자가 옵션(일자별/SNS)을 선택할 때 (handleAddDailyCard / handleAddSnsCard)
-   *    2) 사용자가 추가 카드 우상단 "×" 버튼을 누를 때 (handleCancelAddCard) — 실행 취소
-   *  버튼은 추가 카드가 열려있는 동안 비활성화되므로 중복 호출되지 않음. */
-  const handleOpenAddCard = () => {
-    setShowAddCard(true);
-  };
-
-  /** 추가 카드 우상단 "×" 버튼 클릭 → 카드 추가 실행 취소.
-   *  아무 카드도 추가하지 않고 AddTravelLogCard만 닫음. → "+" 버튼 다시 활성화. */
-  const handleCancelAddCard = () => {
-    setShowAddCard(false);
-  };
-
-  /** 추가 카드에서 "일자별 카드 추가" 선택
-   *  → travelLogs 배열 끝에 빈 일자별 카드 추가 (dayNumber는 자동 증가)
-   *  → 추가 카드는 닫힘 */
   const handleAddDailyCard = () => {
-    setTravelLogs((prev) => {
-      const nextDayNumber =
-        prev.length > 0 ? Math.max(...prev.map((l) => l.dayNumber)) + 1 : 1;
-      return [
-        ...prev,
-        {
-          dayNumber: nextDayNumber,
-          oneLineSummary: undefined,
-          weather: undefined,
-          content: undefined,
-          albumPhotos: [],
-        },
-      ];
-    });
+    addDailyCard();
     setShowAddCard(false);
-    // TODO(API): POST /workspaces/:id/travel-log { dayNumber: nextDayNumber }
   };
-
-  /** 추가 카드에서 "SNS용 카드 추가" 선택
-   *  → SNS 카드 1개 생성 (이미 있으면 무시 — UI에서 비활성화로 막음)
-   *  → 추가 카드는 닫힘 */
   const handleAddSnsCard = () => {
     if (snsLog !== null) return;
     setSnsLog({ caption: undefined, media: [] });
     setShowAddCard(false);
-    // TODO(API): POST /workspaces/:id/sns-log
   };
-
-  /** SNS 카드 편집 저장 */
-  const handleSaveSnsLog = (data: SnsLogData) => {
-    setSnsLog(data);
-    // TODO(API): PATCH /workspaces/:id/sns-log { ...data }
-  };
-
-  /** SNS 카드 삭제 */
-  const handleDeleteSnsLog = () => {
-    setSnsLog(null);
-    // TODO(API): DELETE /workspaces/:id/sns-log
-  };
-
-  /** SNS 카드의 "업로드" 버튼 클릭 → SNS 페이지에 게시
-   *  TODO: 라우터에 SNS 피드 페이지 추가 후 navigate + 게시물 전송 로직 구현 */
+  const handleSaveSnsLog = (data: SnsLogData) => setSnsLog(data);
+  const handleDeleteSnsLog = () => setSnsLog(null);
   const handleUploadSnsLog = (data: SnsLogData) => {
-    // TODO(API/route): POST /sns/posts { ...data } → 성공 시 navigate("/sns")
     console.log("[Workspace] upload to SNS:", data);
     alert("SNS 페이지에 업로드되었습니다. (TODO: 실제 게시 로직 구현)");
   };
 
-  /** 특정 일차의 지도 보기
-   *  ItineraryDayCard 헤더 오른쪽 "지도" 버튼 클릭 시 호출됨.
-   *  추후 지도 모달/페이지를 띄워 해당 일차의 장소들을 표시할 예정. */
-  const handleMapClick = (dayNumber: number) => {
-    // TODO: 해당 일차의 장소들을 지도에 표시하는 모달/페이지 띄우기
-    console.log("[Workspace] open map for day:", dayNumber);
-  };
-
-  /* ── 메시지 전송 (목업: 1초 뒤 가짜 AI 응답) ── */
-  const handleSend = (text: string) => {
-    const userMsg: ChatMessageData = {
-      id: `u-${Date.now()}`,
-      role: "user",
-      text,
-      pageIndex: 1,
-      pageTotal: 1,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-
-    setIsThinking(true);
-    setTimeout(() => {
-      const aiMsg: ChatMessageData = {
-        id: `a-${Date.now()}`,
-        role: "ai",
-        text: "요청하신 일정을 정리했어요. 마음에 드시면 아래에서 저장해 보세요.",
-        isItinerarySuggestion: true,
-      };
-      setMessages((prev) => [...prev, aiMsg]);
-      setIsThinking(false);
-    }, 1000);
-  };
-
-  /* ── 일정 저장 (목업) ── */
-  const handleSaveItinerary = (messageId: string) => {
-    // TODO: 해당 AI 메시지의 일정 데이터를 워크스페이스에 반영
-    console.log("[Workspace] save itinerary from message:", messageId);
-  };
-
-  /* ── 멤버: API 데이터 → WorkspaceMember 변환 ── */
-  const members = apiMembers.map((m) => ({
-    id: m.memberId,
-    userId: m.userId,
-    name: m.nickname,
-    email: m.userEmail,
-    avatarUrl: m.profileImageUrl ?? undefined,
-    isHost: m.role === 'OWNER',
-  }));
-  const flights = apiFlight;
-
   /* ── 워크스페이스명 ── */
-  const workspaceName = workspaceDetail?.title ?? '워크스페이스';
+  const workspaceName = workspaceDetail?.title ?? "워크스페이스";
 
   return (
     <>
@@ -811,7 +241,7 @@ export default function WorkspacePage() {
           ══════════════════════════════════════════ */}
       <div className="hidden md:block bg-background flex-1">
         {/* ── 풀폭 Header ── */}
-        <div className="w-full bg-white border-b border-gray-300">
+        <div className="w-full bg-white border-b border-gray-300 sticky top-0 z-50">
           <div className="px-4">
             <Header variant="login" onLogout={handleLogout} />
           </div>
@@ -822,21 +252,11 @@ export default function WorkspacePage() {
           <div
             className="grid items-start gap-6"
             style={{
-              gridTemplateColumns: `${
-                isMemberOpen ? "240px" : "48px"
-              } 1fr ${isChatOpen ? "380px" : "48px"}`,
+              gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr ${isChatOpen ? `${chatWidth}px` : "48px"}`,
             }}
           >
-            {/* ══ 좌측: 멤버 사이드바 (펼침/접힘) ══
-                - 좌측/상단 테두리 없음 → 화면 왼쪽 끝/Header와 맞닿음
-                - 우하 모서리만 둥글게 (컨텐츠 쪽만 둥근 형태)
-                - 펼침: sticky로 상단에 고정
-                - 접힘: self-stretch로 메인 컨텐츠와 같은 높이까지 흰색 바가 길게 늘어남 */}
+            {/* ══ 좌측: 멤버 사이드바 (펼침/접힘) ══ */}
             {isMemberOpen ? (
-              /* 펼침 상태:
-                 - 바깥 aside는 self-stretch로 메인 컨텐츠 높이만큼 늘어남
-                   → 흰색 배경 바가 화면 세로로 길게 채워짐 (Image3 처럼)
-                 - 안쪽 콘텐츠는 sticky top-0 으로 상단에 고정 */
               <aside className="self-stretch">
                 <div
                   className={[
@@ -857,8 +277,6 @@ export default function WorkspacePage() {
                 </div>
               </aside>
             ) : (
-              /* 접힘 상태: 메인 컨텐츠 높이만큼 늘어나는 세로로 긴 흰색 바
-                 (왼쪽 끝/Header와 맞닿음) */
               <aside className="self-stretch">
                 <div
                   className={[
@@ -896,279 +314,70 @@ export default function WorkspacePage() {
                 <WorkspaceInfoBar
                   workspace={workspaceDetail}
                   onSave={handleWorkspaceUpdate}
+                  onSaveImage={handleCoverImageUpload}
                 />
               )}
 
               {/* ── 항공 일정 ── */}
-              <section className="flex flex-col gap-3">
-                <SectionHeader title="항공 일정" />
-                {flights.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex flex-col items-center gap-2 text-center">
-                    <p className="font-pretendard text-body3 text-gray-700 m-0">
-                      저장된 항공편이 없어요
-                    </p>
-                    <p className="font-pretendard text-body4 text-gray-400 m-0">
-                      항공 검색에서 원하는 항공편을 찾아 이 워크스페이스에 저장해보세요.
-                    </p>
-                  </div>
-                ) : (
-                  /* 가는편 전체 왼쪽 컬럼, 오는편 전체 오른쪽 컬럼 */
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
-                    <div className="flex flex-col gap-3">
-                      {flights
-                        .filter((f) => f.direction === "가는편")
-                        .map((f) => (
-                          <FlightInfoCard
-                            key={f.id}
-                            direction={f.direction}
-                            date={f.date}
-                            legs={f.legs}
-                            bookingUrl={f.bookingUrl}
-                            bookingNumber={f.bookingNumber}
-                            onDelete={() =>
-                              setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
-                            }
-                          />
-                        ))}
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      {flights
-                        .filter((f) => f.direction === "오는편")
-                        .map((f) => (
-                          <FlightInfoCard
-                            key={f.id}
-                            direction={f.direction}
-                            date={f.date}
-                            legs={f.legs}
-                            bookingUrl={f.bookingUrl}
-                            bookingNumber={f.bookingNumber}
-                            onDelete={() =>
-                              setDeleteFlightTarget({ id: f.id, label: `${f.direction} ${f.date}` })
-                            }
-                          />
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </section>
+              <FlightSection
+                flights={flights}
+                rawFlights={rawFlights}
+                onFlightClick={setSelectedFlight}
+                onFlightDelete={(id, label) =>
+                  setDeleteFlightTarget({ id, label })
+                }
+              />
 
-              {/* ── 여행 일정 ── */}
-              <section className="flex flex-col gap-3">
-                <SectionHeader title="여행 일정" />
-                <div className="flex flex-col gap-3">
-                  {itineraryDays.map((d) => (
-                    <ItineraryDayCard
-                      key={d.dayNumber}
-                      dayNumber={d.dayNumber}
-                      rows={d.rows}
-                      onSave={(rows) =>
-                        handleSaveItineraryDay(d.dayNumber, rows)
-                      }
-                      onMapClick={handleMapClick}
-                    />
-                  ))}
-                </div>
-              </section>
+              {/* ── 여행 일정 ──
+                  지도 보기는 ItineraryDayCard 내부에서 인라인으로 처리되므로
+                  여기서 onMapClick을 넘기지 않음. */}
+              <ItinerarySection
+                itineraryDays={itineraryDays}
+                scheduleList={scheduleList}
+                currentSchedule={currentSchedule}
+                isLoading={isLoadingSchedule}
+                isSaving={isSavingSchedule}
+                onSelectVersion={handleSelectScheduleVersion}
+                onSaveDay={handleSaveItineraryDay}
+                onDeleteItem={handleDeleteItem}
+                onCategoryChange={handleCategoryChange}
+                onDeleteSchedule={handleDeleteSchedule}
+              />
 
-              {/* ── 여행 기록 ──
-                  이슈 #25: 섹션 헤더 옆 "+" 버튼으로 카드 추가 가능.
-                  - SNS 카드: 항상 맨 왼쪽 (있을 때만 렌더)
-                  - 일자별 카드: 1일차, 2일차, ... 순으로 정렬 (자동 dayNumber)
-                  - "+" 클릭 시 맨 끝(맨 오른쪽)에 AddTravelLogCard 표시 */}
-              <section className="flex flex-col gap-3">
-                <SectionHeader
-                  title="여행 기록"
-                  action={
-                    <button
-                      type="button"
-                      onClick={handleOpenAddCard}
-                      disabled={showAddCard}
-                      aria-label={
-                        showAddCard
-                          ? "여행 기록 카드 추가 (열림)"
-                          : "여행 기록 카드 추가"
-                      }
-                      className={[
-                        "inline-flex items-center justify-center",
-                        "w-8 h-8 rounded-full transition-colors border-none bg-transparent",
-                        showAddCard
-                          ? "text-gray-300 cursor-not-allowed"
-                          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer",
-                      ].join(" ")}
-                    >
-                      <PlusIcon className="w-4 h-4" />
-                    </button>
-                  }
-                />
-                {/* 가로 스크롤 컨테이너: 카드 폭이 396px이라 좁은 화면에선 1~2개,
-                    넓은 화면에선 3개 정도 자연스럽게 보임 */}
-                <div
-                  className={[
-                    "flex gap-3 overflow-x-auto pb-2",
-                    "[&::-webkit-scrollbar]:h-2",
-                    "[&::-webkit-scrollbar-thumb]:bg-gray-300",
-                    "[&::-webkit-scrollbar-thumb]:rounded",
-                  ].join(" ")}
-                >
-                  {/* SNS 카드: 항상 맨 왼쪽 (이슈 #25 명시) */}
-                  {snsLog && (
-                    <div className="shrink-0">
-                      <SnsLogCard
-                        caption={snsLog.caption}
-                        media={snsLog.media}
-                        onSave={handleSaveSnsLog}
-                        onDelete={handleDeleteSnsLog}
-                        onUpload={handleUploadSnsLog}
-                      />
-                    </div>
-                  )}
-
-                  {/* 일자별 카드들 */}
-                  {travelLogs.map((log) => (
-                    <div key={log.dayNumber} className="shrink-0">
-                      <TravelLogCard
-                        dayNumber={log.dayNumber}
-                        oneLineSummary={log.oneLineSummary}
-                        weather={log.weather}
-                        content={log.content}
-                        albumPhotos={log.albumPhotos}
-                        onSave={(data) =>
-                          handleSaveTravelLog(log.dayNumber, data)
-                        }
-                        onDelete={() => handleDeleteTravelLog(log.dayNumber)}
-                      />
-                    </div>
-                  ))}
-
-                  {/* 추가 카드: "+" 버튼 클릭 시 맨 끝에 표시.
-                      우상단 "×"를 누르면 onCancel이 호출되어 그냥 닫힘 (실행 취소).
-                      SNS 카드 추가 버튼 비활성화 조건 (이슈 #24 관련):
-                        1) 이미 SNS 카드가 있을 때 (워크스페이스당 1개 제한)
-                        2) 일자별 카드가 하나도 없을 때
-                           → SNS 게시는 여행 기록을 공유하기 위함이므로,
-                             공유할 일자별 기록이 없는 상태에서 SNS 카드만 만드는 건
-                             의미가 없음. 또한 SNS 미리보기 페이지(/workspace/:id/preview)는
-                             "SNS 카드가 있으면 일자별 카드도 최소 1개 있다"는 invariant를
-                             전제로 하므로 이 조건이 invariant를 보장함.
-                      비활성화 사유 우선순위: 1) > 2) (이미 1개 있으면 그게 더 직접적 원인) */}
-                  {showAddCard && (
-                    <AddTravelLogCard
-                      onAddDailyCard={handleAddDailyCard}
-                      onAddSnsCard={handleAddSnsCard}
-                      onCancel={handleCancelAddCard}
-                      disableSnsCard={
-                        snsLog !== null || travelLogs.length === 0
-                      }
-                      disableSnsCardReason={
-                        snsLog !== null
-                          ? "이미 SNS 카드가 있어요 (워크스페이스당 1개)"
-                          : "먼저 일자별 카드를 추가해 주세요"
-                      }
-                    />
-                  )}
-                </div>
-              </section>
+              {/* ── 여행 기록 ── */}
+              <TravelLogSection
+                travelLogs={travelLogs}
+                snsLog={snsLog}
+                showAddCard={showAddCard}
+                onOpenAddCard={handleOpenAddCard}
+                onCancelAddCard={handleCancelAddCard}
+                onAddDailyCard={handleAddDailyCard}
+                onAddSnsCard={handleAddSnsCard}
+                onSaveTravelLog={handleSaveTravelLog}
+                onDeleteTravelLog={handleDeleteTravelLog}
+                onSaveSnsLog={handleSaveSnsLog}
+                onDeleteSnsLog={handleDeleteSnsLog}
+                onUploadSnsLog={handleUploadSnsLog}
+              />
 
               {/* ── 위험 영역 (나가기 / 삭제) ── */}
-              <section className="flex flex-col gap-4 pb-6">
-                <div className="border-t border-gray-200 pt-6 flex flex-col gap-4">
-                  {/* 워크스페이스 나가기: OWNER가 아닌 멤버에게만 표시 */}
-                  {myRole !== null && myRole !== 'OWNER' && (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setShowLeaveConfirm(true)}
-                        className={[
-                          "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
-                          "border border-orange-300 text-orange-500 bg-transparent",
-                          "hover:bg-orange-50 hover:border-orange-400 transition-colors cursor-pointer",
-                        ].join(" ")}
-                      >
-                        워크스페이스 나가기
-                      </button>
-                      <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
-                        나가면 다시 초대를 받아야 참여할 수 있습니다.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* 워크스페이스 삭제: OWNER에게만 표시 */}
-                  {myRole === 'OWNER' && (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setShowDeleteWorkspace(true)}
-                        className={[
-                          "font-pretendard text-body3 font-semibold px-5 py-2.5 rounded-xl",
-                          "border border-red-300 text-red-500 bg-transparent",
-                          "hover:bg-red-50 hover:border-red-400 transition-colors cursor-pointer",
-                        ].join(" ")}
-                      >
-                        워크스페이스 삭제
-                      </button>
-                      <p className="font-pretendard text-body5 text-gray-400 m-0 mt-1.5">
-                        삭제된 워크스페이스는 복구할 수 없습니다.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </section>
+              <DangerZone
+                myRole={myRole}
+                onLeave={() => setShowLeaveConfirm(true)}
+                onDelete={() => setShowDeleteWorkspace(true)}
+              />
             </main>
 
-            {/* ══ 우측: AI 채팅 패널 (펼침/접힘) ══
-                - 우측/상단 테두리 없음 → 화면 오른쪽 끝/Header와 맞닿음
-                - 좌하 모서리만 둥글게 (컨텐츠 쪽만 둥근 형태)
-                - 펼침: sticky로 viewport 높이만큼 차지
-                - 접힘: self-stretch로 메인 컨텐츠와 같은 높이까지 흰색 바가 길게 늘어남 */}
-            {isChatOpen ? (
-              <aside className="sticky top-0 self-start h-[calc(100vh-5rem)]">
-                <ChatPanel
-                  messages={messages}
-                  onSend={handleSend}
-                  onSaveItinerary={handleSaveItinerary}
-                  onEditMessage={(id) => console.log("edit", id)}
-                  onCopyMessage={(id) => console.log("copy", id)}
-                  onPrevPage={(id) => console.log("prev", id)}
-                  onNextPage={(id) => console.log("next", id)}
-                  isThinking={isThinking}
-                  onCollapse={() => setIsChatOpen(false)}
-                  /* ChatPanel 기본 스타일을 덮어써서 좌하만 둥글고 우/상 테두리 제거 */
-                  className="!rounded-none !rounded-bl-xl !border-0 border-l border-b border-gray-300 h-full"
-                />
-              </aside>
-            ) : (
-              /* 접힘 상태: 메인 컨텐츠 높이만큼 늘어나는 세로로 긴 흰색 바
-                 (오른쪽 끝/Header와 맞닿음) */
-              <aside className="self-stretch">
-                <div
-                  className={[
-                    "h-full min-h-full",
-                    "bg-white",
-                    "rounded-bl-xl",
-                    "border border-r-0 border-t-0 border-gray-300",
-                    "flex flex-col items-center",
-                  ].join(" ")}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setIsChatOpen(true)}
-                    aria-label="채팅 패널 펼치기"
-                    className={[
-                      "sticky top-4",
-                      "mt-4",
-                      "p-1.5 rounded",
-                      "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-                      "transition-colors cursor-pointer",
-                      "border-none bg-transparent",
-                      "inline-flex items-center justify-center",
-                    ].join(" ")}
-                  >
-                    {/* layout_left 아이콘을 좌우 반전: '오른쪽 패널 펼치기' 의미 */}
-                    <LayoutLeftIcon className="w-4 h-4 -scale-x-100" />
-                  </button>
-                </div>
-              </aside>
-            )}
+            {/* ══ 우측: AI 채팅 사이드바 (그리드 컬럼, 드래그로 폭 조절) ══ */}
+            <AIChatSidebar
+              isOpen={isChatOpen}
+              chatWidth={chatWidth}
+              workspaceId={workspaceId}
+              onResizeStart={handleResizeStart}
+              onCollapse={() => setIsChatOpen(false)}
+              onExpand={() => setIsChatOpen(true)}
+              onScheduleSaved={loadSchedule}
+            />
           </div>
         </div>
       </div>
@@ -1208,7 +417,11 @@ export default function WorkspacePage() {
         onClose={() => setShowLeaveConfirm(false)}
         onConfirm={handleLeaveWorkspace}
         title="워크스페이스를 나가시겠어요?"
-        description={isLeaving ? "처리 중..." : "나가면 다시 초대를 받아야 참여할 수 있습니다."}
+        description={
+          isLeaving
+            ? "처리 중..."
+            : "나가면 다시 초대를 받아야 참여할 수 있습니다."
+        }
         confirmLabel="나가기"
         cancelLabel="취소"
         variant="danger"
@@ -1235,6 +448,14 @@ export default function WorkspacePage() {
         cancelLabel="취소"
         variant="danger"
       />
+
+      {/* ── 항공편 상세 모달 ── */}
+      {selectedFlight && (
+        <FlightDetailModal
+          flight={selectedFlight}
+          onClose={() => setSelectedFlight(null)}
+        />
+      )}
     </>
   );
 }
