@@ -696,14 +696,30 @@ function BodyView({ content }: { content?: JSONContent }) {
     editable: false,
   });
 
-  // content prop이 바뀌면 editor 내용 동기화
+  /**
+   * 마지막으로 editor에 적용한 content prop의 참조를 추적.
+   * useEditor 초기화 시 이미 `content ?? EMPTY_DOC`을 한 번 넣어줬으므로,
+   * 초기값으로 첫 렌더의 content를 그대로 기록해두면 첫 effect 실행 때 불필요한
+   * setContent 호출이 일어나지 않음.
+   *
+   * 참조 비교를 쓰는 이유:
+   *   - 이전에는 `JSON.stringify(editor.getJSON()) !== JSON.stringify(newContent)`로
+   *     비교했는데, Tiptap JSON처럼 깊이 중첩되고 큰 객체는 stringify 비용이 무시
+   *     하기 어려움. 특히 SharedAlbumSection 등에서 다수 카드가 렌더되는 섹션은
+   *     매 렌더마다 양쪽 직렬화가 누적될 수 있음.
+   *   - 부모(TravelLogCard)는 편집 저장 시점에만 content를 새 참조로 갱신하는
+   *     패턴이므로, ref 기반 참조 비교만으로 충분히 안전하고 압도적으로 빠름.
+   */
+  const lastAppliedContentRef = useRef<JSONContent | undefined>(content);
+
+  // content prop이 바뀌면 editor 내용 동기화 (참조가 바뀐 경우에만)
   useEffect(() => {
     if (!editor) return;
+    if (lastAppliedContentRef.current === content) return;
+
     const newContent = content ?? EMPTY_DOC;
-    // 현재 editor 내용과 다를 때만 갱신 (불필요한 리렌더 방지)
-    if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newContent)) {
-      editor.commands.setContent(newContent, { emitUpdate: false });
-    }
+    editor.commands.setContent(newContent, { emitUpdate: false });
+    lastAppliedContentRef.current = content;
   }, [editor, content]);
 
   useEffect(() => {

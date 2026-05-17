@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /* ══════════════════════════════════════════
@@ -83,11 +83,20 @@ export default function SharedAlbumPickerPopup({
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  /** 닫기 + 선택 상태 초기화. 외부 onClose 호출 전에 내부 state도 비움. */
-  const handleClose = () => {
+  /**
+   * 닫기 + 선택 상태 초기화. 외부 onClose 호출 전에 내부 state도 비움.
+   *
+   * useCallback으로 안정화한 이유:
+   *   - 부모(BodyEditor)에서 `onClose={() => setIsSharedAlbumPickerOpen(false)}`
+   *     같은 인라인 함수로 넘기는 경우 onClose 참조가 매 렌더 갱신됨.
+   *   - 아래 ESC 핸들러 effect에서 handleClose를 의존성에 포함하면 onClose가
+   *     바뀔 때마다 effect가 재구독되지만, 그 비용은 가벼우며 stale closure로
+   *     인한 잠재적 버그를 예방하는 편이 안전함.
+   */
+  const handleClose = useCallback(() => {
     setSelectedIndices([]);
     onClose();
-  };
+  }, [onClose]);
 
   /* ESC 키로 닫기 — ConfirmPopup / PhotoLightbox와 동일한 패턴 */
   useEffect(() => {
@@ -97,12 +106,7 @@ export default function SharedAlbumPickerPopup({
     };
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
-    /* handleClose는 의도적으로 dep에서 제외 — onClose 자체가 부모에서
-       매 렌더 새 함수일 수 있어 effect가 재구독되는 비용이 있고,
-       handleClose의 실제 동작(state 비우기 + onClose 호출)은 호출 시점에만
-       의미 있으므로 stale closure 문제도 없음. */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   /* 팝업 열릴 때 페이지 스크롤 잠금 */
   useEffect(() => {
