@@ -155,32 +155,59 @@ function CoverImageBox({
   onChangeCoverImage: (file: File) => void | Promise<void>;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  /* 업로드 진행 상태 — 진행 중에는 클릭/키보드 입력을 막고 시각적 피드백 표시 */
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleClick = () => fileInputRef.current?.click();
+  const handleClick = () => {
+    if (isUploading) return;
+    fileInputRef.current?.click();
+  };
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    onChangeCoverImage(file);
-    /* 같은 파일을 다시 선택해도 onChange가 동작하도록 reset */
+    /* 같은 파일을 다시 선택해도 onChange가 동작하도록 input value를 미리 reset.
+       업로드 실패/성공 모두 동일하게 적용되어야 하므로 await 전에 처리. */
     e.target.value = "";
+    if (!file) return;
+    if (isUploading) return; /* 동시 업로드 방지 (이중 클릭 가드) */
+
+    setIsUploading(true);
+    try {
+      await onChangeCoverImage(file);
+    } catch (err) {
+      console.warn("[MemberSidebar] 커버 이미지 업로드 실패:", err);
+      /* 사용자에게 토스트를 띄우는 책임은 부모 핸들러에 있음.
+         이 컴포넌트는 자체적으로 더 띄우지 않고 상태만 정리. */
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
     <div
       role="button"
-      tabIndex={0}
+      tabIndex={isUploading ? -1 : 0}
+      aria-disabled={isUploading}
+      aria-busy={isUploading}
       onClick={handleClick}
       onKeyDown={(e) => {
+        if (isUploading) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           handleClick();
         }
       }}
-      aria-label={coverImageUrl ? "커버 이미지 변경" : "커버 이미지 추가"}
+      aria-label={
+        isUploading
+          ? "커버 이미지 업로드 중"
+          : coverImageUrl
+            ? "커버 이미지 변경"
+            : "커버 이미지 추가"
+      }
       className={[
         "group relative w-full aspect-[16/9] rounded-lg overflow-hidden",
-        "cursor-pointer transition-colors",
+        "transition-colors",
+        isUploading ? "cursor-wait" : "cursor-pointer",
         coverImageUrl
           ? "border border-gray-300"
           : "border-2 border-dashed border-gray-300 bg-gray-100 hover:bg-gray-200 hover:border-gray-400",
@@ -194,25 +221,50 @@ function CoverImageBox({
             className="w-full h-full object-cover"
             loading="lazy"
           />
-          {/* hover 오버레이 */}
-          <div
-            className={[
-              "absolute inset-0",
-              "bg-black/0 group-hover:bg-black/40",
-              "flex items-center justify-center",
-              "opacity-0 group-hover:opacity-100",
-              "transition-all duration-150",
-            ].join(" ")}
-          >
-            <span className="font-pretendard text-body4 font-medium text-white">
-              이미지 변경
-            </span>
-          </div>
+          {/* hover 오버레이 (업로드 중이 아닐 때만) */}
+          {!isUploading && (
+            <div
+              className={[
+                "absolute inset-0",
+                "bg-black/0 group-hover:bg-black/40",
+                "flex items-center justify-center",
+                "opacity-0 group-hover:opacity-100",
+                "transition-all duration-150",
+              ].join(" ")}
+            >
+              <span className="font-pretendard text-body4 font-medium text-white">
+                이미지 변경
+              </span>
+            </div>
+          )}
         </>
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-gray-500">
           <PlusIcon className="w-5 h-5" />
           <span className="font-pretendard text-body5">커버 이미지 추가</span>
+        </div>
+      )}
+
+      {/* 업로드 중 오버레이: 영역 전체 어둡게 + 가운데 스피너 + "업로드 중..." */}
+      {isUploading && (
+        <div
+          className={[
+            "absolute inset-0 z-10",
+            "bg-black/50",
+            "flex flex-col items-center justify-center gap-2",
+          ].join(" ")}
+        >
+          <span
+            className={[
+              "w-6 h-6 rounded-full",
+              "border-2 border-white/30 border-t-white",
+              "animate-spin",
+            ].join(" ")}
+            aria-hidden="true"
+          />
+          <span className="font-pretendard text-body5 font-medium text-white">
+            업로드 중...
+          </span>
         </div>
       )}
 
@@ -222,6 +274,7 @@ function CoverImageBox({
         accept="image/*"
         className="hidden"
         onChange={handleFileChange}
+        disabled={isUploading}
       />
     </div>
   );
@@ -308,6 +361,10 @@ function InlineEditableText({
   };
 
   const commitEdit = async () => {
+    /* 이미 저장 진행 중이면 중복 호출 방지
+       (예: Enter 직후 onBlur가 발생하거나 Enter를 빠르게 두 번 누른 경우) */
+    if (isSaving) return;
+
     const trimmed = draft.trim();
     /* 변경사항이 없으면 그냥 닫기 */
     if (trimmed === value) {

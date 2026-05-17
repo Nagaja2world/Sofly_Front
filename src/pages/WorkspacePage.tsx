@@ -363,23 +363,6 @@ export default function WorkspacePage() {
                   ].join(" ")}
                 >
                   <div className="sticky top-0">
-                    {/* <MemberSidebar
-                      workspaceName={workspaceName}
-                      members={members}
-                      coverImageUrl={
-                        workspaceDetail
-                          ? resolveCoverImage(
-                              workspaceDetail.coverImageUrl,
-                              workspaceDetail.id,
-                            )
-                          : null
-                      }
-                      country={travelLocation}
-                      onCollapse={() => setIsMemberOpen(false)}
-                      onAddMember={() => setShowInviteModal(true)}
-                      onRenameWorkspace={handleRenameWorkspace}
-                      onChangeCoverImage={handleCoverImageUpload}
-                    /> */}
                     <MemberSidebar
                       workspaceName={workspaceName}
                       members={members}
