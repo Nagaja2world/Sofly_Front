@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchWorkspaceById,
@@ -21,6 +21,7 @@ import WorkspaceInfoBar from "@/components/workspace/WorkspaceInfoBar";
 import FlightSection from "@/components/workspace/FlightSection";
 import ItinerarySection from "@/components/workspace/ItinerarySection";
 import TravelLogSection from "@/components/workspace/TravelLogSection";
+import SharedAlbumSection from "@/components/workspace/SharedAlbumSection";
 import DangerZone from "@/components/workspace/DangerZone";
 import { useSchedule } from "@/hooks/useSchedule";
 import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
@@ -29,7 +30,6 @@ import { useChatResize } from "@/hooks/useChatResize";
 import { useTravelLogs } from "@/hooks/useTravelLogs";
 
 /* (목업 데이터 제거됨 — 멤버/항공편/일정/여행기록 모두 API에서 로드) */
-
 
 /* ══════════════════════════════════════════
    메인 컴포넌트
@@ -43,7 +43,7 @@ import { useTravelLogs } from "@/hooks/useTravelLogs";
  *  │          │ 항공 일정 (가는편 / 오는편) │              │
  *  │ Member   │ 여행 일정 (1일차, 2일차...) │  AI Chat     │
  *  │ Sidebar  │ 여행 기록 (1일차, 2일차...) │  Panel       │
- *  │          │                             │              │
+ *  │          │ 공유 앨범                   │              │
  *  └──────────┴─────────────────────────────┴──────────────┘
  *
  *  - 좌측 사이드바: 펼침 220px / 접힘 48px (collapsed bar)
@@ -57,6 +57,9 @@ import { useTravelLogs } from "@/hooks/useTravelLogs";
  *
  *  컨텐츠 전체 폭은 max-w-[1440px]로 제한 (워크스페이스는 1200px보다 더 넓게).
  *  Layout의 Header/Footer 안에서 렌더되므로 여기서는 자체 헤더 X.
+ *
+ *  여행 일정의 지도 보기는 ItineraryDayCard 내부에서 인라인 패널로
+ *  처리되므로 부모(WorkspacePage)에서 별도 콜백을 넘길 필요 없음.
  */
 export default function WorkspacePage() {
   const navigate = useNavigate();
@@ -70,13 +73,17 @@ export default function WorkspacePage() {
   };
 
   /* ── 워크스페이스 상세 (API) ── */
-  const [workspaceDetail, setWorkspaceDetail] = useState<Workspace | null>(null);
+  const [workspaceDetail, setWorkspaceDetail] = useState<Workspace | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!workspaceId || isNaN(workspaceId)) return;
     fetchWorkspaceById(workspaceId)
       .then(setWorkspaceDetail)
-      .catch((err) => console.warn("[WorkspacePage] 워크스페이스 조회 실패:", err));
+      .catch((err) =>
+        console.warn("[WorkspacePage] 워크스페이스 조회 실패:", err),
+      );
   }, [workspaceId]);
 
   const handleWorkspaceUpdate = async (
@@ -108,11 +115,14 @@ export default function WorkspacePage() {
     members,
     myRole,
     loadMembers,
-    showLeaveConfirm, setShowLeaveConfirm,
+    showLeaveConfirm,
+    setShowLeaveConfirm,
     isLeaving,
     handleLeaveWorkspace,
-    showInviteModal, setShowInviteModal,
-    inviteTarget, setInviteTarget,
+    showInviteModal,
+    setShowInviteModal,
+    inviteTarget,
+    setInviteTarget,
     isInviting,
     inviteToast,
     handleInviteSelect,
@@ -123,8 +133,10 @@ export default function WorkspacePage() {
     flights,
     rawFlights,
     loadFlights,
-    selectedFlight, setSelectedFlight,
-    deleteFlightTarget, setDeleteFlightTarget,
+    selectedFlight,
+    setSelectedFlight,
+    deleteFlightTarget,
+    setDeleteFlightTarget,
     handleDeleteFlightConfirm,
   } = useWorkspaceFlights(workspaceId);
 
@@ -144,9 +156,15 @@ export default function WorkspacePage() {
 
   const { chatWidth, handleResizeStart } = useChatResize();
 
-  useEffect(() => { loadMembers(); }, [loadMembers]);
-  useEffect(() => { loadFlights(); }, [loadFlights]);
-  useEffect(() => { loadSchedule(); }, [loadSchedule]);
+  useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
+  useEffect(() => {
+    loadFlights();
+  }, [loadFlights]);
+  useEffect(() => {
+    loadSchedule();
+  }, [loadSchedule]);
 
   /* ── 워크스페이스 삭제 ── */
   const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
@@ -176,7 +194,9 @@ export default function WorkspacePage() {
     handleDeleteTravelLog,
   } = useTravelLogs(workspaceId);
 
-  useEffect(() => { loadTravelLogs(); }, [loadTravelLogs]);
+  useEffect(() => {
+    loadTravelLogs();
+  }, [loadTravelLogs]);
 
   const [snsLog, setSnsLog] = useState<SnsLogData | null>(null);
   const [showAddCard, setShowAddCard] = useState(false);
@@ -199,12 +219,67 @@ export default function WorkspacePage() {
     console.log("[Workspace] upload to SNS:", data);
     alert("SNS 페이지에 업로드되었습니다. (TODO: 실제 게시 로직 구현)");
   };
-  const handleMapClick = (dayNumber: number) => {
-    console.log("[Workspace] open map for day:", dayNumber);
+
+  /* ──────────────────────────────────────────
+     공유 앨범 (이슈 #??: 워크스페이스 공유 앨범)
+     ──────────────────────────────────────────
+     여행에서 함께 놀러간 사람들끼리 찍은 사진을 모아두는 공간.
+     "여행 기록" 섹션 바로 아래에 별도 섹션으로 렌더됨.
+     5열 × 3행이 한 화면에 보이고, 그 이상은 박스 내부에서 세로 스크롤.
+
+     현재는 ObjectURL로 클라이언트 미리보기만 처리하고 있으며,
+     실제 업로드/조회/삭제 로직은 useSharedAlbum 같은 훅으로 옮기는 것을
+     권장 (useTravelLogs와 동일한 패턴).
+     TODO(API/Backend 담당): 백엔드 엔드포인트가 준비되면
+       - GET    /workspaces/:id/shared-album       → 목록 로드
+       - POST   /workspaces/:id/shared-album       → 사진 업로드 (multipart)
+       - DELETE /workspaces/:id/shared-album/:pid  → 사진 삭제
+     로 교체. 그땐 useTravelLogs처럼 커스텀 훅으로 빼고
+     setSharedAlbumPhotos / objectUrl 관리 코드는 제거 가능. */
+  const [sharedAlbumPhotos, setSharedAlbumPhotos] = useState<string[]>([]);
+
+  /** 공유 앨범에서 만들어진 ObjectURL을 추적해서 페이지 언마운트 시 일괄 해제.
+   *  API 연결 시 서버 URL을 쓰게 되면 이 ref와 useEffect는 모두 제거. */
+  const sharedAlbumObjectUrlsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    return () => {
+      sharedAlbumObjectUrlsRef.current.forEach((url) =>
+        URL.revokeObjectURL(url),
+      );
+      sharedAlbumObjectUrlsRef.current = [];
+    };
+  }, []);
+
+  /** 공유 앨범에 사진 추가
+   *  현재: File → ObjectURL → state append (즉시 미리보기)
+   *  추후: FormData 업로드 → 서버 URL 응답 → state append 로 교체. */
+  const handleAddSharedPhotos = (files: FileList) => {
+    const urls: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const url = URL.createObjectURL(files[i]);
+      urls.push(url);
+      sharedAlbumObjectUrlsRef.current.push(url);
+    }
+    setSharedAlbumPhotos((prev) => [...prev, ...urls]);
+  };
+
+  /** 공유 앨범에서 사진 한 장 삭제
+   *  ObjectURL이면 즉시 revoke로 메모리 회수. */
+  const handleRemoveSharedPhoto = (index: number) => {
+    setSharedAlbumPhotos((prev) => {
+      const target = prev[index];
+      if (target && target.startsWith("blob:")) {
+        URL.revokeObjectURL(target);
+        sharedAlbumObjectUrlsRef.current =
+          sharedAlbumObjectUrlsRef.current.filter((u) => u !== target);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   /* ── 워크스페이스명 ── */
-  const workspaceName = workspaceDetail?.title ?? '워크스페이스';
+  const workspaceName = workspaceDetail?.title ?? "워크스페이스";
 
   return (
     <>
@@ -239,16 +314,8 @@ export default function WorkspacePage() {
               gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr ${isChatOpen ? `${chatWidth}px` : "48px"}`,
             }}
           >
-            {/* ══ 좌측: 멤버 사이드바 (펼침/접힘) ══
-                - 좌측/상단 테두리 없음 → 화면 왼쪽 끝/Header와 맞닿음
-                - 우하 모서리만 둥글게 (컨텐츠 쪽만 둥근 형태)
-                - 펼침: sticky로 상단에 고정
-                - 접힘: self-stretch로 메인 컨텐츠와 같은 높이까지 흰색 바가 길게 늘어남 */}
+            {/* ══ 좌측: 멤버 사이드바 (펼침/접힘) ══ */}
             {isMemberOpen ? (
-              /* 펼침 상태:
-                 - 바깥 aside는 self-stretch로 메인 컨텐츠 높이만큼 늘어남
-                   → 흰색 배경 바가 화면 세로로 길게 채워짐 (Image3 처럼)
-                 - 안쪽 콘텐츠는 sticky top-0 으로 상단에 고정 */
               <aside className="self-stretch">
                 <div
                   className={[
@@ -269,8 +336,6 @@ export default function WorkspacePage() {
                 </div>
               </aside>
             ) : (
-              /* 접힘 상태: 메인 컨텐츠 높이만큼 늘어나는 세로로 긴 흰색 바
-                 (왼쪽 끝/Header와 맞닿음) */
               <aside className="self-stretch">
                 <div
                   className={[
@@ -317,10 +382,14 @@ export default function WorkspacePage() {
                 flights={flights}
                 rawFlights={rawFlights}
                 onFlightClick={setSelectedFlight}
-                onFlightDelete={(id, label) => setDeleteFlightTarget({ id, label })}
+                onFlightDelete={(id, label) =>
+                  setDeleteFlightTarget({ id, label })
+                }
               />
 
-              {/* ── 여행 일정 ── */}
+              {/* ── 여행 일정 ──
+                  지도 보기는 ItineraryDayCard 내부에서 인라인으로 처리되므로
+                  여기서 onMapClick을 넘기지 않음. */}
               <ItinerarySection
                 itineraryDays={itineraryDays}
                 scheduleList={scheduleList}
@@ -329,7 +398,6 @@ export default function WorkspacePage() {
                 isSaving={isSavingSchedule}
                 onSelectVersion={handleSelectScheduleVersion}
                 onSaveDay={handleSaveItineraryDay}
-                onMapClick={handleMapClick}
                 onDeleteItem={handleDeleteItem}
                 onCategoryChange={handleCategoryChange}
                 onDeleteSchedule={handleDeleteSchedule}
@@ -340,6 +408,7 @@ export default function WorkspacePage() {
                 travelLogs={travelLogs}
                 snsLog={snsLog}
                 showAddCard={showAddCard}
+                sharedAlbumPhotos={sharedAlbumPhotos}
                 onOpenAddCard={handleOpenAddCard}
                 onCancelAddCard={handleCancelAddCard}
                 onAddDailyCard={handleAddDailyCard}
@@ -349,6 +418,18 @@ export default function WorkspacePage() {
                 onSaveSnsLog={handleSaveSnsLog}
                 onDeleteSnsLog={handleDeleteSnsLog}
                 onUploadSnsLog={handleUploadSnsLog}
+              />
+
+              {/* ── 공유 앨범 ──
+                  여행에서 함께 놀러간 사람들끼리 찍은 사진들을 모아두는 섹션.
+                  - 5열 × 3행(=15장)이 한 화면에 보이고, 그 이상이면 박스 내부에서 세로 스크롤
+                  - 사진 클릭 시 라이트박스 모달이 열려 확대 보기 (← → / ESC 단축키)
+                  - 사진 hover 시 우상단 "×" 버튼 → 삭제 확인 모달
+                  TODO(API/Backend 담당): useSharedAlbum 훅으로 분리하고 실제 API 연결 */}
+              <SharedAlbumSection
+                photos={sharedAlbumPhotos}
+                onAddPhotos={handleAddSharedPhotos}
+                onRemovePhoto={handleRemoveSharedPhoto}
               />
 
               {/* ── 위험 영역 (나가기 / 삭제) ── */}
@@ -408,7 +489,11 @@ export default function WorkspacePage() {
         onClose={() => setShowLeaveConfirm(false)}
         onConfirm={handleLeaveWorkspace}
         title="워크스페이스를 나가시겠어요?"
-        description={isLeaving ? "처리 중..." : "나가면 다시 초대를 받아야 참여할 수 있습니다."}
+        description={
+          isLeaving
+            ? "처리 중..."
+            : "나가면 다시 초대를 받아야 참여할 수 있습니다."
+        }
         confirmLabel="나가기"
         cancelLabel="취소"
         variant="danger"

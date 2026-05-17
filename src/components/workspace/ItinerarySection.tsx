@@ -1,7 +1,13 @@
 import { useState } from "react";
 import SectionHeader from "@/components/workspace/SectionHeader";
-import ItineraryDayCard, { type ItineraryRow } from "@/components/workspace/ItineraryDayCard";
-import { type ScheduleSummary, type ScheduleDetail, type ScheduleCategory } from "@/api/scheduleApi";
+import ItineraryDayCard, {
+  type ItineraryRow,
+} from "@/components/workspace/ItineraryDayCard";
+import {
+  type ScheduleSummary,
+  type ScheduleDetail,
+  type ScheduleCategory,
+} from "@/api/scheduleApi";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 
 export interface ItineraryDay {
@@ -17,7 +23,6 @@ interface ItinerarySectionProps {
   isSaving: boolean;
   onSelectVersion: (scheduleId: number) => void;
   onSaveDay: (dayNumber: number, rows: ItineraryRow[]) => void;
-  onMapClick?: (dayNumber: number) => void;
   onDeleteItem?: (itemId: number) => void;
   onCategoryChange?: (itemId: number, category: ScheduleCategory) => void;
   onDeleteSchedule?: () => void;
@@ -31,27 +36,27 @@ export default function ItinerarySection({
   isSaving,
   onSelectVersion,
   onSaveDay,
-  onMapClick,
   onDeleteItem,
   onCategoryChange,
   onDeleteSchedule,
 }: ItinerarySectionProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const deleteAction = onDeleteSchedule && currentSchedule ? (
-    <button
-      type="button"
-      onClick={() => setShowDeleteConfirm(true)}
-      className={[
-        "px-3 py-1.5 rounded-md",
-        "border border-red-300 bg-white",
-        "font-pretendard text-body4 text-red-500",
-        "hover:bg-red-50 hover:border-red-500 transition-colors cursor-pointer",
-      ].join(" ")}
-    >
-      전체 삭제
-    </button>
-  ) : null;
+  const deleteAction =
+    onDeleteSchedule && currentSchedule ? (
+      <button
+        type="button"
+        onClick={() => setShowDeleteConfirm(true)}
+        className={[
+          "px-3 py-1.5 rounded-md",
+          "border border-red-300 bg-white",
+          "font-pretendard text-body4 text-red-500",
+          "hover:bg-red-50 hover:border-red-500 transition-colors cursor-pointer",
+        ].join(" ")}
+      >
+        전체 삭제
+      </button>
+    ) : null;
 
   return (
     <section className="flex flex-col gap-3">
@@ -65,7 +70,7 @@ export default function ItinerarySection({
           onDeleteSchedule?.();
         }}
         title="여행 일정을 전체 삭제할까요?"
-        description={`"${currentSchedule?.title || '현재 일정'}"\n삭제하면 되돌릴 수 없어요.`}
+        description={`"${currentSchedule?.title || "현재 일정"}"\n삭제하면 되돌릴 수 없어요.`}
         confirmLabel="삭제"
         cancelLabel="취소"
         variant="danger"
@@ -130,7 +135,6 @@ export default function ItinerarySection({
               dayNumber={d.dayNumber}
               rows={d.rows}
               onSave={(rows) => onSaveDay(d.dayNumber, rows)}
-              onMapClick={onMapClick}
               onDeleteItem={onDeleteItem}
               onCategoryChange={onCategoryChange}
             />

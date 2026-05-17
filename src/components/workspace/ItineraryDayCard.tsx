@@ -35,10 +35,40 @@ export interface ItineraryRow {
 interface ItineraryDayCardProps {
   dayNumber: number;
   rows: ItineraryRow[];
+  /**
+   * 편집 저장 콜백.
+   * 편집 모드에서 "저장"을 누르면 호출됨.
+   * 부모 컴포넌트는 이 rows로 자신의 state를 갱신해야 함.
+   *
+   * readOnly가 true이면 편집 모드 자체로 진입할 수 없으므로 무시됨.
+   */
   onSave?: (rows: ItineraryRow[]) => void;
-  onMapClick?: (dayNumber: number) => void;
+  /**
+   * 일정 항목 삭제 콜백.
+   * 보기 모드 행 hover 시 노출되는 ×버튼 클릭 시 호출됨.
+   * 미지정 시 행별 삭제 버튼이 렌더되지 않음.
+   */
   onDeleteItem?: (itemId: number) => void;
+  /**
+   * 카테고리 변경 콜백.
+   * 보기 모드에서 카테고리 아이콘을 클릭해 변경할 때 호출됨.
+   * 미지정 시 카테고리 아이콘은 클릭 불가능한 단순 표시용으로 렌더됨.
+   */
   onCategoryChange?: (itemId: number, category: ScheduleCategory) => void;
+  /**
+   * 읽기 전용 모드.
+   * true이면:
+   *  - 헤더의 편집 버튼(Edit2Icon)이 사라져 편집 모드 진입 자체가 불가능.
+   *  - 지도 버튼은 그대로 표시됨 (지도 보기는 read-only 동작이므로).
+   *  - 행 hover 시 노출되는 ×버튼/카테고리 변경은 부모가
+   *    onDeleteItem/onCategoryChange를 넘기지 않음으로써 자연스럽게 막힘.
+   *  - SNS 미리보기 페이지(/workspace/:id/preview)처럼 다른 사람의
+   *    워크스페이스를 구경하는 용도의 페이지에서 사용.
+   *
+   * 기본값 false.
+   */
+  readOnly?: boolean;
+  /** 추가 클래스 */
   className?: string;
 }
 
@@ -102,14 +132,23 @@ const CATEGORY_CONFIG = {
 type CategoryKey = keyof typeof CATEGORY_CONFIG;
 
 function getCategoryConfig(category?: string) {
-  return CATEGORY_CONFIG[(category as CategoryKey) ?? "ATTRACTION"] ?? CATEGORY_CONFIG.ATTRACTION;
+  return (
+    CATEGORY_CONFIG[(category as CategoryKey) ?? "ATTRACTION"] ??
+    CATEGORY_CONFIG.ATTRACTION
+  );
 }
 
 /* ══════════════════════════════════════════
    카테고리 아이콘 (인라인 SVG)
    ══════════════════════════════════════════ */
 
-function CategoryIcon({ category, className }: { category?: string; className?: string }) {
+function CategoryIcon({
+  category,
+  className,
+}: {
+  category?: string;
+  className?: string;
+}) {
   const cls = className ?? "w-6 h-6";
 
   switch (category as CategoryKey) {
@@ -218,7 +257,13 @@ function CategoryIcon({ category, className }: { category?: string; className?: 
    장소 사진 (auth 포함 blob URL 로딩)
    ══════════════════════════════════════════ */
 
-function PlacePhotoImg({ photoName, size = 56 }: { photoName: string; size?: number }) {
+function PlacePhotoImg({
+  photoName,
+  size = 56,
+}: {
+  photoName: string;
+  size?: number;
+}) {
   const [uri, setUri] = useState<string | null>(null);
 
   useEffect(() => {
@@ -252,23 +297,24 @@ function PlacePhotoImg({ photoName, size = 56 }: { photoName: string; size?: num
 function CategoryPicker({
   value,
   onChange,
-  size = 'sm',
+  size = "sm",
 }: {
   value?: string;
   onChange: (cat: ScheduleCategory) => void;
   /** 'sm': 편집 모드 (36px), 'lg': 보기 모드 (44px) */
-  size?: 'sm' | 'lg';
+  size?: "sm" | "lg";
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const config = getCategoryConfig(value);
-  const btnSize = size === 'lg' ? 'w-11 h-11' : 'w-9 h-9';
-  const iconSize = size === 'lg' ? 'w-5 h-5' : 'w-4 h-4';
+  const btnSize = size === "lg" ? "w-11 h-11" : "w-9 h-9";
+  const iconSize = size === "lg" ? "w-5 h-5" : "w-4 h-4";
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -289,7 +335,10 @@ function CategoryPicker({
           open ? "border-primary" : "border-transparent",
         ].join(" ")}
       >
-        <CategoryIcon category={value} className={`${iconSize} ${config.iconColor}`} />
+        <CategoryIcon
+          category={value}
+          className={`${iconSize} ${config.iconColor}`}
+        />
       </button>
 
       {open && (
@@ -301,7 +350,10 @@ function CategoryPicker({
               <button
                 key={key}
                 type="button"
-                onClick={() => { onChange(key); setOpen(false); }}
+                onClick={() => {
+                  onChange(key);
+                  setOpen(false);
+                }}
                 className={[
                   "flex items-center gap-2 w-full px-3 py-2",
                   "bg-transparent border-none cursor-pointer text-left",
@@ -312,9 +364,14 @@ function CategoryPicker({
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center ${c.bgColor} shrink-0`}
                 >
-                  <CategoryIcon category={key} className={`w-3 h-3 ${c.iconColor}`} />
+                  <CategoryIcon
+                    category={key}
+                    className={`w-3 h-3 ${c.iconColor}`}
+                  />
                 </div>
-                <span className="font-pretendard text-[12px] text-gray-700">{c.label}</span>
+                <span className="font-pretendard text-[12px] text-gray-700">
+                  {c.label}
+                </span>
                 {isSelected && (
                   <svg
                     className="ml-auto w-3 h-3 text-primary shrink-0"
@@ -361,7 +418,9 @@ function PlaceSearchInput({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setQuery(value); }, [value]);
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -371,7 +430,8 @@ function PlaceSearchInput({
       if (
         wrapperRef.current?.contains(target) ||
         dropdownRef.current?.contains(target)
-      ) return;
+      )
+        return;
       setIsOpen(false);
     };
     document.addEventListener("mousedown", handler);
@@ -419,9 +479,21 @@ function PlaceSearchInput({
     const minWidth = Math.max(rect.width, 300);
 
     if (spaceBelow < dropdownH && rect.top > spaceBelow) {
-      return { position: "fixed", bottom: window.innerHeight - rect.top + 4, left: rect.left, width: minWidth, zIndex: 9999 };
+      return {
+        position: "fixed",
+        bottom: window.innerHeight - rect.top + 4,
+        left: rect.left,
+        width: minWidth,
+        zIndex: 9999,
+      };
     }
-    return { position: "fixed", top: rect.bottom + 4, left: rect.left, width: minWidth, zIndex: 9999 };
+    return {
+      position: "fixed",
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: minWidth,
+      zIndex: 9999,
+    };
   };
 
   return (
@@ -448,51 +520,59 @@ function PlaceSearchInput({
         )}
       </div>
 
-      {isOpen && results.length > 0 && createPortal(
-        <div
-          ref={dropdownRef}
-          style={getDropdownStyle()}
-          className="bg-white border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] overflow-hidden"
-        >
-          <div className="max-h-[300px] overflow-y-auto">
-            {results.map((place) => (
-              <button
-                key={place.id}
-                type="button"
-                onClick={() => handleSelect(place)}
-                className="flex items-center gap-3 w-full px-3 py-3 bg-transparent border-none cursor-pointer hover:bg-gray-50 transition-colors text-left border-b border-gray-100 last:border-b-0"
-              >
-                {place.photos?.[0] ? (
-                  <PlacePhotoImg photoName={place.photos[0].name} size={56} />
-                ) : (
-                  <div className="w-14 h-14 rounded-xl bg-gray-100 shrink-0 flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" className="w-6 h-6 text-gray-400" fill="currentColor">
-                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
-                    </svg>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-pretendard text-[14px] font-semibold text-gray-900 m-0 truncate">
-                    {place.displayName.text}
-                  </p>
-                  <p className="font-pretendard text-[11px] text-gray-500 m-0 mt-0.5 truncate">
-                    {place.formattedAddress}
-                  </p>
-                  {place.rating != null && (
-                    <p className="font-pretendard text-[11px] text-amber-500 m-0 mt-0.5">
-                      ★ {place.rating.toFixed(1)}
-                      {place.userRatingCount != null && (
-                        <span className="text-gray-400 ml-1">({place.userRatingCount.toLocaleString()})</span>
-                      )}
-                    </p>
+      {isOpen &&
+        results.length > 0 &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={getDropdownStyle()}
+            className="bg-white border border-gray-200 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] overflow-hidden"
+          >
+            <div className="max-h-[300px] overflow-y-auto">
+              {results.map((place) => (
+                <button
+                  key={place.id}
+                  type="button"
+                  onClick={() => handleSelect(place)}
+                  className="flex items-center gap-3 w-full px-3 py-3 bg-transparent border-none cursor-pointer hover:bg-gray-50 transition-colors text-left border-b border-gray-100 last:border-b-0"
+                >
+                  {place.photos?.[0] ? (
+                    <PlacePhotoImg photoName={place.photos[0].name} size={56} />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-gray-100 shrink-0 flex items-center justify-center">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="w-6 h-6 text-gray-400"
+                        fill="currentColor"
+                      >
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+                      </svg>
+                    </div>
                   )}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>,
-        document.body
-      )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-pretendard text-[14px] font-semibold text-gray-900 m-0 truncate">
+                      {place.displayName.text}
+                    </p>
+                    <p className="font-pretendard text-[11px] text-gray-500 m-0 mt-0.5 truncate">
+                      {place.formattedAddress}
+                    </p>
+                    {place.rating != null && (
+                      <p className="font-pretendard text-[11px] text-amber-500 m-0 mt-0.5">
+                        ★ {place.rating.toFixed(1)}
+                        {place.userRatingCount != null && (
+                          <span className="text-gray-400 ml-1">
+                            ({place.userRatingCount.toLocaleString()})
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -535,7 +615,10 @@ function ViewTimelineRow({
   return (
     <div className="flex gap-3">
       {/* 왼쪽: 번호 배지 + 시각 + 연결선 */}
-      <div className="flex flex-col items-center" style={{ width: 48, minWidth: 48 }}>
+      <div
+        className="flex flex-col items-center"
+        style={{ width: 48, minWidth: 48 }}
+      >
         <div
           className={[
             "w-7 h-7 rounded-full shrink-0",
@@ -555,7 +638,10 @@ function ViewTimelineRow({
           </span>
         )}
         {index < total - 1 && (
-          <div className="w-px bg-gray-200 flex-1 mt-2" style={{ minHeight: 16 }} />
+          <div
+            className="w-px bg-gray-200 flex-1 mt-2"
+            style={{ minHeight: 16 }}
+          />
         )}
       </div>
 
@@ -576,7 +662,10 @@ function ViewTimelineRow({
       >
         {/* 카테고리 아이콘 — onCategoryChange 있으면 클릭 가능한 CategoryPicker */}
         {onCategoryChange ? (
-          <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             <CategoryPicker
               value={row._category}
               onChange={onCategoryChange}
@@ -591,7 +680,10 @@ function ViewTimelineRow({
               config.bgColor,
             ].join(" ")}
           >
-            <CategoryIcon category={row._category} className={`w-5 h-5 ${config.iconColor}`} />
+            <CategoryIcon
+              category={row._category}
+              className={`w-5 h-5 ${config.iconColor}`}
+            />
           </div>
         )}
 
@@ -648,7 +740,13 @@ function ViewTimelineRow({
               "transition-all cursor-pointer",
             ].join(" ")}
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              aria-hidden
+            >
               <path
                 d="M2 2L10 10M10 2L2 10"
                 stroke="currentColor"
@@ -673,13 +771,17 @@ function ViewFooter({ rows }: { rows: ItineraryRow[] }) {
   return (
     <div className="mt-1 mx-0 rounded-xl border border-gray-100 bg-gray-50 grid grid-cols-2 divide-x divide-gray-200">
       <div className="flex flex-col items-center py-3 px-4">
-        <span className="font-pretendard text-[11px] text-gray-400 mb-0.5">총 일정</span>
+        <span className="font-pretendard text-[11px] text-gray-400 mb-0.5">
+          총 일정
+        </span>
         <span className="font-pretendard text-body3 font-semibold text-gray-800">
           {rows.length}개
         </span>
       </div>
       <div className="flex flex-col items-center py-3 px-4">
-        <span className="font-pretendard text-[11px] text-gray-400 mb-0.5">총 예상 비용</span>
+        <span className="font-pretendard text-[11px] text-gray-400 mb-0.5">
+          총 예상 비용
+        </span>
         <span className="font-pretendard text-body3 font-semibold text-orange-500">
           {totalCost > 0 ? `${totalCost.toLocaleString("ko-KR")}원` : "0원"}
         </span>
@@ -695,7 +797,13 @@ function ViewFooter({ rows }: { rows: ItineraryRow[] }) {
 /** 6점 그립 아이콘 */
 function DragHandleIcon() {
   return (
-    <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden>
+    <svg
+      width="10"
+      height="16"
+      viewBox="0 0 10 16"
+      fill="currentColor"
+      aria-hidden
+    >
       <circle cx="3" cy="2.5" r="1.5" />
       <circle cx="7" cy="2.5" r="1.5" />
       <circle cx="3" cy="8" r="1.5" />
@@ -854,17 +962,44 @@ function EditDataRow({
    메인 컴포넌트
    ══════════════════════════════════════════ */
 
+/**
+ * 워크스페이스 페이지의 여행 일정 N일차 카드
+ *
+ * 두 가지 모드를 가짐:
+ *
+ * 1) 보기 모드 (기본)
+ *    - 헤더: 📍 + "N일차" + 편집 버튼(edit2) + 지도 토글 버튼
+ *    - 본문 상단: 지도 패널 (showMap === true 시 표시)
+ *    - 본문 하단: 타임라인 카드 목록
+ *    - 행 클릭 시 해당 장소 핀이 지도에서 강조됨
+ *
+ * 2) 편집 모드 (헤더 편집 버튼 클릭 시 진입)
+ *    - 헤더: 📍 + "N일차" + 취소 / 저장 버튼
+ *    - 본문: 드래그&드롭 재정렬 가능한 편집 행 목록 + "+ 일정 추가"
+ *    - 저장 시 onSave(rows) 호출 → 부모가 state 갱신 (API 연결 시 PATCH)
+ *    - 취소 시 진입 시점의 rows로 되돌림
+ *
+ * readOnly 모드 (SNS 미리보기 페이지 등):
+ *  - readOnly={true}로 넘기면 편집 버튼이 사라져 편집 모드 진입 자체가 불가능.
+ *  - 지도 보기는 read-only 동작이므로 readOnly와 무관하게 그대로 동작함.
+ *  - 행별 삭제/카테고리 변경도 부모가 onDeleteItem/onCategoryChange를
+ *    넘기지 않음으로써 자연스럽게 막힘.
+ */
 export default function ItineraryDayCard({
   dayNumber,
   rows,
   onSave,
   onDeleteItem,
   onCategoryChange,
+  readOnly = false,
   className = "",
 }: ItineraryDayCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showMap, setShowMap] = useState(true);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: number;
+    title: string;
+  } | null>(null);
   const [draftRows, setDraftRows] = useState<ItineraryRow[]>(rows);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
 
@@ -899,7 +1034,9 @@ export default function ItineraryDayCard({
   };
 
   const updateRow = (id: string, patch: Partial<ItineraryRow>) => {
-    setDraftRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    setDraftRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    );
   };
   const deleteRow = (id: string) => {
     setDraftRows((prev) => prev.filter((r) => r.id !== id));
@@ -924,6 +1061,8 @@ export default function ItineraryDayCard({
           {dayNumber}일차
         </span>
 
+        {/* 보기 모드: edit2 버튼(readOnly 아닐 때만) + 지도 토글 버튼
+            편집 모드: 취소·저장 버튼 */}
         {isEditing ? (
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -953,21 +1092,27 @@ export default function ItineraryDayCard({
           </div>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={enterEditMode}
-              aria-label={`${dayNumber}일차 편집`}
-              className={[
-                "ml-1 p-1 rounded",
-                "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-                "transition-colors cursor-pointer",
-                "border-none bg-transparent",
-                "inline-flex items-center justify-center",
-              ].join(" ")}
-            >
-              <Edit2Icon className="w-4 h-4" />
-            </button>
+            {/* readOnly === true 이면 편집 버튼 숨김 (편집 모드 진입 자체 불가) */}
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={enterEditMode}
+                aria-label={`${dayNumber}일차 편집`}
+                className={[
+                  "ml-1 p-1 rounded",
+                  "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+                  "transition-colors cursor-pointer",
+                  "border-none bg-transparent",
+                  "inline-flex items-center justify-center",
+                ].join(" ")}
+              >
+                <Edit2Icon className="w-4 h-4" />
+              </button>
+            )}
 
+            {/* 지도 토글 버튼 — 지도 보기는 read-only 동작이므로
+                readOnly와 무관하게 항상 표시.
+                SNS 미리보기 페이지에서도 동선 확인은 의미가 있음. */}
             <button
               type="button"
               onClick={() => setShowMap((v) => !v)}
@@ -991,9 +1136,17 @@ export default function ItineraryDayCard({
 
       {/* ── 지도 패널 ── */}
       {showMap && !isEditing && (
-        <div className="border-t border-gray-100 px-2 py-2" style={{ height: 340 }}>
+        <div
+          className="border-t border-gray-100 px-2 py-2"
+          style={{ height: 340 }}
+        >
           <DayItineraryMap
-            key={rows.map((r) => `${r.id}|${r._placeId ?? ''}|${r._address ?? ''}|${r._latitude ?? ''}|${r._longitude ?? ''}`).join(",")}
+            key={rows
+              .map(
+                (r) =>
+                  `${r.id}|${r._placeId ?? ""}|${r._address ?? ""}|${r._latitude ?? ""}|${r._longitude ?? ""}`,
+              )
+              .join(",")}
             rows={rows}
             dayNumber={dayNumber}
             selectedIndex={selectedRowIndex}
@@ -1002,7 +1155,11 @@ export default function ItineraryDayCard({
       )}
 
       {/* ── 데이터 행들 ── */}
-      <div className={isEditing ? "flex flex-col gap-2 px-3 pt-3 pb-3" : "px-4 pt-4 pb-3"}>
+      <div
+        className={
+          isEditing ? "flex flex-col gap-2 px-3 pt-3 pb-3" : "px-4 pt-4 pb-3"
+        }
+      >
         {isEditing ? (
           <>
             {draftRows.length === 0 ? (
@@ -1088,7 +1245,8 @@ export default function ItineraryDayCard({
                   onDeleteItem
                     ? () => {
                         const id = parseInt(row.id, 10);
-                        if (!isNaN(id)) setDeleteTarget({ id, title: row.title });
+                        if (!isNaN(id))
+                          setDeleteTarget({ id, title: row.title });
                       }
                     : undefined
                 }
@@ -1116,7 +1274,11 @@ export default function ItineraryDayCard({
           setDeleteTarget(null);
         }}
         title="일정을 삭제할까요?"
-        description={deleteTarget ? `"${deleteTarget.title}"\n삭제하면 되돌릴 수 없어요.` : ""}
+        description={
+          deleteTarget
+            ? `"${deleteTarget.title}"\n삭제하면 되돌릴 수 없어요.`
+            : ""
+        }
         confirmLabel="삭제"
         cancelLabel="취소"
         variant="danger"

@@ -16,10 +16,18 @@ interface AddTravelLogCardProps {
   onCancel: () => void;
   /**
    * SNS 카드 추가 버튼을 비활성화할지 여부.
-   * 한 워크스페이스에 SNS 카드는 1개만 만들 수 있으므로,
-   * 이미 SNS 카드가 존재하면 부모가 true로 넘김.
+   * 비활성화 사유는 여러 가지일 수 있음:
+   *  - 이미 SNS 카드가 존재 (워크스페이스당 1개 제한)
+   *  - 일자별 카드가 0개 (공유할 여행 기록이 없음 — 이슈 #24)
+   * 부모가 사유에 맞는 메시지를 disableSnsCardReason으로 함께 넘김.
    */
   disableSnsCard?: boolean;
+  /**
+   * SNS 카드 추가 비활성화 시 표시할 안내 메시지.
+   * disableSnsCard가 true일 때만 사용됨.
+   * 미지정 시 기본 메시지 "SNS 카드를 추가할 수 없어요"가 표시됨.
+   */
+  disableSnsCardReason?: string;
   /** 추가 클래스 */
   className?: string;
 }
@@ -46,6 +54,7 @@ export default function AddTravelLogCard({
   onAddSnsCard,
   onCancel,
   disableSnsCard = false,
+  disableSnsCardReason,
   className = "",
 }: AddTravelLogCardProps) {
   return (
@@ -84,12 +93,12 @@ export default function AddTravelLogCard({
         onClick={onAddDailyCard}
       />
 
-      {/* SNS용 카드 추가 버튼 (워크스페이스당 1개 제한) */}
+      {/* SNS용 카드 추가 버튼 (비활성화 사유는 부모가 disableSnsCardReason으로 지정) */}
       <AddOptionButton
         label="SNS용 카드 추가"
         description={
           disableSnsCard
-            ? "이미 SNS 카드가 있어요 (워크스페이스당 1개)"
+            ? (disableSnsCardReason ?? "SNS 카드를 추가할 수 없어요")
             : "사진/영상 업로드 후 SNS에 게시할 수 있는 카드"
         }
         onClick={onAddSnsCard}

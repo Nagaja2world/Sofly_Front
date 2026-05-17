@@ -8,6 +8,7 @@ import ProfileOnboardingPage from "@/pages/ProfileOnboardingPage";
 import FlightSearchPage from "@/pages/FlightSearchPage";
 import FlightDetailPage from "@/pages/FlightDetailPage";
 import WorkspacePage from "@/pages/WorkspacePage";
+import WorkspacePreviewPage from "@/pages/WorkspacePreviewPage";
 
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import ConquestMapPage from "@/pages/ConquestMapPage";
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
       { path: "mypage/edit", element: <ProfileEditPage /> },
       { path: "onboarding", element: <ProfileOnboardingPage /> },
       { path: "workspace/:id", element: <WorkspacePage /> },
+      { path: "workspace/:id/preview", element: <WorkspacePreviewPage /> },
     ],
   },
 

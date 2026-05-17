@@ -1,6 +1,9 @@
 import PlusIcon from "@/assets/plus.svg?react";
 import SectionHeader from "@/components/workspace/SectionHeader";
-import TravelLogCard, { type WeatherType, type TravelLogData } from "@/components/workspace/TravelLogCard";
+import TravelLogCard, {
+  type WeatherType,
+  type TravelLogData,
+} from "@/components/workspace/TravelLogCard";
 import SnsLogCard, { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
 import type { JSONContent } from "@tiptap/core";
@@ -21,6 +24,12 @@ interface TravelLogSectionProps {
   travelLogs: TravelLog[];
   snsLog: SnsLogData | null;
   showAddCard: boolean;
+  /**
+   * 워크스페이스 공유 앨범 사진 URL 배열.
+   * TravelLogCard 편집 모드 본문 툴바의 "사진" → "공유앨범에서 찾기"에서
+   * 사용할 수 있도록 각 카드에 그대로 전달.
+   */
+  sharedAlbumPhotos: string[];
   onOpenAddCard: () => void;
   onCancelAddCard: () => void;
   onAddDailyCard: () => void;
@@ -36,6 +45,7 @@ export default function TravelLogSection({
   travelLogs,
   snsLog,
   showAddCard,
+  sharedAlbumPhotos,
   onOpenAddCard,
   onCancelAddCard,
   onAddDailyCard,
@@ -56,9 +66,7 @@ export default function TravelLogSection({
             onClick={onOpenAddCard}
             disabled={showAddCard}
             aria-label={
-              showAddCard
-                ? "여행 기록 카드 추가 (열림)"
-                : "여행 기록 카드 추가"
+              showAddCard ? "여행 기록 카드 추가 (열림)" : "여행 기록 카드 추가"
             }
             className={[
               "inline-flex items-center justify-center",
@@ -104,19 +112,29 @@ export default function TravelLogSection({
               weather={log.weather}
               content={log.content}
               albumPhotos={log.albumPhotos}
+              sharedAlbumPhotos={sharedAlbumPhotos}
               onSave={(data) => log.id != null && onSaveTravelLog(log.id, data)}
               onDelete={() => log.id != null && onDeleteTravelLog(log.id)}
             />
           </div>
         ))}
 
-        {/* 추가 카드: "+" 버튼 클릭 시 맨 끝에 표시 */}
+        {/* 추가 카드: "+" 버튼 클릭 시 맨 끝에 표시.
+            SNS 카드 추가 버튼 비활성화 조건 (이슈 #24 관련):
+              1) 이미 SNS 카드가 있을 때 (워크스페이스당 1개 제한)
+              2) 일자별 카드가 하나도 없을 때
+                 → SNS 게시는 여행 기록을 공유하기 위함이므로, 공유할
+                   일자별 기록이 없는 상태에서 SNS 카드만 만드는 건
+                   의미가 없음. 또한 SNS 미리보기 페이지
+                   (/workspace/:id/preview)는 "SNS 카드가 있으면
+                   일자별 카드도 최소 1개 있다"는 invariant를 전제로
+                   하므로 이 조건이 invariant를 보장함. */}
         {showAddCard && (
           <AddTravelLogCard
             onAddDailyCard={onAddDailyCard}
             onAddSnsCard={onAddSnsCard}
             onCancel={onCancelAddCard}
-            disableSnsCard={snsLog !== null}
+            disableSnsCard={snsLog !== null || travelLogs.length === 0}
           />
         )}
       </div>
