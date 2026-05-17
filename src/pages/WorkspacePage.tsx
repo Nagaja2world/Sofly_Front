@@ -28,6 +28,7 @@ import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { useWorkspaceFlights } from "@/hooks/useWorkspaceFlights";
 import { useChatResize } from "@/hooks/useChatResize";
 import { useTravelLogs } from "@/hooks/useTravelLogs";
+import { resolveCoverImage, type WorkspaceFlight } from "@/api/workspaceApi";
 
 /* (목업 데이터 제거됨 — 멤버/항공편/일정/여행기록 모두 API에서 로드) */
 
@@ -105,10 +106,43 @@ export default function WorkspacePage() {
     setWorkspaceDetail(updated);
   };
 
+  const handleRenameWorkspace = async (newName: string) => {
+    if (!workspaceDetail) return;
+    await handleWorkspaceUpdate(
+      newName,
+      workspaceDetail.destination,
+      workspaceDetail.startDate,
+      workspaceDetail.endDate,
+    );
+  };
+
+  const handleChangeCountry = async (newCountry: string) => {
+    if (!workspaceDetail) return;
+    await handleWorkspaceUpdate(
+      workspaceDetail.title,
+      newCountry, // ← destination을 newCountry로 덮어씀
+      workspaceDetail.startDate,
+      workspaceDetail.endDate,
+    );
+  };
+
   const handleCoverImageUpload = async (file: File) => {
     const updated = await uploadCoverImage(workspaceId, file);
     setWorkspaceDetail(updated);
   };
+
+  function extractCountryFromFlights(
+    rawFlights: WorkspaceFlight[] | undefined,
+  ): string {
+    if (!rawFlights || rawFlights.length === 0) return "";
+
+    /* 가는편(OUTBOUND)을 우선 찾고, 없으면 첫 항목 사용 */
+    const outbound =
+      rawFlights.find((f) => f.flightType === "OUTBOUND") ?? rawFlights[0];
+
+    /* 도착 도시명이 있으면 도시명, 없으면 공항코드로 폴백 */
+    return outbound.arrivalCity ?? outbound.arrivalAirport ?? "";
+  }
 
   /* ── 커스텀 훅 ── */
   const {
@@ -281,6 +315,9 @@ export default function WorkspacePage() {
   /* ── 워크스페이스명 ── */
   const workspaceName = workspaceDetail?.title ?? "워크스페이스";
 
+  const travelLocation =
+    workspaceDetail?.destination?.trim() ||
+    extractCountryFromFlights(rawFlights);
   return (
     <>
       {/* ══════════════════════════════════════════
@@ -326,11 +363,40 @@ export default function WorkspacePage() {
                   ].join(" ")}
                 >
                   <div className="sticky top-0">
+                    {/* <MemberSidebar
+                      workspaceName={workspaceName}
+                      members={members}
+                      coverImageUrl={
+                        workspaceDetail
+                          ? resolveCoverImage(
+                              workspaceDetail.coverImageUrl,
+                              workspaceDetail.id,
+                            )
+                          : null
+                      }
+                      country={travelLocation}
+                      onCollapse={() => setIsMemberOpen(false)}
+                      onAddMember={() => setShowInviteModal(true)}
+                      onRenameWorkspace={handleRenameWorkspace}
+                      onChangeCoverImage={handleCoverImageUpload}
+                    /> */}
                     <MemberSidebar
                       workspaceName={workspaceName}
                       members={members}
+                      coverImageUrl={
+                        workspaceDetail
+                          ? resolveCoverImage(
+                              workspaceDetail.coverImageUrl,
+                              workspaceDetail.id,
+                            )
+                          : null
+                      }
+                      country={travelLocation}
                       onCollapse={() => setIsMemberOpen(false)}
                       onAddMember={() => setShowInviteModal(true)}
+                      onRenameWorkspace={handleRenameWorkspace}
+                      onChangeCountry={handleChangeCountry}
+                      onChangeCoverImage={handleCoverImageUpload}
                     />
                   </div>
                 </div>
