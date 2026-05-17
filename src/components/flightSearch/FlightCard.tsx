@@ -12,7 +12,7 @@ interface FlightCardProps {
  * 가격 포맷 "₩ 920,000"
  */
 function formatPrice(price: number): string {
-  return `₩ ${price.toLocaleString("ko-KR")}`;
+  return `₩ ${price.toLocaleString("ko-KR")}~`;
 }
 
 /**
