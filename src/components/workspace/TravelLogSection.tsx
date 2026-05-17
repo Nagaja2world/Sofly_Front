@@ -24,6 +24,12 @@ interface TravelLogSectionProps {
   travelLogs: TravelLog[];
   snsLog: SnsLogData | null;
   showAddCard: boolean;
+  /**
+   * 워크스페이스 공유 앨범 사진 URL 배열.
+   * TravelLogCard 편집 모드 본문 툴바의 "사진" → "공유앨범에서 찾기"에서
+   * 사용할 수 있도록 각 카드에 그대로 전달.
+   */
+  sharedAlbumPhotos: string[];
   onOpenAddCard: () => void;
   onCancelAddCard: () => void;
   onAddDailyCard: () => void;
@@ -39,6 +45,7 @@ export default function TravelLogSection({
   travelLogs,
   snsLog,
   showAddCard,
+  sharedAlbumPhotos,
   onOpenAddCard,
   onCancelAddCard,
   onAddDailyCard,
@@ -105,6 +112,7 @@ export default function TravelLogSection({
               weather={log.weather}
               content={log.content}
               albumPhotos={log.albumPhotos}
+              sharedAlbumPhotos={sharedAlbumPhotos}
               onSave={(data) => log.id != null && onSaveTravelLog(log.id, data)}
               onDelete={() => log.id != null && onDeleteTravelLog(log.id)}
             />
