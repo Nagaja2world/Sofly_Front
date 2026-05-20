@@ -17,7 +17,6 @@ import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
 import FlightDetailModal from "@/components/workspace/FlightDetailModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import AIChatSidebar from "@/components/workspace/AIChatSidebar";
-import WorkspaceInfoBar from "@/components/workspace/WorkspaceInfoBar";
 import FlightSection from "@/components/workspace/FlightSection";
 import ItinerarySection from "@/components/workspace/ItinerarySection";
 import TravelLogSection from "@/components/workspace/TravelLogSection";
@@ -417,15 +416,6 @@ export default function WorkspacePage() {
 
             {/* ══ 가운데: 메인 컨텐츠 ══ */}
             <main className="min-w-0 flex flex-col gap-8 pt-6">
-              {/* ── 워크스페이스 정보 ── */}
-              {workspaceDetail && (
-                <WorkspaceInfoBar
-                  workspace={workspaceDetail}
-                  onSave={handleWorkspaceUpdate}
-                  onSaveImage={handleCoverImageUpload}
-                />
-              )}
-
               {/* ── 항공 일정 ── */}
               <FlightSection
                 flights={flights}

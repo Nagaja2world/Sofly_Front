@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
+import SnsPreviewSection from "@/components/profile/SnsPreviewSection";
 import Button from "@/components/common/Button";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
@@ -16,10 +17,107 @@ import {
   resolveCoverImage,
   type Workspace,
 } from "@/api/workspaceApi";
+import type { SnsPost } from "@/types/snsType";
 
 import profileHeroSvg from "@/assets/profile_hero.svg";
 import GroupIcon from "@/assets/group.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
+
+/* ══════════════════════════════════════════
+   목업 데이터
+   TODO(백엔드): SNS API 연결 후 이 블록 제거.
+   picsum.photos seed로 고정 이미지를 받아 새로고침해도 동일하게 보임.
+   ══════════════════════════════════════════ */
+const MOCK_SNS_POSTS: SnsPost[] = [
+  {
+    id: "mock-post-1",
+    author: {
+      id: "mock-user-1",
+      username: "tokyo_traveler",
+    },
+    media: [
+      {
+        id: "mock-media-1-1",
+        type: "image",
+        url: "https://picsum.photos/seed/sofly-sns-1/600/600",
+      },
+      {
+        id: "mock-media-1-2",
+        type: "image",
+        url: "https://picsum.photos/seed/sofly-sns-1b/600/600",
+      },
+    ],
+    caption: "도쿄에서 보낸 3박 4일. 시부야 야경이 정말 환상적이었어요 🌃",
+    createdAt: "2026-05-15T10:30:00Z",
+    workspaceId: "mock-ws-1",
+    workspaceName: "도쿄 3박 4일",
+  },
+  {
+    id: "mock-post-2",
+    author: {
+      id: "mock-user-2",
+      username: "paris_wanderer",
+    },
+    media: [
+      {
+        id: "mock-media-2-1",
+        type: "image",
+        url: "https://picsum.photos/seed/sofly-sns-2/600/600",
+      },
+    ],
+    caption:
+      "에펠탑 앞에서 인생샷! 새벽 6시에 가니까 사람이 거의 없어서 좋았어요. 다음번엔 베르사유 궁전도 꼭 가보고 싶다.",
+    createdAt: "2026-05-12T08:15:00Z",
+    workspaceId: "mock-ws-2",
+    workspaceName: "파리 일주일",
+  },
+  {
+    id: "mock-post-3",
+    author: {
+      id: "mock-user-3",
+      username: "bali_lover",
+    },
+    media: [
+      {
+        id: "mock-media-3-1",
+        type: "image",
+        url: "https://picsum.photos/seed/sofly-sns-3/600/600",
+      },
+      {
+        id: "mock-media-3-2",
+        type: "image",
+        url: "https://picsum.photos/seed/sofly-sns-3b/600/600",
+      },
+      {
+        id: "mock-media-3-3",
+        type: "image",
+        url: "https://picsum.photos/seed/sofly-sns-3c/600/600",
+      },
+    ],
+    caption: "발리 우붓에서의 요가 리트릿 🧘‍♀️",
+    createdAt: "2026-05-10T14:20:00Z",
+    workspaceId: "mock-ws-3",
+    workspaceName: "발리 힐링 여행",
+  },
+  {
+    id: "mock-post-4",
+    author: {
+      id: "mock-user-4",
+      username: "osaka_foodie",
+    },
+    media: [
+      {
+        id: "mock-media-4-1",
+        type: "image",
+        url: "https://picsum.photos/seed/sofly-sns-4/600/600",
+      },
+    ],
+    caption: "도톤보리에서 먹은 타코야끼 🐙 인생 타코야끼였음",
+    createdAt: "2026-05-08T19:45:00Z",
+    workspaceId: "mock-ws-4",
+    workspaceName: "오사카 먹방 투어",
+  },
+];
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -30,6 +128,27 @@ export default function ProfilePage() {
   const [wsLoading, setWsLoading] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+
+  /* ── SNS 게시물 (미리보기용) ──
+   * 워크스페이스와 동일 패턴.
+   * TODO(백엔드): 아래 MOCK_SNS_POSTS / 빈 useState를 제거하고
+   *               loadSnsPosts와 useEffect 주석 해제 후
+   *               fetchSnsPosts API를 import해서 채우면 됨. */
+  const [snsPosts] = useState<SnsPost[]>(MOCK_SNS_POSTS);
+  // const [snsPosts, setSnsPosts] = useState<SnsPost[]>([]);
+  //
+  // const loadSnsPosts = useCallback(async () => {
+  //   try {
+  //     const data = await fetchSnsPosts({ limit: 6 }); // 미리보기는 6개면 충분
+  //     setSnsPosts(data);
+  //   } catch (err) {
+  //     console.error("SNS 게시물 불러오기 실패:", err);
+  //   }
+  // }, []);
+  //
+  // useEffect(() => {
+  //   if (isLoggedIn) loadSnsPosts();
+  // }, [isLoggedIn, loadSnsPosts]);
 
   /* 비로그인 상태면 홈으로 이동 */
   useEffect(() => {
@@ -195,14 +314,21 @@ export default function ProfilePage() {
               </div>
             ) : wsError ? (
               <div className="py-10 text-center">
-                <p className="font-pretendard text-body3 text-red-500 mb-3">{wsError}</p>
-                <Button btnType="outlined" onClick={loadWorkspaces}>다시 시도</Button>
+                <p className="font-pretendard text-body3 text-red-500 mb-3">
+                  {wsError}
+                </p>
+                <Button btnType="outlined" onClick={loadWorkspaces}>
+                  다시 시도
+                </Button>
               </div>
             ) : workspaces.length > 0 ? (
               /* 가로 스크롤 컨테이너: 4개 초과 시 스크롤 */
               <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300">
                 {workspaces.map((ws) => (
-                  <div key={ws.id} className="min-w-[272px] w-[272px] flex-shrink-0">
+                  <div
+                    key={ws.id}
+                    className="min-w-[272px] w-[272px] flex-shrink-0"
+                  >
                     <WorkspaceCard
                       id={String(ws.id)}
                       name={ws.title}
@@ -251,11 +377,24 @@ export default function ProfilePage() {
                 <p className="font-pretendard text-body3 text-gray-400 mb-5">
                   새로운 여행을 계획하고 함께 떠나보세요!
                 </p>
-                <Button btnType="solid" onClick={handleCreateWorkspace} disabled={isCreating}>
+                <Button
+                  btnType="solid"
+                  onClick={handleCreateWorkspace}
+                  disabled={isCreating}
+                >
                   {isCreating ? "생성 중..." : "첫 워크스페이스 만들기"}
                 </Button>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ── SNS 미리보기 ──
+            워크스페이스 섹션의 pb-20과 합쳐지지 않도록 pt 줄임.
+            게시물 클릭 → 상세 팝업, "더보기" 클릭 → /sns 라우트로 이동. */}
+        <div className="px-4">
+          <div className="max-w-[1200px] w-full mx-auto pb-20">
+            <SnsPreviewSection posts={snsPosts} previewCount={6} />
           </div>
         </div>
       </div>
