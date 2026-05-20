@@ -7,6 +7,7 @@ import ProfileEditPage from "@/pages/ProfileEditPage";
 import ProfileOnboardingPage from "@/pages/ProfileOnboardingPage";
 import FlightSearchPage from "@/pages/FlightSearchPage";
 import FlightDetailPage from "@/pages/FlightDetailPage";
+import HotelSearchPage from "@/pages/HotelSearchPage";
 import WorkspacePage from "@/pages/WorkspacePage";
 import WorkspacePreviewPage from "@/pages/WorkspacePreviewPage";
 
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
     children: [
       { path: "flight-search", element: <FlightSearchPage /> },
       { path: "flight-detail/:id", element: <FlightDetailPage /> },
+      { path: "hotel-search", element: <HotelSearchPage /> },
     ],
   },
 

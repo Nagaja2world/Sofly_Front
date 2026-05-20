@@ -1,6 +1,6 @@
 import { useState } from "react";
 import SearchBar, { type SearchBarInitialValues } from "./SearchBar";
-import HotelSearchBar from "./HotelSearchBar";
+import HotelSearchBar, { type HotelSearchBarParams } from "./HotelSearchBar";
 import TakeoffIcon from "@/assets/takeoff.svg?react";
 import { type FlightSearchParams } from "@/utils/flightSearchQuery";
 
@@ -8,20 +8,27 @@ type SearchMode = "flight" | "hotel";
 
 interface SearchModeBarProps {
   onFlightSearch: (params: FlightSearchParams) => void;
+  onHotelSearch?: (params: HotelSearchBarParams) => void;
   initialValues?: SearchBarInitialValues;
+  hotelInitialValues?: HotelSearchBarParams;
   /** SearchBar 강제 리마운트용 key (FlightSearchPage에서 URL 변경 시 활용) */
   searchBarKey?: string | number;
+  /** 초기 모드 강제 지정 (hotel-search 페이지에서 hotel로 시작) */
+  initialMode?: SearchMode;
   /** 모드 변경 콜백 */
   onModeChange?: (mode: SearchMode) => void;
 }
 
 export default function SearchModeBar({
   onFlightSearch,
+  onHotelSearch,
   initialValues,
+  hotelInitialValues,
   searchBarKey,
+  initialMode,
   onModeChange,
 }: SearchModeBarProps) {
-  const [mode, setMode] = useState<SearchMode>("flight");
+  const [mode, setMode] = useState<SearchMode>(initialMode ?? "flight");
 
   const handleModeChange = (next: SearchMode) => {
     setMode(next);
@@ -79,7 +86,10 @@ export default function SearchModeBar({
           initialValues={initialValues}
         />
       ) : (
-        <HotelSearchBar />
+        <HotelSearchBar
+          onSearch={onHotelSearch}
+          initialValues={hotelInitialValues}
+        />
       )}
     </div>
   );

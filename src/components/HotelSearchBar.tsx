@@ -3,6 +3,18 @@ import Checkbox from "./common/Checkbox";
 import Button from "./common/Button";
 import SelectField from "./common/SelectField";
 import CalendarDropdown, { type DateRange } from "./searchbar/CalendarDropdown";
+import { useHotelDestinations } from "@/hooks/useHotelDestinations";
+import { type HotelDestination } from "@/api/hotelApi";
+
+export interface HotelSearchBarParams {
+  destId: string;
+  searchType: string;
+  destName: string;
+  arrivalDate: string;
+  departureDate: string;
+  adults: number;
+  roomQty: number;
+}
 
 type HotelSearchMode = "destination" | "url";
 
@@ -11,32 +23,125 @@ interface HotelGuests {
   rooms: number;
 }
 
-export default function HotelSearchBar({ className = "" }: { className?: string }) {
+interface HotelSearchBarProps {
+  className?: string;
+  onSearch?: (params: HotelSearchBarParams) => void;
+  initialValues?: HotelSearchBarParams;
+}
+
+function toApiDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function fromApiDate(s: string): Date | null {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+export default function HotelSearchBar({
+  className = "",
+  onSearch,
+  initialValues,
+}: HotelSearchBarProps) {
   const [mode, setMode] = useState<HotelSearchMode>("destination");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialValues?.destName ?? "");
   const [urlInput, setUrlInput] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange>({ start: null, end: null });
-  const [guests, setGuests] = useState<HotelGuests>({ adults: 2, rooms: 1 });
+  const [selectedDest, setSelectedDest] = useState<HotelDestination | null>(
+    initialValues
+      ? ({
+          destId: initialValues.destId,
+          destType: initialValues.searchType,
+          name: initialValues.destName,
+        } as HotelDestination)
+      : null,
+  );
+  const [dateRange, setDateRange] = useState<DateRange>({
+    start: fromApiDate(initialValues?.arrivalDate ?? ""),
+    end: fromApiDate(initialValues?.departureDate ?? ""),
+  });
+  const [guests, setGuests] = useState<HotelGuests>({
+    adults: initialValues?.adults ?? 2,
+    rooms: initialValues?.roomQty ?? 1,
+  });
   const [freeCancel, setFreeCancel] = useState(false);
   const [fourStarPlus, setFourStarPlus] = useState(false);
   const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   const guestRef = useRef<HTMLDivElement>(null);
+  const destRef = useRef<HTMLDivElement>(null);
 
   const guestOpen = activePanel === "guests";
+  const destOpen = activePanel === "dest";
   const closeAll = useCallback(() => setActivePanel(null), []);
 
+  const { results: destResults, isLoading: destLoading, clear: clearDest } =
+    useHotelDestinations(mode === "destination" ? query : "");
+
+  /* 자동완성 외부 클릭 닫기 */
   useEffect(() => {
-    if (!guestOpen) return;
+    if (!destOpen && !guestOpen) return;
     const handler = (e: MouseEvent) => {
-      if (guestRef.current && !guestRef.current.contains(e.target as Node)) {
-        setActivePanel(null);
+      const target = e.target as Node;
+      if (destRef.current && !destRef.current.contains(target)) {
+        if (activePanel === "dest") setActivePanel(null);
+      }
+      if (guestRef.current && !guestRef.current.contains(target)) {
+        if (activePanel === "guests") setActivePanel(null);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [guestOpen]);
+  }, [activePanel, destOpen, guestOpen]);
+
+  /* 목적지 입력 시 드롭다운 열기 */
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    setSelectedDest(null);
+    if (e.target.value.length >= 2) setActivePanel("dest");
+    else setActivePanel(null);
+  };
+
+  const handleDestSelect = (dest: HotelDestination) => {
+    setQuery(dest.label ?? dest.name);
+    setSelectedDest(dest);
+    clearDest();
+    setActivePanel(null);
+  };
 
   const guestLabel = `성인 ${guests.adults}명, ${guests.rooms}개`;
+
+  const handleSearch = () => {
+    setSearchError(null);
+    if (mode === "destination") {
+      if (!selectedDest) {
+        setSearchError("목적지를 선택해주세요");
+        return;
+      }
+      if (!dateRange.start) {
+        setSearchError("체크인 날짜를 선택해주세요");
+        return;
+      }
+      if (!dateRange.end) {
+        setSearchError("체크아웃 날짜를 선택해주세요");
+        return;
+      }
+      onSearch?.({
+        destId: selectedDest.destId,
+        searchType: selectedDest.destType,
+        destName: selectedDest.name,
+        arrivalDate: toApiDate(dateRange.start),
+        departureDate: toApiDate(dateRange.end),
+        adults: guests.adults,
+        roomQty: guests.rooms,
+      });
+    }
+  };
 
   const modeItems: { key: HotelSearchMode; label: string }[] = [
     { key: "destination", label: "목적지" },
@@ -81,31 +186,75 @@ export default function HotelSearchBar({ className = "" }: { className?: string 
         {/* 검색 필드 행 */}
         <div className="flex items-center gap-3">
           {/* 목적지 / URL 입력 */}
-          <div className="flex-[2] min-w-0">
-            <div
-              className={[
-                "flex items-center gap-2 px-5 py-4 w-full",
-                "border rounded-lg transition-all duration-200",
-                "bg-gray-200 border-gray-200 focus-within:border-gray-700",
-              ].join(" ")}
-            >
-              <input
-                type={mode === "url" ? "url" : "text"}
-                value={mode === "destination" ? query : urlInput}
-                onChange={(e) =>
-                  mode === "destination"
-                    ? setQuery(e.target.value)
-                    : setUrlInput(e.target.value)
-                }
-                placeholder={
-                  mode === "destination"
-                    ? "목적지 또는 호텔 이름"
-                    : "호텔 예약 페이지 URL"
-                }
-                className="flex-1 bg-transparent outline-none font-pretendard text-body2 text-gray-900 placeholder:text-gray-500"
-              />
+          {mode === "destination" ? (
+            <div ref={destRef} className="flex-[2] min-w-0 relative">
+              <div
+                className={[
+                  "flex items-center gap-2 px-5 py-4 w-full",
+                  "border rounded-lg transition-all duration-200",
+                  destOpen
+                    ? "bg-gray-200 border-gray-700"
+                    : "bg-gray-200 border-gray-200",
+                ].join(" ")}
+              >
+                <input
+                  type="text"
+                  value={query}
+                  onChange={handleQueryChange}
+                  onFocus={() => {
+                    if (query.length >= 2) setActivePanel("dest");
+                  }}
+                  placeholder="목적지 또는 호텔 이름"
+                  className="flex-1 bg-transparent outline-none font-pretendard text-body2 text-gray-900 placeholder:text-gray-500"
+                />
+                {destLoading && (
+                  <span className="font-pretendard text-body5 text-gray-400 shrink-0">
+                    검색 중…
+                  </span>
+                )}
+              </div>
+
+              {/* 자동완성 드롭다운 */}
+              {destOpen && destResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                  {destResults.slice(0, 8).map((dest) => (
+                    <button
+                      key={dest.destId}
+                      type="button"
+                      onClick={() => handleDestSelect(dest)}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-none bg-transparent cursor-pointer border-b border-gray-100 last:border-0"
+                    >
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="font-pretendard text-body3 font-semibold text-gray-900 truncate">
+                          {dest.name}
+                        </span>
+                        <span className="font-pretendard text-body4 text-gray-400 truncate">
+                          {dest.label}
+                        </span>
+                      </div>
+                      {dest.hotels > 0 && (
+                        <span className="font-pretendard text-body5 text-gray-400 shrink-0 ml-auto">
+                          호텔 {dest.hotels.toLocaleString()}개
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="flex-[2] min-w-0">
+              <div className="flex items-center gap-2 px-5 py-4 w-full border rounded-lg bg-gray-200 border-gray-200 focus-within:border-gray-700 transition-all">
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="호텔 예약 페이지 URL"
+                  className="flex-1 bg-transparent outline-none font-pretendard text-body2 text-gray-900 placeholder:text-gray-500"
+                />
+              </div>
+            </div>
+          )}
 
           {/* 체크인 / 체크아웃 */}
           <CalendarDropdown
@@ -126,15 +275,12 @@ export default function HotelSearchBar({ className = "" }: { className?: string 
               bg="gray"
               value={guestLabel}
               placeholder="투숙객 및 객실"
-              onClick={() =>
-                setActivePanel(guestOpen ? null : "guests")
-              }
+              onClick={() => setActivePanel(guestOpen ? null : "guests")}
               isOpen={guestOpen}
             />
 
             {guestOpen && (
               <div className="absolute top-full left-0 mt-2 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-56 flex flex-col gap-3">
-                {/* 성인 */}
                 <div className="flex items-center justify-between">
                   <span className="font-pretendard text-body3 text-gray-700">성인</span>
                   <div className="flex items-center gap-3">
@@ -161,8 +307,6 @@ export default function HotelSearchBar({ className = "" }: { className?: string 
                     </button>
                   </div>
                 </div>
-
-                {/* 객실 */}
                 <div className="flex items-center justify-between">
                   <span className="font-pretendard text-body3 text-gray-700">객실</span>
                   <div className="flex items-center gap-3">
@@ -189,7 +333,6 @@ export default function HotelSearchBar({ className = "" }: { className?: string 
                     </button>
                   </div>
                 </div>
-
                 <button
                   type="button"
                   onClick={() => setActivePanel(null)}
@@ -205,10 +348,18 @@ export default function HotelSearchBar({ className = "" }: { className?: string 
           <Button
             btnType="solid"
             className="py-4 px-8 text-body2 shrink-0"
+            onClick={handleSearch}
           >
             검색하기
           </Button>
         </div>
+
+        {/* 에러 메시지 */}
+        {searchError && (
+          <p className="mt-3 font-pretendard text-body4 text-red-500 m-0">
+            {searchError}
+          </p>
+        )}
       </div>
     </section>
   );
