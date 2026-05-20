@@ -29,7 +29,7 @@ export default function AIChatSidebar({
           aria-label="AI 채팅 열기"
           className={[
             "fixed z-50",
-            "top-[92px] right-5",
+            "top-[92px] right-6",
             "px-3 h-10 rounded-full",
             "bg-white shadow-md border border-gray-200",
             "flex items-center gap-1.5",
@@ -58,9 +58,10 @@ export default function AIChatSidebar({
       {/* Overlay panel — Instagram DM style, slides in from right */}
       {isOpen && (
         <div
-          className="fixed right-0 z-40 bg-white shadow-2xl border-l border-gray-200 flex flex-col chat-slide-in"
+          className="fixed z-40 bg-white shadow-2xl border border-t-0 border-gray-300 rounded-bl-xl flex flex-col chat-slide-in"
           style={{
             top: "80px",
+            right: "24px",
             height: "calc(100vh - 80px)",
             width: "420px",
           }}
