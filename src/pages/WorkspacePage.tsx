@@ -200,6 +200,36 @@ export default function WorkspacePage() {
     loadSchedule();
   }, [loadSchedule]);
 
+  const workspaceDetailRef = useRef<Workspace | null>(null);
+  useEffect(() => {
+    workspaceDetailRef.current = workspaceDetail;
+  }, [workspaceDetail]);
+
+  useEffect(() => {
+    if (rawFlights.length === 0) return;
+    const ws = workspaceDetailRef.current;
+    if (!ws) return;
+
+    const outbound = rawFlights.filter((f) => f.flightType === "OUTBOUND");
+    const returns = rawFlights.filter((f) => f.flightType === "RETURN");
+
+    const earliest = outbound.sort((a, b) =>
+      a.departureTime.localeCompare(b.departureTime),
+    )[0];
+    const latest = returns.sort((a, b) =>
+      b.departureTime.localeCompare(a.departureTime),
+    )[0];
+
+    const newStart = earliest
+      ? earliest.departureTime.split("T")[0]
+      : ws.startDate;
+    const newEnd = latest ? latest.departureTime.split("T")[0] : ws.endDate;
+
+    if (newStart !== ws.startDate || newEnd !== ws.endDate) {
+      handleWorkspaceUpdate(ws.title, ws.destination, newStart, newEnd);
+    }
+  }, [rawFlights]);
+
   /* ── 워크스페이스 삭제 ── */
   const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
   const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
