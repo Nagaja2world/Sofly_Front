@@ -30,14 +30,14 @@ export default function AIChatSidebar({
           className={[
             "fixed z-50",
             "top-[92px] right-5",
-            "w-11 h-11 rounded-full",
+            "px-3 h-10 rounded-full",
             "bg-white shadow-md border border-gray-200",
-            "flex items-center justify-center",
+            "flex items-center gap-1.5",
             "text-gray-600 hover:text-gray-900 hover:shadow-lg",
             "transition-shadow cursor-pointer",
           ].join(" ")}
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
             <path
               d="M18 10c0 4.418-3.582 8-8 8a8.07 8.07 0 0 1-2.5-.398L3 19l1.398-4.5A7.97 7.97 0 0 1 2 10c0-4.418 3.582-8 8-8s8 3.582 8 8Z"
               stroke="currentColor"
@@ -46,6 +46,7 @@ export default function AIChatSidebar({
               strokeLinejoin="round"
             />
           </svg>
+          <span className="font-pretendard text-body4 font-medium whitespace-nowrap">AI 채팅</span>
           {roomCount > 0 && (
             <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-0.5 bg-blue-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center leading-none">
               {roomCount > 99 ? "99+" : roomCount}
