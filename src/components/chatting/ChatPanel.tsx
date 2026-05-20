@@ -143,10 +143,8 @@ export default function ChatPanel({
         return next;
       });
       if (selectedRoomId === roomId) {
-        setSelectedRoomId((prev) => {
-          const remaining = rooms.filter((r) => r.roomId !== roomId);
-          return remaining.length > 0 ? remaining[0].roomId : null;
-        });
+        const remaining = rooms.filter((r) => r.roomId !== roomId);
+        setSelectedRoomId(remaining.length > 0 ? remaining[0].roomId : null);
         setMessages([]);
       }
     } catch (err) {
