@@ -5,7 +5,9 @@ import {
   updateWorkspace,
   uploadCoverImage,
   deleteWorkspace,
+  saveFlightToWorkspace,
   type Workspace,
+  type SaveFlightPayload,
 } from "@/api/workspaceApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
@@ -15,6 +17,7 @@ import { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
 import FlightDetailModal from "@/components/workspace/FlightDetailModal";
+import AddFlightModal from "@/components/workspace/AddFlightModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import AIChatSidebar from "@/components/workspace/AIChatSidebar";
 import FlightSection from "@/components/workspace/FlightSection";
@@ -228,6 +231,23 @@ export default function WorkspacePage() {
       handleWorkspaceUpdate(ws.title, ws.destination, newStart, newEnd);
     }
   }, [rawFlights]);
+
+  /* ── 항공편 수동 추가 ── */
+  const [showAddFlightModal, setShowAddFlightModal] = useState(false);
+  const [isSavingFlight, setIsSavingFlight] = useState(false);
+
+  const handleSaveFlight = async (payload: SaveFlightPayload) => {
+    setIsSavingFlight(true);
+    try {
+      await saveFlightToWorkspace(workspaceId, payload);
+      setShowAddFlightModal(false);
+      await loadFlights();
+    } catch (err) {
+      console.warn("[WorkspacePage] 항공편 저장 실패:", err);
+    } finally {
+      setIsSavingFlight(false);
+    }
+  };
 
   /* ── 워크스페이스 삭제 ── */
   const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
@@ -454,6 +474,7 @@ export default function WorkspacePage() {
                 onFlightDelete={(id, label) =>
                   setDeleteFlightTarget({ id, label })
                 }
+                onAdd={() => setShowAddFlightModal(true)}
               />
 
               {/* ── 여행 일정 ──
@@ -597,6 +618,14 @@ export default function WorkspacePage() {
           onClose={() => setSelectedFlight(null)}
         />
       )}
+
+      {/* ── 항공편 수동 추가 모달 ── */}
+      <AddFlightModal
+        isOpen={showAddFlightModal}
+        isSaving={isSavingFlight}
+        onClose={() => setShowAddFlightModal(false)}
+        onSave={handleSaveFlight}
+      />
     </>
   );
 }
