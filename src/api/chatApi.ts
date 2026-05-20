@@ -146,6 +146,25 @@ export async function sendMessageStream(
   }
 }
 
+/** 채팅방 삭제 */
+export async function deleteChatRoom(roomId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/chat/rooms/${roomId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok && res.status !== 204) throw new Error(`채팅방 삭제 실패: ${res.status}`);
+}
+
+/** 채팅방 제목 수정 */
+export async function updateChatRoomTitle(roomId: number, title: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/chat/rooms/${roomId}/title`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error(`채팅방 제목 수정 실패: ${res.status}`);
+}
+
 /** AI 확정 일정 저장 */
 export async function saveChatSchedule(
   roomId: number,

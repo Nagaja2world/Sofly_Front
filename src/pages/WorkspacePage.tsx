@@ -267,6 +267,7 @@ export default function WorkspacePage() {
   /* ── 사이드바 토글 ── */
   const [isMemberOpen, setIsMemberOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [chatRoomCount, setChatRoomCount] = useState(0);
 
   /* ── 여행 기록 ── */
   const {
@@ -535,10 +536,12 @@ export default function WorkspacePage() {
               isOpen={isChatOpen}
               chatWidth={chatWidth}
               workspaceId={workspaceId}
+              roomCount={chatRoomCount}
               onResizeStart={handleResizeStart}
               onCollapse={() => setIsChatOpen(false)}
               onExpand={() => setIsChatOpen(true)}
               onScheduleSaved={loadSchedule}
+              onRoomCountChange={setChatRoomCount}
             />
           </div>
         </div>
