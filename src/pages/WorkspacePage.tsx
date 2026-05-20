@@ -463,7 +463,7 @@ export default function WorkspacePage() {
             )}
 
             {/* ══ 가운데: 메인 컨텐츠 ══ */}
-            <main className="min-w-0 flex flex-col gap-8 pt-6">
+            <main className="min-w-0 flex flex-col gap-8 pt-6 pr-6">
               {/* ── 항공 일정 ── */}
               <FlightSection
                 flights={flights}
