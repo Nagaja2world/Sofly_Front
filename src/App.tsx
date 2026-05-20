@@ -9,6 +9,7 @@ import FlightSearchPage from "@/pages/FlightSearchPage";
 import FlightDetailPage from "@/pages/FlightDetailPage";
 import WorkspacePage from "@/pages/WorkspacePage";
 import WorkspacePreviewPage from "@/pages/WorkspacePreviewPage";
+import SnsPage from "./pages/SnsPage";
 
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import ConquestMapPage from "@/pages/ConquestMapPage";
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
     children: [
       { path: "flight-search", element: <FlightSearchPage /> },
       { path: "flight-detail/:id", element: <FlightDetailPage /> },
+      { path: "sns", element: <SnsPage /> },
     ],
   },
 
