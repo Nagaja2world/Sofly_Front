@@ -1,12 +1,9 @@
-import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import ChatPanel from "@/components/chatting/ChatPanel";
 
 interface AIChatSidebarProps {
   isOpen: boolean;
-  chatWidth: number;
   workspaceId: number;
   roomCount: number;
-  onResizeStart: (e: React.MouseEvent) => void;
   onCollapse: () => void;
   onExpand: () => void;
   onScheduleSaved: () => void;
@@ -17,80 +14,65 @@ export default function AIChatSidebar({
   isOpen,
   workspaceId,
   roomCount,
-  onResizeStart,
   onCollapse,
   onExpand,
   onScheduleSaved,
   onRoomCountChange,
 }: AIChatSidebarProps) {
-  if (isOpen) {
-    return (
-      <aside className="self-stretch">
-        <div
-          className={[
-            "h-full min-h-full relative",
-            "bg-white",
-            "rounded-bl-xl",
-            "border border-r-0 border-t-0 border-gray-300",
-          ].join(" ")}
-        >
-          <div
-            className="sticky top-[80px] overflow-hidden"
-            style={{ height: "calc(100vh - 80px)" }}
-          >
-            <div
-              onMouseDown={onResizeStart}
-              className="absolute left-0 top-0 bottom-0 z-10 w-2"
-              style={{ cursor: "ew-resize" }}
-              aria-hidden
-            />
-            <ChatPanel
-              workspaceId={workspaceId}
-              onScheduleSaved={onScheduleSaved}
-              onCollapse={onCollapse}
-              onRoomCountChange={onRoomCountChange}
-              className="!rounded-none !border-none h-full"
-            />
-          </div>
-        </div>
-      </aside>
-    );
-  }
-
   return (
-    <aside className="self-stretch">
-      <div
-        className={[
-          "h-full min-h-full",
-          "bg-white",
-          "rounded-bl-xl",
-          "border border-r-0 border-t-0 border-gray-300",
-          "flex flex-col items-center",
-        ].join(" ")}
-      >
+    <>
+      {/* Floating button — shown when chat panel is closed */}
+      {!isOpen && (
         <button
           type="button"
           onClick={onExpand}
-          aria-label="채팅 패널 펼치기"
+          aria-label="AI 채팅 열기"
           className={[
-            "sticky top-4",
-            "mt-4",
-            "p-1.5 rounded",
-            "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-            "transition-colors cursor-pointer",
-            "border-none bg-transparent",
-            "inline-flex items-center justify-center",
-            "relative",
+            "fixed z-50",
+            "top-[92px] right-5",
+            "w-11 h-11 rounded-full",
+            "bg-white shadow-md border border-gray-200",
+            "flex items-center justify-center",
+            "text-gray-600 hover:text-gray-900 hover:shadow-lg",
+            "transition-shadow cursor-pointer",
           ].join(" ")}
         >
-          <LayoutLeftIcon className="w-4 h-4 -scale-x-100" />
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+            <path
+              d="M18 10c0 4.418-3.582 8-8 8a8.07 8.07 0 0 1-2.5-.398L3 19l1.398-4.5A7.97 7.97 0 0 1 2 10c0-4.418 3.582-8 8-8s8 3.582 8 8Z"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
           {roomCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-0.5 bg-blue-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center leading-none">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-0.5 bg-blue-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center leading-none">
               {roomCount > 99 ? "99+" : roomCount}
             </span>
           )}
         </button>
-      </div>
-    </aside>
+      )}
+
+      {/* Overlay panel — Instagram DM style, slides in from right */}
+      {isOpen && (
+        <div
+          className="fixed right-0 z-40 bg-white shadow-2xl border-l border-gray-200 flex flex-col chat-slide-in"
+          style={{
+            top: "80px",
+            height: "calc(100vh - 80px)",
+            width: "420px",
+          }}
+        >
+          <ChatPanel
+            workspaceId={workspaceId}
+            onScheduleSaved={onScheduleSaved}
+            onCollapse={onCollapse}
+            onRoomCountChange={onRoomCountChange}
+            className="!rounded-none !border-none h-full"
+          />
+        </div>
+      )}
+    </>
   );
 }

@@ -28,7 +28,6 @@ import DangerZone from "@/components/workspace/DangerZone";
 import { useSchedule } from "@/hooks/useSchedule";
 import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { useWorkspaceFlights } from "@/hooks/useWorkspaceFlights";
-import { useChatResize } from "@/hooks/useChatResize";
 import { useTravelLogs } from "@/hooks/useTravelLogs";
 import { resolveCoverImage, type WorkspaceFlight } from "@/api/workspaceApi";
 
@@ -189,8 +188,6 @@ export default function WorkspacePage() {
     handleDeleteItem,
     handleDeleteSchedule,
   } = useSchedule(workspaceId);
-
-  const { chatWidth, handleResizeStart } = useChatResize();
 
   useEffect(() => {
     loadMembers();
@@ -398,7 +395,7 @@ export default function WorkspacePage() {
           <div
             className="grid items-start gap-6"
             style={{
-              gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr ${isChatOpen ? `${chatWidth}px` : "48px"}`,
+              gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr`,
             }}
           >
             {/* ══ 좌측: 멤버 사이드바 (펼침/접힘) ══ */}
@@ -531,20 +528,19 @@ export default function WorkspacePage() {
               />
             </main>
 
-            {/* ══ 우측: AI 채팅 사이드바 (그리드 컬럼, 드래그로 폭 조절) ══ */}
-            <AIChatSidebar
-              isOpen={isChatOpen}
-              chatWidth={chatWidth}
-              workspaceId={workspaceId}
-              roomCount={chatRoomCount}
-              onResizeStart={handleResizeStart}
-              onCollapse={() => setIsChatOpen(false)}
-              onExpand={() => setIsChatOpen(true)}
-              onScheduleSaved={loadSchedule}
-              onRoomCountChange={setChatRoomCount}
-            />
           </div>
         </div>
+
+        {/* ══ AI 채팅 (floating 버튼 + 오른쪽 오버레이 패널) ══ */}
+        <AIChatSidebar
+          isOpen={isChatOpen}
+          workspaceId={workspaceId}
+          roomCount={chatRoomCount}
+          onCollapse={() => setIsChatOpen(false)}
+          onExpand={() => setIsChatOpen(true)}
+          onScheduleSaved={loadSchedule}
+          onRoomCountChange={setChatRoomCount}
+        />
       </div>
 
       {/* ── 멤버 초대 모달 ── */}
