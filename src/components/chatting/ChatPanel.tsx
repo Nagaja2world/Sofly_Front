@@ -70,7 +70,7 @@ export default function ChatPanel({
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
-  const [isRoomListOpen, setIsRoomListOpen] = useState(true);
+  const [isRoomListOpen, setIsRoomListOpen] = useState(false);
 
   const [editingRoomId, setEditingRoomId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -253,6 +253,8 @@ export default function ChatPanel({
     }
   };
 
+  const currentRoom = rooms.find((r) => r.roomId === selectedRoomId);
+
   return (
     <section
       className={[
@@ -265,37 +267,9 @@ export default function ChatPanel({
     >
       {/* 헤더 */}
       <header className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-2">
-          {/* 채팅방 목록 토글 버튼 */}
-          <button
-            type="button"
-            onClick={() => setIsRoomListOpen((v) => !v)}
-            aria-label={isRoomListOpen ? "채팅방 목록 접기" : "채팅방 목록 펼치기"}
-            title={isRoomListOpen ? "채팅방 목록 접기" : "채팅방 목록 펼치기"}
-            className={[
-              "p-1 rounded relative",
-              "transition-colors cursor-pointer",
-              "border-none bg-transparent shrink-0",
-              "inline-flex items-center justify-center",
-              isRoomListOpen
-                ? "text-gray-900 bg-gray-100"
-                : "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-            ].join(" ")}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <rect x="1" y="2" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
-              <line x1="5" y1="2" x2="5" y2="14" stroke="currentColor" strokeWidth="1.3" />
-            </svg>
-            {!isRoomListOpen && rooms.length > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 bg-blue-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center leading-none">
-                {rooms.length}
-              </span>
-            )}
-          </button>
-          <h3 className="font-pretendard text-body2 font-semibold text-gray-900 m-0">
-            AI 채팅
-          </h3>
-        </div>
+        <h3 className="font-pretendard text-body2 font-semibold text-gray-900 m-0">
+          AI 채팅
+        </h3>
         {onCollapse && (
           <button
             type="button"
@@ -314,23 +288,48 @@ export default function ChatPanel({
         )}
       </header>
 
-      {/* 2컬럼 본문 */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* 채팅방 목록 사이드바 (토글 가능) */}
+      {/* 현재 채팅방 선택바 (클릭 시 아래로 목록 펼침) */}
+      <div className="shrink-0 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setIsRoomListOpen((v) => !v)}
+          className="w-full px-4 py-2.5 flex items-center justify-between gap-2 hover:bg-gray-50 transition-colors cursor-pointer border-none bg-white"
+        >
+          <span className="font-pretendard text-body4 font-medium text-gray-900 truncate">
+            {currentRoom?.title || (rooms.length === 0 ? "채팅방 없음" : "채팅방 선택")}
+          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {currentRoom && (
+              <span className="font-pretendard text-body5 text-gray-400">현재 채팅</span>
+            )}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden
+              className={`transition-transform duration-200 ${isRoomListOpen ? "rotate-180" : ""}`}
+            >
+              <path d="M2 5l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        </button>
+
+        {/* 드롭다운 채팅방 목록 */}
         {isRoomListOpen && (
-          <aside className="w-[110px] shrink-0 border-r border-gray-200 flex flex-col bg-background overflow-hidden">
-            <div className="flex-1 overflow-y-auto py-2 flex flex-col gap-1 px-1.5">
-              {rooms.length === 0 ? (
-                <p className="font-pretendard text-body5 text-gray-400 text-center mt-4 px-1">
-                  채팅방이 없어요
-                </p>
-              ) : (
-                rooms.map((room) => {
+          <div className="max-h-48 overflow-y-auto border-t border-gray-100 bg-[#f9f9f6]">
+            {rooms.length === 0 ? (
+              <p className="font-pretendard text-body5 text-gray-400 text-center py-3 px-4">
+                채팅방이 없어요
+              </p>
+            ) : (
+              <div className="py-1 flex flex-col">
+                {rooms.map((room) => {
                   const isActive = room.roomId === selectedRoomId;
                   const isEditing = editingRoomId === room.roomId;
 
                   return (
-                    <div key={room.roomId} className="group relative">
+                    <div key={room.roomId} className="group relative px-2">
                       {isEditing ? (
                         <input
                           autoFocus
@@ -341,26 +340,28 @@ export default function ChatPanel({
                             if (e.key === "Enter") handleRenameConfirm(room.roomId);
                             if (e.key === "Escape") setEditingRoomId(null);
                           }}
-                          className="w-full px-2 py-1.5 text-xs border border-blue-400 rounded-lg outline-none font-pretendard"
+                          className="w-full px-3 py-2 text-sm border border-blue-400 rounded-lg outline-none font-pretendard my-0.5"
                         />
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setSelectedRoomId(room.roomId)}
+                          onClick={() => {
+                            setSelectedRoomId(room.roomId);
+                            setIsRoomListOpen(false);
+                          }}
                           onDoubleClick={() => handleRenameStart(room)}
                           className={[
-                            "w-full text-left px-2 py-2 rounded-lg",
-                            "font-pretendard text-body5 transition-colors cursor-pointer",
-                            "border-none group flex items-start gap-1",
+                            "w-full text-left px-3 py-2 rounded-lg my-0.5",
+                            "font-pretendard text-body4 transition-colors cursor-pointer",
+                            "border-none group flex items-center gap-2",
                             isActive
                               ? "bg-white text-gray-900 shadow-sm"
                               : "bg-transparent text-gray-600 hover:bg-white/70",
                           ].join(" ")}
                         >
-                          <span className="flex-1 min-w-0 truncate leading-snug">
+                          <span className="flex-1 min-w-0 truncate">
                             {room.title || "새 채팅"}
                           </span>
-                          {/* 삭제 버튼 */}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -369,7 +370,7 @@ export default function ChatPanel({
                             }}
                             aria-label="채팅방 삭제"
                             className={[
-                              "shrink-0 mt-0.5 p-0 bg-transparent border-none cursor-pointer",
+                              "shrink-0 p-0 bg-transparent border-none cursor-pointer",
                               "text-gray-400 hover:text-red-500",
                               "opacity-0 group-hover:opacity-100 transition-opacity",
                             ].join(" ")}
@@ -388,20 +389,19 @@ export default function ChatPanel({
                       )}
                     </div>
                   );
-                })
-              )}
-            </div>
-
-            {/* 새 채팅방 추가 버튼 */}
-            <div className="px-1.5 py-2 border-t border-gray-200 shrink-0">
+                })}
+              </div>
+            )}
+            {/* 새 채팅 버튼 */}
+            <div className="px-2 py-1.5 border-t border-gray-100">
               <button
                 type="button"
                 onClick={handleCreateRoom}
                 disabled={isCreatingRoom}
                 aria-label="새 채팅방 만들기"
                 className={[
-                  "w-full flex items-center justify-center gap-1",
-                  "py-1.5 rounded-lg",
+                  "w-full flex items-center justify-center gap-1.5",
+                  "py-2 rounded-lg",
                   "font-pretendard text-body5 text-gray-500",
                   "border border-dashed border-gray-300",
                   "bg-transparent transition-colors",
@@ -414,100 +414,72 @@ export default function ChatPanel({
                 <span>새 채팅</span>
               </button>
             </div>
-          </aside>
+          </div>
         )}
+      </div>
 
-        {/* 채팅 영역 */}
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          {/* 룸 목록 닫힌 상태에서 새 채팅 버튼 */}
-          {!isRoomListOpen && (
-            <div className="px-3 pt-2 pb-1 border-b border-gray-100 shrink-0 flex justify-end">
-              <button
-                type="button"
-                onClick={handleCreateRoom}
-                disabled={isCreatingRoom}
-                aria-label="새 채팅방 만들기"
-                className={[
-                  "flex items-center gap-1 px-2 py-1 rounded-lg",
-                  "font-pretendard text-body5 text-gray-500",
-                  "border border-dashed border-gray-300 bg-transparent transition-colors",
-                  isCreatingRoom
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:border-gray-500 hover:text-gray-700 hover:bg-gray-50 cursor-pointer",
-                ].join(" ")}
-              >
-                <PlusIcon className="w-3.5 h-3.5 shrink-0" />
-                <span>새 채팅</span>
-              </button>
-            </div>
-          )}
-
-          {/* 메시지 스크롤 영역 */}
-          <div
-            ref={scrollRef}
-            className="flex-1 min-h-0 overflow-y-auto px-3 py-4 flex flex-col gap-3"
-          >
-            {selectedRoomId === null ? (
-              <div className="flex-1 flex items-center justify-center">
-                <p className="font-pretendard text-body4 text-gray-400 text-center m-0 px-4">
-                  왼쪽에서 채팅방을 선택하거나
-                  <br />새 채팅을 시작해보세요.
-                </p>
-              </div>
-            ) : messages.length === 0 && !isStreaming ? (
-              <div className="flex-1 flex items-center justify-center">
-                <p className="font-pretendard text-body4 text-gray-400 text-center m-0 px-4">
-                  원하시는 여행 일정을
-                  <br />
-                  자유롭게 말씀해주세요.
-                </p>
-              </div>
-            ) : (
-              <>
-                {messages.map((m) => (
-                  <div key={m.id} className="flex flex-col gap-2">
-                    <ChatMessage
-                      role={m.role}
-                      text={m.text}
-                      pageIndex={m.role === "user" ? m.pageIndex : undefined}
-                      pageTotal={m.role === "user" ? m.pageTotal : undefined}
+      {/* 메시지 스크롤 영역 */}
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-y-auto px-3 py-4 flex flex-col gap-3"
+      >
+        {selectedRoomId === null ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="font-pretendard text-body4 text-gray-400 text-center m-0 px-4">
+              위에서 채팅방을 선택하거나
+              <br />새 채팅을 시작해보세요.
+            </p>
+          </div>
+        ) : messages.length === 0 && !isStreaming ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="font-pretendard text-body4 text-gray-400 text-center m-0 px-4">
+              원하시는 여행 일정을
+              <br />
+              자유롭게 말씀해주세요.
+            </p>
+          </div>
+        ) : (
+          <>
+            {messages.map((m) => (
+              <div key={m.id} className="flex flex-col gap-2">
+                <ChatMessage
+                  role={m.role}
+                  text={m.text}
+                  pageIndex={m.role === "user" ? m.pageIndex : undefined}
+                  pageTotal={m.role === "user" ? m.pageTotal : undefined}
+                />
+                {m.role === "ai" && m.isItinerarySuggestion && (
+                  <div className="flex items-start">
+                    <SaveItineraryButton
+                      onClick={() => handleSaveSchedule(m.id)}
+                      disabled={isSavingSchedule}
+                      label={isSavingSchedule ? "저장 중..." : "이 일정 저장하기"}
                     />
-                    {m.role === "ai" && m.isItinerarySuggestion && (
-                      <div className="flex items-start">
-                        <SaveItineraryButton
-                          onClick={() => handleSaveSchedule(m.id)}
-                          disabled={isSavingSchedule}
-                          label={
-                            isSavingSchedule ? "저장 중..." : "이 일정 저장하기"
-                          }
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {isStreaming && (
-                  <div className="flex flex-col gap-2">
-                    {streamingText ? (
-                      <ChatMessage role="ai" text={streamingText} />
-                    ) : (
-                      <ThinkingIndicator />
-                    )}
                   </div>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            ))}
 
-          {/* 입력창 */}
-          <div className="px-3 py-3 border-t border-gray-200 bg-white shrink-0">
-            <ChatInput
-              placeholder="원하시는 일정을 말씀해주세요!"
-              onSend={handleSend}
-              disabled={isStreaming || selectedRoomId === null}
-            />
-          </div>
-        </div>
+            {isStreaming && (
+              <div className="flex flex-col gap-2">
+                {streamingText ? (
+                  <ChatMessage role="ai" text={streamingText} />
+                ) : (
+                  <ThinkingIndicator />
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* 입력창 */}
+      <div className="px-3 py-3 border-t border-gray-200 bg-white shrink-0">
+        <ChatInput
+          placeholder="원하시는 일정을 말씀해주세요!"
+          onSend={handleSend}
+          disabled={isStreaming || selectedRoomId === null}
+        />
       </div>
     </section>
   );
