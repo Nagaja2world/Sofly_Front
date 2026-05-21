@@ -80,8 +80,21 @@ export default function TravelLogSection({
           </button>
         }
       />
+      {/* 빈 상태 */}
+      {!snsLog && travelLogs.length === 0 && !showAddCard && (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex flex-col items-center gap-2 text-center">
+          <p className="font-pretendard text-body3 text-gray-700 m-0">
+            기록된 여행 이야기가 없어요
+          </p>
+          <p className="font-pretendard text-body4 text-gray-400 m-0">
+            + 버튼을 눌러 여행 기록을 남겨보세요.
+          </p>
+        </div>
+      )}
+
       {/* 가로 스크롤 컨테이너: 카드 폭이 396px이라 좁은 화면에선 1~2개,
           넓은 화면에선 3개 정도 자연스럽게 보임 */}
+      {(snsLog || travelLogs.length > 0 || showAddCard) && (
       <div
         className={[
           "flex gap-3 overflow-x-auto pb-2",
@@ -138,6 +151,7 @@ export default function TravelLogSection({
           />
         )}
       </div>
+      )}
     </section>
   );
 }
