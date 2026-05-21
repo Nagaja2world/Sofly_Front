@@ -267,9 +267,26 @@ export default function ChatPanel({
     >
       {/* 헤더 */}
       <header className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2 shrink-0">
-        <h3 className="font-pretendard text-body2 font-semibold text-gray-900 m-0">
-          AI 채팅
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-pretendard text-body2 font-semibold text-gray-900 m-0">
+            AI 채팅
+          </h3>
+          <button
+            type="button"
+            onClick={handleCreateRoom}
+            disabled={isCreatingRoom}
+            aria-label="새 채팅방 만들기"
+            className={[
+              "p-1 rounded",
+              "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+              "transition-colors border-none bg-transparent shrink-0",
+              "inline-flex items-center justify-center",
+              isCreatingRoom ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+            ].join(" ")}
+          >
+            <PlusIcon className="w-4 h-4" />
+          </button>
+        </div>
         {onCollapse && (
           <button
             type="button"
@@ -317,7 +334,7 @@ export default function ChatPanel({
 
         {/* 드롭다운 채팅방 목록 */}
         {isRoomListOpen && (
-          <div className="max-h-48 overflow-y-auto border-t border-gray-100 bg-[#f9f9f6]">
+          <div className="max-h-72 overflow-y-auto border-t border-gray-100 bg-[#f9f9f6]">
             {rooms.length === 0 ? (
               <p className="font-pretendard text-body5 text-gray-400 text-center py-3 px-4">
                 채팅방이 없어요
@@ -343,77 +360,73 @@ export default function ChatPanel({
                           className="w-full px-3 py-2 text-sm border border-blue-400 rounded-lg outline-none font-pretendard my-0.5"
                         />
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedRoomId(room.roomId);
-                            setIsRoomListOpen(false);
-                          }}
-                          onDoubleClick={() => handleRenameStart(room)}
+                        <div
                           className={[
-                            "w-full text-left px-3 py-2 rounded-lg my-0.5",
-                            "font-pretendard text-body4 transition-colors cursor-pointer",
-                            "border-none group flex items-center gap-2",
+                            "w-full px-3 py-2 rounded-lg my-0.5",
+                            "font-pretendard text-body4 transition-colors",
+                            "group flex items-center gap-2",
                             isActive
                               ? "bg-white text-gray-900 shadow-sm"
                               : "bg-transparent text-gray-600 hover:bg-white/70",
                           ].join(" ")}
                         >
-                          <span className="flex-1 min-w-0 truncate">
-                            {room.title || "새 채팅"}
-                          </span>
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteRoom(room.roomId);
+                            onClick={() => {
+                              setSelectedRoomId(room.roomId);
+                              setIsRoomListOpen(false);
                             }}
-                            aria-label="채팅방 삭제"
-                            className={[
-                              "shrink-0 p-0 bg-transparent border-none cursor-pointer",
-                              "text-gray-400 hover:text-red-500",
-                              "opacity-0 group-hover:opacity-100 transition-opacity",
-                            ].join(" ")}
+                            className="flex-1 min-w-0 text-left bg-transparent border-none cursor-pointer p-0 truncate font-pretendard text-body4"
                           >
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-                              <path
-                                d="M2 3.5h10M5.5 3.5V2.5h3v1M5.5 6v4M8.5 6v4M3 3.5l.5 7.5h7l.5-7.5"
-                                stroke="currentColor"
-                                strokeWidth="1.2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
+                            {room.title || "새 채팅"}
                           </button>
-                        </button>
+                          <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRenameStart(room);
+                              }}
+                              aria-label="채팅방 이름 수정"
+                              className="p-0 bg-transparent border-none cursor-pointer text-gray-400 hover:text-blue-500"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
+                                <path
+                                  d="M9.5 2.5l2 2L4 12H2v-2L9.5 2.5zM8.5 3.5l2 2"
+                                  stroke="currentColor"
+                                  strokeWidth="1.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteRoom(room.roomId);
+                              }}
+                              aria-label="채팅방 삭제"
+                              className="p-0 bg-transparent border-none cursor-pointer text-gray-400 hover:text-red-500"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+                                <path
+                                  d="M2 3.5h10M5.5 3.5V2.5h3v1M5.5 6v4M8.5 6v4M3 3.5l.5 7.5h7l.5-7.5"
+                                  stroke="currentColor"
+                                  strokeWidth="1.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   );
                 })}
               </div>
             )}
-            {/* 새 채팅 버튼 */}
-            <div className="px-2 py-1.5 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={handleCreateRoom}
-                disabled={isCreatingRoom}
-                aria-label="새 채팅방 만들기"
-                className={[
-                  "w-full flex items-center justify-center gap-1.5",
-                  "py-2 rounded-lg",
-                  "font-pretendard text-body5 text-gray-500",
-                  "border border-dashed border-gray-300",
-                  "bg-transparent transition-colors",
-                  isCreatingRoom
-                    ? "opacity-50 cursor-not-allowed"
-                    : "hover:border-gray-500 hover:text-gray-700 hover:bg-white cursor-pointer",
-                ].join(" ")}
-              >
-                <PlusIcon className="w-3.5 h-3.5 shrink-0" />
-                <span>새 채팅</span>
-              </button>
-            </div>
           </div>
         )}
       </div>
