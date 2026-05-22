@@ -1,3 +1,4 @@
+import { useState } from "react";
 import PlusIcon from "@/assets/plus.svg?react";
 import SectionHeader from "@/components/workspace/SectionHeader";
 import TravelLogCard, {
@@ -9,14 +10,12 @@ import AddTravelLogCard from "@/components/workspace/AddTravelLogCard";
 import type { JSONContent } from "@tiptap/core";
 
 export interface TravelLog {
-  /** API에서 받은 여행기 ID (undefined면 로컬 임시 카드) */
   id?: number;
-  dayNumber: number;
+  mainTitle: string | null;
   oneLineSummary?: string;
   weather?: WeatherType;
   content?: JSONContent;
   albumPhotos?: string[];
-  /** 앨범 사진 ID 목록 (사진 해제 시 사용) */
   _photoIds?: number[];
 }
 
@@ -24,11 +23,6 @@ interface TravelLogSectionProps {
   travelLogs: TravelLog[];
   snsLog: SnsLogData | null;
   showAddCard: boolean;
-  /**
-   * 워크스페이스 공유 앨범 사진 URL 배열.
-   * TravelLogCard 편집 모드 본문 툴바의 "사진" → "공유앨범에서 찾기"에서
-   * 사용할 수 있도록 각 카드에 그대로 전달.
-   */
   sharedAlbumPhotos: string[];
   onOpenAddCard: () => void;
   onCancelAddCard: () => void;
@@ -36,6 +30,8 @@ interface TravelLogSectionProps {
   onAddSnsCard: () => void;
   onSaveTravelLog: (id: number, data: TravelLogData) => void;
   onDeleteTravelLog: (id: number) => void;
+  onUpdateMainTitle: (id: number, title: string) => void;
+  onReorderLogs: (fromIdx: number, toIdx: number) => void;
   onSaveSnsLog: (data: SnsLogData) => void;
   onDeleteSnsLog: () => void;
   onUploadSnsLog: (data: SnsLogData) => void;
@@ -52,10 +48,32 @@ export default function TravelLogSection({
   onAddSnsCard,
   onSaveTravelLog,
   onDeleteTravelLog,
+  onUpdateMainTitle,
+  onReorderLogs,
   onSaveSnsLog,
   onDeleteSnsLog,
   onUploadSnsLog,
 }: TravelLogSectionProps) {
+  const [dragFromIdx, setDragFromIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  const handleDragStart = (idx: number) => setDragFromIdx(idx);
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    setDragOverIdx(idx);
+  };
+  const handleDrop = (idx: number) => {
+    if (dragFromIdx !== null && dragFromIdx !== idx) {
+      onReorderLogs(dragFromIdx, idx);
+    }
+    setDragFromIdx(null);
+    setDragOverIdx(null);
+  };
+  const handleDragEnd = () => {
+    setDragFromIdx(null);
+    setDragOverIdx(null);
+  };
+
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
@@ -80,6 +98,7 @@ export default function TravelLogSection({
           </button>
         }
       />
+
       {/* 빈 상태 */}
       {!snsLog && travelLogs.length === 0 && !showAddCard && (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex flex-col items-center gap-2 text-center">
@@ -92,65 +111,75 @@ export default function TravelLogSection({
         </div>
       )}
 
-      {/* 가로 스크롤 컨테이너: 카드 폭이 396px이라 좁은 화면에선 1~2개,
-          넓은 화면에선 3개 정도 자연스럽게 보임 */}
       {(snsLog || travelLogs.length > 0 || showAddCard) && (
-      <div
-        className={[
-          "flex gap-3 overflow-x-auto pb-2",
-          "[&::-webkit-scrollbar]:h-2",
-          "[&::-webkit-scrollbar-thumb]:bg-gray-300",
-          "[&::-webkit-scrollbar-thumb]:rounded",
-        ].join(" ")}
-      >
-        {/* SNS 카드: 항상 맨 왼쪽 */}
-        {snsLog && (
-          <div className="shrink-0">
-            <SnsLogCard
-              caption={snsLog.caption}
-              media={snsLog.media}
-              onSave={onSaveSnsLog}
-              onDelete={onDeleteSnsLog}
-              onUpload={onUploadSnsLog}
-            />
-          </div>
-        )}
+        <div
+          className={[
+            "flex gap-3 overflow-x-auto pb-2",
+            "[&::-webkit-scrollbar]:h-2",
+            "[&::-webkit-scrollbar-thumb]:bg-gray-300",
+            "[&::-webkit-scrollbar-thumb]:rounded",
+          ].join(" ")}
+        >
+          {/* SNS 카드: 항상 맨 왼쪽 */}
+          {snsLog && (
+            <div className="shrink-0">
+              <SnsLogCard
+                caption={snsLog.caption}
+                media={snsLog.media}
+                onSave={onSaveSnsLog}
+                onDelete={onDeleteSnsLog}
+                onUpload={onUploadSnsLog}
+              />
+            </div>
+          )}
 
-        {/* 일자별 카드들 */}
-        {travelLogs.map((log) => (
-          <div key={log.id ?? log.dayNumber} className="shrink-0">
-            <TravelLogCard
-              dayNumber={log.dayNumber}
-              oneLineSummary={log.oneLineSummary}
-              weather={log.weather}
-              content={log.content}
-              albumPhotos={log.albumPhotos}
-              sharedAlbumPhotos={sharedAlbumPhotos}
-              onSave={(data) => log.id != null && onSaveTravelLog(log.id, data)}
-              onDelete={() => log.id != null && onDeleteTravelLog(log.id)}
-            />
-          </div>
-        ))}
+          {/* 일자별 카드들 — 드래그 앤 드롭 */}
+          {travelLogs.map((log, idx) => (
+            <div
+              key={log.id ?? idx}
+              className={[
+                "shrink-0 transition-opacity duration-150",
+                dragFromIdx === idx ? "opacity-40" : "",
+                dragOverIdx === idx && dragFromIdx !== idx
+                  ? "ring-2 ring-primary ring-offset-1 rounded-xl"
+                  : "",
+              ].join(" ")}
+              draggable
+              onDragStart={() => handleDragStart(idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDrop={() => handleDrop(idx)}
+              onDragEnd={handleDragEnd}
+            >
+              <TravelLogCard
+                mainTitle={log.mainTitle}
+                oneLineSummary={log.oneLineSummary}
+                weather={log.weather}
+                content={log.content}
+                albumPhotos={log.albumPhotos}
+                sharedAlbumPhotos={sharedAlbumPhotos}
+                onSaveMainTitle={(title) =>
+                  log.id != null && onUpdateMainTitle(log.id, title)
+                }
+                onSave={(data) =>
+                  log.id != null && onSaveTravelLog(log.id, data)
+                }
+                onDelete={() =>
+                  log.id != null && onDeleteTravelLog(log.id)
+                }
+              />
+            </div>
+          ))}
 
-        {/* 추가 카드: "+" 버튼 클릭 시 맨 끝에 표시.
-            SNS 카드 추가 버튼 비활성화 조건 (이슈 #24 관련):
-              1) 이미 SNS 카드가 있을 때 (워크스페이스당 1개 제한)
-              2) 일자별 카드가 하나도 없을 때
-                 → SNS 게시는 여행 기록을 공유하기 위함이므로, 공유할
-                   일자별 기록이 없는 상태에서 SNS 카드만 만드는 건
-                   의미가 없음. 또한 SNS 미리보기 페이지
-                   (/workspace/:id/preview)는 "SNS 카드가 있으면
-                   일자별 카드도 최소 1개 있다"는 invariant를 전제로
-                   하므로 이 조건이 invariant를 보장함. */}
-        {showAddCard && (
-          <AddTravelLogCard
-            onAddDailyCard={onAddDailyCard}
-            onAddSnsCard={onAddSnsCard}
-            onCancel={onCancelAddCard}
-            disableSnsCard={snsLog !== null || travelLogs.length === 0}
-          />
-        )}
-      </div>
+          {/* 추가 카드 */}
+          {showAddCard && (
+            <AddTravelLogCard
+              onAddDailyCard={onAddDailyCard}
+              onAddSnsCard={onAddSnsCard}
+              onCancel={onCancelAddCard}
+              disableSnsCard={snsLog !== null || travelLogs.length === 0}
+            />
+          )}
+        </div>
       )}
     </section>
   );

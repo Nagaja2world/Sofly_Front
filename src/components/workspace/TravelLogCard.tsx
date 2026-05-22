@@ -53,8 +53,10 @@ export interface TravelLogData {
 }
 
 interface TravelLogCardProps {
-  /** 일차 번호 */
-  dayNumber: number;
+  /** 여행 기록 제목 (예: "1일차", "파리 도착날") */
+  mainTitle: string | null;
+  /** 헤더 제목 저장 콜백 */
+  onSaveMainTitle?: (title: string) => void;
   /** 한 줄 여행 텍스트 "프랑크푸르트 여행 1일차, 날씨가 다웠다." */
   oneLineSummary?: string;
   /** 한 줄 여행 우측 날씨 (선택된 1개) */
@@ -974,7 +976,8 @@ function BodyEditor({
  * - 좌우 패딩: 16px / 섹션 수직 패딩: 24px / 라벨↔본문 간격: 16px
  */
 export default function TravelLogCard({
-  dayNumber,
+  mainTitle,
+  onSaveMainTitle,
   oneLineSummary,
   weather,
   content,
@@ -987,6 +990,28 @@ export default function TravelLogCard({
 }: TravelLogCardProps) {
   /** 편집 모드 여부 */
   const [isEditing, setIsEditing] = useState(false);
+
+  /** 헤더 제목 인라인 편집 */
+  const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(mainTitle ?? "");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const startTitleEdit = () => {
+    if (readOnly) return;
+    setTitleDraft(mainTitle ?? "");
+    setIsTitleEditing(true);
+    setTimeout(() => titleInputRef.current?.focus(), 0);
+  };
+
+  const commitTitleEdit = () => {
+    setIsTitleEditing(false);
+    onSaveMainTitle?.(titleDraft.trim());
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") commitTitleEdit();
+    if (e.key === "Escape") setIsTitleEditing(false);
+  };
 
   /** 삭제 확인 모달 열림 여부 */
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -1086,9 +1111,35 @@ export default function TravelLogCard({
       <header className="shrink-0 flex items-center justify-between gap-2 px-4 py-3">
         <div className="flex items-center gap-2 min-w-0">
           <PinIcon className="w-6 h-6 shrink-0" />
-          <span className="font-pretendard text-body2 font-semibold text-gray-900 truncate">
-            {dayNumber}일차
-          </span>
+          {isTitleEditing ? (
+            <input
+              ref={titleInputRef}
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={commitTitleEdit}
+              onKeyDown={handleTitleKeyDown}
+              placeholder="제목을 입력해보세요"
+              className={[
+                "font-pretendard text-body2 font-semibold text-gray-900",
+                "border-none outline-none bg-transparent",
+                "w-full min-w-0 placeholder:text-gray-300",
+              ].join(" ")}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={startTitleEdit}
+              disabled={readOnly}
+              title={readOnly ? undefined : "클릭해서 제목 편집"}
+              className={[
+                "font-pretendard text-body2 font-semibold text-gray-900 truncate",
+                "border-none bg-transparent p-0 text-left",
+                readOnly ? "cursor-default" : "cursor-text hover:text-gray-500 transition-colors",
+              ].join(" ")}
+            >
+              {mainTitle || <span className="text-gray-300 font-normal">제목을 입력해보세요</span>}
+            </button>
+          )}
         </div>
 
         {isEditing ? (
@@ -1125,7 +1176,7 @@ export default function TravelLogCard({
             <button
               type="button"
               onClick={enterEditMode}
-              aria-label={`${dayNumber}일차 여행 기록 편집`}
+              aria-label={"여행 기록 편집"}
               className={[
                 "p-1 rounded",
                 "text-gray-500 hover:text-gray-900 hover:bg-gray-100",

@@ -46,9 +46,9 @@ export interface PhotoResponse {
 
 export interface TravellogSummaryResponse {
   id: number;
-  day: number | null;
+  mainTitle: string | null;
   travelDate: string | null;
-  title: string;
+  title: string | null;
   weather: WeatherApi | null;
   photoCount: number;
   createdAt: string;
@@ -56,10 +56,10 @@ export interface TravellogSummaryResponse {
 
 export interface TravellogResponse {
   id: number;
-  day: number | null;
+  mainTitle: string | null;
   travelDate: string | null;
-  title: string;
-  content: string;
+  title: string | null;
+  content: string | null;
   weather: WeatherApi | null;
   workspaceId: number;
   authorId: number;
@@ -70,17 +70,17 @@ export interface TravellogResponse {
 }
 
 export interface CreateTravellogPayload {
-  title: string;
-  content: string;
-  day?: number;
+  mainTitle?: string | null;
+  title?: string | null;
+  content?: string | null;
   travelDate?: string;
   weather?: WeatherApi;
 }
 
 export interface UpdateTravellogPayload {
+  mainTitle?: string | null;
   title?: string | null;
   content?: string | null;
-  day?: number | null;
   travelDate?: string | null;
   weather?: WeatherApi | null;
 }

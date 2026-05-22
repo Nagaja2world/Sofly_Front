@@ -280,6 +280,8 @@ export default function WorkspacePage() {
     handleAddDailyCard: addDailyCard,
     handleSaveTravelLog,
     handleDeleteTravelLog,
+    handleUpdateMainTitle,
+    handleReorderLogs,
   } = useTravelLogs(workspaceId);
 
   useEffect(() => {
@@ -520,6 +522,8 @@ export default function WorkspacePage() {
                 onAddSnsCard={handleAddSnsCard}
                 onSaveTravelLog={handleSaveTravelLog}
                 onDeleteTravelLog={handleDeleteTravelLog}
+                onUpdateMainTitle={handleUpdateMainTitle}
+                onReorderLogs={handleReorderLogs}
                 onSaveSnsLog={handleSaveSnsLog}
                 onDeleteSnsLog={handleDeleteSnsLog}
                 onUploadSnsLog={handleUploadSnsLog}
