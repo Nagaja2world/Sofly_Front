@@ -1195,7 +1195,7 @@ export default function TravelLogCard({
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                aria-label={`${dayNumber}일차 여행 기록 삭제`}
+                aria-label="여행 기록 삭제"
                 className={[
                   "p-1 rounded",
                   "text-gray-500 hover:text-red-600 hover:bg-red-50",
@@ -1301,10 +1301,10 @@ export default function TravelLogCard({
                 albumPhotos: (d.albumPhotos ?? []).filter((_, i) => i !== idx),
               }));
             }}
-            alt={`${dayNumber}일차 앨범`}
+            alt="앨범"
           />
         ) : albumPhotos && albumPhotos.length > 0 ? (
-          <PhotoGridView photos={albumPhotos} alt={`${dayNumber}일차 앨범`} />
+          <PhotoGridView photos={albumPhotos} alt="앨범" />
         ) : (
           <div
             className={[
@@ -1327,7 +1327,7 @@ export default function TravelLogCard({
           setShowDeleteConfirm(false);
           onDelete?.();
         }}
-        title={`${dayNumber}일차 카드를 삭제하시겠어요?`}
+        title="여행 기록을 삭제하시겠어요?"
         description={
           "삭제하면 해당 일차의 여행 기록과\n첨부된 사진이 모두 사라지며, 되돌릴 수 없습니다."
         }
