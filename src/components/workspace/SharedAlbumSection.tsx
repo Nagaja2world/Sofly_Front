@@ -4,21 +4,29 @@ import ConfirmPopup from "@/components/common/ConfirmPopup";
 import PhotoLightbox from "@/components/workspace/PhotoLightbox";
 import type { AlbumPhoto } from "@/api/albumApi";
 
+const COLS = 8;
+
 interface SharedAlbumSectionProps {
   photos: AlbumPhoto[];
   uploading?: boolean;
+  hasNext?: boolean;
+  loadingMore?: boolean;
   onAddPhotos: (files: FileList) => void;
   onRemovePhoto: (photoId: number) => void;
   onDownloadPhoto: (photoId: number) => void;
+  onLoadMore?: () => void;
   className?: string;
 }
 
 export default function SharedAlbumSection({
   photos,
   uploading = false,
+  hasNext = false,
+  loadingMore = false,
   onAddPhotos,
   onRemovePhoto,
   onDownloadPhoto,
+  onLoadMore,
   className = "",
 }: SharedAlbumSectionProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -76,23 +84,43 @@ export default function SharedAlbumSection({
       </div>
 
       {/* 앨범 박스 */}
-      <div className="rounded-xl border border-gray-300 bg-white p-4">
+      <div className="rounded-xl border border-gray-300 bg-white p-4 flex flex-col gap-3">
         {photos.length > 0 ? (
-          <div
-            className="grid gap-1 w-full"
-            style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
-          >
-            {photos.map((photo, i) => (
-              <PhotoCell
-                key={photo.id}
-                photo={photo}
-                index={i}
-                onClick={() => setLightboxIndex(i)}
-                onRemove={() => setDeleteTargetId(photo.id)}
-                onDownload={() => onDownloadPhoto(photo.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div
+              className="grid gap-1 w-full"
+              style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
+            >
+              {photos.map((photo, i) => (
+                <PhotoCell
+                  key={photo.id}
+                  photo={photo}
+                  index={i}
+                  onClick={() => setLightboxIndex(i)}
+                  onRemove={() => setDeleteTargetId(photo.id)}
+                  onDownload={() => onDownloadPhoto(photo.id)}
+                />
+              ))}
+            </div>
+            {hasNext && (
+              <button
+                type="button"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                className={[
+                  "w-full py-2.5 rounded-lg",
+                  "font-pretendard text-body3 font-medium",
+                  "border border-gray-300 bg-white",
+                  loadingMore
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-50 hover:border-gray-400 cursor-pointer",
+                  "transition-colors",
+                ].join(" ")}
+              >
+                {loadingMore ? "로딩 중..." : "더 보기"}
+              </button>
+            )}
+          </>
         ) : (
           <EmptyAlbumPlaceholder onAddClick={triggerFilePicker} />
         )}

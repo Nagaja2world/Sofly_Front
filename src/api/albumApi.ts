@@ -34,15 +34,28 @@ export interface AlbumPhoto {
 }
 
 export interface AlbumResponse {
+  albumId: number;
   workspaceId: number;
   photos: AlbumPhoto[];
+  page: number;
+  size: number;
+  totalCount: number;
+  totalPages: number;
+  hasNext: boolean;
 }
 
-/** 앨범 조회 */
-export async function fetchAlbum(workspaceId: number): Promise<AlbumResponse> {
-  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/album`, {
-    headers: authHeaders(),
-  });
+const ALBUM_PAGE_SIZE = 40;
+
+/** 앨범 조회 (페이징) */
+export async function fetchAlbum(
+  workspaceId: number,
+  page = 0,
+  size = ALBUM_PAGE_SIZE,
+): Promise<AlbumResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/workspaces/${workspaceId}/album?page=${page}&size=${size}`,
+    { headers: authHeaders() },
+  );
   return unwrap<AlbumResponse>(res);
 }
 

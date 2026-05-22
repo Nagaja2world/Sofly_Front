@@ -311,20 +311,33 @@ export default function WorkspacePage() {
   /* ── 공유 앨범 ── */
   const [sharedAlbumPhotos, setSharedAlbumPhotos] = useState<AlbumPhoto[]>([]);
   const [albumUploading, setAlbumUploading] = useState(false);
+  const [albumLoading, setAlbumLoading] = useState(false);
+  const [albumPage, setAlbumPage] = useState(0);
+  const [albumHasNext, setAlbumHasNext] = useState(false);
 
-  const loadAlbum = useCallback(async (wsId: number) => {
+  const loadAlbum = useCallback(async (wsId: number, page: number, reset: boolean) => {
+    setAlbumLoading(true);
     try {
-      const data = await fetchAlbum(wsId);
-      setSharedAlbumPhotos(data.photos ?? []);
+      const data = await fetchAlbum(wsId, page);
+      setSharedAlbumPhotos((prev) => reset ? (data.photos ?? []) : [...prev, ...(data.photos ?? [])]);
+      setAlbumPage(page);
+      setAlbumHasNext(data.hasNext ?? false);
     } catch {
       // 앨범 로드 실패 시 빈 상태 유지
+    } finally {
+      setAlbumLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!workspaceId || isNaN(workspaceId)) return;
-    loadAlbum(workspaceId);
+    loadAlbum(workspaceId, 0, true);
   }, [workspaceId, loadAlbum]);
+
+  const handleLoadMoreAlbum = () => {
+    if (!workspaceId || albumLoading || !albumHasNext) return;
+    loadAlbum(workspaceId, albumPage + 1, false);
+  };
 
   const handleAddSharedPhotos = async (files: FileList) => {
     if (!workspaceId) return;
@@ -516,9 +529,12 @@ export default function WorkspacePage() {
               <SharedAlbumSection
                 photos={sharedAlbumPhotos}
                 uploading={albumUploading}
+                hasNext={albumHasNext}
+                loadingMore={albumLoading}
                 onAddPhotos={handleAddSharedPhotos}
                 onRemovePhoto={handleRemoveSharedPhoto}
                 onDownloadPhoto={handleDownloadPhoto}
+                onLoadMore={handleLoadMoreAlbum}
               />
 
               {/* ── 위험 영역 (나가기 / 삭제) ── */}
