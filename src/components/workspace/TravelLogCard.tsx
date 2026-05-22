@@ -80,6 +80,7 @@ interface TravelLogCardProps {
    *
    * readOnly가 true이면 편집 모드 진입 불가이므로 무시됨.
    */
+  onUploadPhotos?: (files: File[]) => void;
   onSave?: (data: TravelLogData) => void;
   /**
    * 카드 삭제 콜백.
@@ -231,6 +232,104 @@ function PhotoGridView({ photos, alt }: { photos: string[]; alt: string }) {
         </div>
       ))}
     </div>
+  );
+}
+
+/** 보기 모드 앨범 — 사진 있으면 그리드 + "+" 버튼, 없으면 클릭 가능한 빈 상태 */
+function ViewModeAlbum({
+  photos,
+  readOnly,
+  onUploadPhotos,
+}: {
+  photos: string[];
+  readOnly: boolean;
+  onUploadPhotos?: (files: File[]) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleClick = () => fileInputRef.current?.click();
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    onUploadPhotos?.(Array.from(e.target.files));
+    e.target.value = "";
+  };
+
+  const canUpload = !readOnly && !!onUploadPhotos;
+
+  return (
+    <>
+      {photos.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-3 gap-2">
+            {photos.map((src, i) => (
+              <div
+                key={i}
+                className="relative aspect-square rounded-lg overflow-hidden bg-gray-200"
+              >
+                <img
+                  src={src}
+                  alt={`앨범 ${i + 1}`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+            {canUpload && (
+              <button
+                type="button"
+                onClick={handleClick}
+                aria-label="사진 추가"
+                className={[
+                  "aspect-square rounded-lg",
+                  "border border-dashed border-gray-300 bg-white",
+                  "text-gray-400 hover:text-gray-700 hover:border-gray-500",
+                  "transition-colors cursor-pointer",
+                  "flex items-center justify-center",
+                ].join(" ")}
+              >
+                <PlusIcon className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : canUpload ? (
+        <button
+          type="button"
+          onClick={handleClick}
+          className={[
+            "w-full aspect-square max-w-[120px] rounded-lg",
+            "border border-dashed border-gray-300 bg-white",
+            "text-gray-400 hover:text-gray-700 hover:border-gray-500",
+            "transition-colors cursor-pointer",
+            "flex items-center justify-center",
+          ].join(" ")}
+          aria-label="사진 추가"
+        >
+          <PlusIcon className="w-6 h-6" />
+        </button>
+      ) : (
+        <div
+          className={[
+            "h-24 rounded-lg border border-dashed border-gray-300",
+            "flex items-center justify-center",
+            "font-pretendard text-body4 text-gray-500",
+          ].join(" ")}
+        >
+          등록된 사진이 없습니다.
+        </div>
+      )}
+
+      {canUpload && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleChange}
+        />
+      )}
+    </>
   );
 }
 
@@ -983,6 +1082,7 @@ export default function TravelLogCard({
   content,
   albumPhotos,
   sharedAlbumPhotos,
+  onUploadPhotos,
   onSave,
   onDelete,
   readOnly = false,
@@ -1303,18 +1403,12 @@ export default function TravelLogCard({
             }}
             alt="앨범"
           />
-        ) : albumPhotos && albumPhotos.length > 0 ? (
-          <PhotoGridView photos={albumPhotos} alt="앨범" />
         ) : (
-          <div
-            className={[
-              "h-24 rounded-lg border border-dashed border-gray-300",
-              "flex items-center justify-center",
-              "font-pretendard text-body4 text-gray-500",
-            ].join(" ")}
-          >
-            등록된 사진이 없습니다.
-          </div>
+          <ViewModeAlbum
+            photos={albumPhotos ?? []}
+            readOnly={readOnly}
+            onUploadPhotos={onUploadPhotos}
+          />
         )}
       </div>
 

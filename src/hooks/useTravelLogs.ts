@@ -151,6 +151,21 @@ export function useTravelLogs(workspaceId: number) {
     [workspaceId],
   );
 
+  /** 앨범 사진 직접 업로드 (view 모드에서 즉시 저장) */
+  const handleUploadTravellogPhotos = useCallback(
+    async (logId: number, files: File[]) => {
+      try {
+        const res = await uploadTravellogPhotos(workspaceId, logId, files);
+        setTravelLogs((prev) =>
+          prev.map((log) => (log.id === logId ? apiToTravelLog(res) : log)),
+        );
+      } catch (err) {
+        console.warn("[useTravelLogs] 사진 업로드 실패:", err);
+      }
+    },
+    [workspaceId],
+  );
+
   /** 카드 삭제 */
   const handleDeleteTravelLog = useCallback(
     async (logId: number) => {
@@ -182,6 +197,7 @@ export function useTravelLogs(workspaceId: number) {
     handleAddDailyCard,
     handleUpdateMainTitle,
     handleSaveTravelLog,
+    handleUploadTravellogPhotos,
     handleDeleteTravelLog,
     handleReorderLogs,
   };
