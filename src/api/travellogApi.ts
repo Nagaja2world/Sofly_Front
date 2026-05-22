@@ -87,12 +87,20 @@ export interface UpdateTravellogPayload {
 
 /* ── API 함수 ── */
 
-/** 여행기 목록 조회 */
+/** 여행기 목록 조회 (summary) */
 export async function fetchTravellogs(workspaceId: number): Promise<TravellogSummaryResponse[]> {
   const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/travellogs`, {
     headers: authHeaders(),
   });
   return unwrap<TravellogSummaryResponse[]>(res);
+}
+
+/** 여행기 전체 조회 (content 포함 — 단건 N번 호출 대체) */
+export async function fetchTravellogsFull(workspaceId: number): Promise<TravellogResponse[]> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/travellogs/full`, {
+    headers: authHeaders(),
+  });
+  return unwrap<TravellogResponse[]>(res);
 }
 
 /** 여행기 단건 조회 */

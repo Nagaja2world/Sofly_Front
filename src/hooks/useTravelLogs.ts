@@ -6,8 +6,7 @@ import type {
 } from "@/components/workspace/TravelLogCard";
 import type { TravelLog } from "@/components/workspace/TravelLogSection";
 import {
-  fetchTravellogs,
-  fetchTravellog,
+  fetchTravellogsFull,
   createTravellog,
   updateTravellog,
   deleteTravellog,
@@ -86,17 +85,14 @@ export function useTravelLogs(workspaceId: number) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** 목록 로드 */
+  /** 목록 로드 (full 엔드포인트 — 1번 호출로 content 포함 전체 조회) */
   const loadTravelLogs = useCallback(async () => {
     if (!workspaceId || isNaN(workspaceId)) return;
     setIsLoading(true);
     setError(null);
     try {
-      const summaries = await fetchTravellogs(workspaceId);
-      const details = await Promise.all(
-        summaries.map((s) => fetchTravellog(workspaceId, s.id)),
-      );
-      setTravelLogs(details.map(apiToTravelLog));
+      const logs = await fetchTravellogsFull(workspaceId);
+      setTravelLogs(logs.map(apiToTravelLog));
     } catch (err) {
       console.warn("[useTravelLogs] 목록 로드 실패:", err);
       setError("여행 기록을 불러오지 못했습니다.");
