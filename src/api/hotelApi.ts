@@ -1,7 +1,4 @@
-const SUPPLY_API_BASE =
-  import.meta.env.VITE_SUPPLY_API_BASE_URL ??
-  import.meta.env.VITE_API_BASE_URL ??
-  "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 /* ── Types ── */
 
@@ -110,7 +107,7 @@ export async function searchHotelDestinations(
   query: string,
 ): Promise<HotelDestination[]> {
   const res = await fetch(
-    `${SUPPLY_API_BASE}/supply/hotels/destinations?query=${encodeURIComponent(query)}`,
+    `${API_BASE}/api/v1/hotels/destinations?query=${encodeURIComponent(query)}`,
   );
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
   return res.json();
@@ -120,7 +117,7 @@ export async function searchHotelOffers(
   params: HotelSearchInput,
 ): Promise<HotelOffersResponse> {
   const res = await fetch(
-    `${SUPPLY_API_BASE}/supply/hotels/offers?${buildQuery(params)}`,
+    `${API_BASE}/api/v1/hotels/offers?${buildQuery(params)}`,
   );
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
   return res.json();
@@ -130,7 +127,7 @@ export async function fetchHotelSortOptions(
   params: HotelSearchInput,
 ): Promise<HotelSortOption[]> {
   const res = await fetch(
-    `${SUPPLY_API_BASE}/supply/hotels/sort-options?${buildQuery(params)}`,
+    `${API_BASE}/api/v1/hotels/sort-options?${buildQuery(params)}`,
   );
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
   return res.json();
@@ -140,7 +137,7 @@ export async function fetchHotelFilterOptions(
   params: HotelSearchInput,
 ): Promise<HotelFilterCategory[]> {
   const res = await fetch(
-    `${SUPPLY_API_BASE}/supply/hotels/filter-options?${buildQuery(params)}`,
+    `${API_BASE}/api/v1/hotels/filter-options?${buildQuery(params)}`,
   );
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
   return res.json();
