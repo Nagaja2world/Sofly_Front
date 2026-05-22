@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchWorkspaceById,
@@ -30,6 +30,13 @@ import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { useWorkspaceFlights } from "@/hooks/useWorkspaceFlights";
 import { useTravelLogs } from "@/hooks/useTravelLogs";
 import { resolveCoverImage, type WorkspaceFlight } from "@/api/workspaceApi";
+import {
+  fetchAlbum,
+  uploadAlbumPhotos,
+  deleteAlbumPhoto,
+  getPhotoDownloadUrl,
+  type AlbumPhoto,
+} from "@/api/albumApi";
 
 /* (목업 데이터 제거됨 — 멤버/항공편/일정/여행기록 모두 API에서 로드) */
 
@@ -86,7 +93,8 @@ export default function WorkspacePage() {
       .catch((err) =>
         console.warn("[WorkspacePage] 워크스페이스 조회 실패:", err),
       );
-  }, [workspaceId]);
+    loadAlbum(workspaceId);
+  }, [workspaceId, loadAlbum]);
 
   const handleWorkspaceUpdate = async (
     title: string,
@@ -301,62 +309,54 @@ export default function WorkspacePage() {
     alert("SNS 페이지에 업로드되었습니다. (TODO: 실제 게시 로직 구현)");
   };
 
-  /* ──────────────────────────────────────────
-     공유 앨범 (이슈 #??: 워크스페이스 공유 앨범)
-     ──────────────────────────────────────────
-     여행에서 함께 놀러간 사람들끼리 찍은 사진을 모아두는 공간.
-     "여행 기록" 섹션 바로 아래에 별도 섹션으로 렌더됨.
-     5열 × 3행이 한 화면에 보이고, 그 이상은 박스 내부에서 세로 스크롤.
+  /* ── 공유 앨범 ── */
+  const [sharedAlbumPhotos, setSharedAlbumPhotos] = useState<AlbumPhoto[]>([]);
+  const [albumUploading, setAlbumUploading] = useState(false);
 
-     현재는 ObjectURL로 클라이언트 미리보기만 처리하고 있으며,
-     실제 업로드/조회/삭제 로직은 useSharedAlbum 같은 훅으로 옮기는 것을
-     권장 (useTravelLogs와 동일한 패턴).
-     TODO(API/Backend 담당): 백엔드 엔드포인트가 준비되면
-       - GET    /workspaces/:id/shared-album       → 목록 로드
-       - POST   /workspaces/:id/shared-album       → 사진 업로드 (multipart)
-       - DELETE /workspaces/:id/shared-album/:pid  → 사진 삭제
-     로 교체. 그땐 useTravelLogs처럼 커스텀 훅으로 빼고
-     setSharedAlbumPhotos / objectUrl 관리 코드는 제거 가능. */
-  const [sharedAlbumPhotos, setSharedAlbumPhotos] = useState<string[]>([]);
-
-  /** 공유 앨범에서 만들어진 ObjectURL을 추적해서 페이지 언마운트 시 일괄 해제.
-   *  API 연결 시 서버 URL을 쓰게 되면 이 ref와 useEffect는 모두 제거. */
-  const sharedAlbumObjectUrlsRef = useRef<string[]>([]);
-
-  useEffect(() => {
-    return () => {
-      sharedAlbumObjectUrlsRef.current.forEach((url) =>
-        URL.revokeObjectURL(url),
-      );
-      sharedAlbumObjectUrlsRef.current = [];
-    };
+  const loadAlbum = useCallback(async (wsId: number) => {
+    try {
+      const data = await fetchAlbum(wsId);
+      setSharedAlbumPhotos(data.photos ?? []);
+    } catch {
+      // 앨범 로드 실패 시 빈 상태 유지
+    }
   }, []);
 
-  /** 공유 앨범에 사진 추가
-   *  현재: File → ObjectURL → state append (즉시 미리보기)
-   *  추후: FormData 업로드 → 서버 URL 응답 → state append 로 교체. */
-  const handleAddSharedPhotos = (files: FileList) => {
-    const urls: string[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const url = URL.createObjectURL(files[i]);
-      urls.push(url);
-      sharedAlbumObjectUrlsRef.current.push(url);
+  const handleAddSharedPhotos = async (files: FileList) => {
+    if (!workspaceId) return;
+    setAlbumUploading(true);
+    try {
+      const uploaded = await uploadAlbumPhotos(Number(workspaceId), Array.from(files));
+      setSharedAlbumPhotos((prev) => [...prev, ...uploaded]);
+    } catch {
+      alert("사진 업로드에 실패했습니다.");
+    } finally {
+      setAlbumUploading(false);
     }
-    setSharedAlbumPhotos((prev) => [...prev, ...urls]);
   };
 
-  /** 공유 앨범에서 사진 한 장 삭제
-   *  ObjectURL이면 즉시 revoke로 메모리 회수. */
-  const handleRemoveSharedPhoto = (index: number) => {
-    setSharedAlbumPhotos((prev) => {
-      const target = prev[index];
-      if (target && target.startsWith("blob:")) {
-        URL.revokeObjectURL(target);
-        sharedAlbumObjectUrlsRef.current =
-          sharedAlbumObjectUrlsRef.current.filter((u) => u !== target);
-      }
-      return prev.filter((_, i) => i !== index);
-    });
+  const handleRemoveSharedPhoto = async (photoId: number) => {
+    if (!workspaceId) return;
+    try {
+      await deleteAlbumPhoto(Number(workspaceId), photoId);
+      setSharedAlbumPhotos((prev) => prev.filter((p) => p.id !== photoId));
+    } catch {
+      alert("사진 삭제에 실패했습니다.");
+    }
+  };
+
+  const handleDownloadPhoto = async (photoId: number) => {
+    if (!workspaceId) return;
+    try {
+      const url = await getPhotoDownloadUrl(Number(workspaceId), photoId);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "";
+      a.target = "_blank";
+      a.click();
+    } catch {
+      alert("다운로드 URL을 가져오는 데 실패했습니다.");
+    }
   };
 
   /* ── 워크스페이스명 ── */
@@ -496,7 +496,7 @@ export default function WorkspacePage() {
                 travelLogs={travelLogs}
                 snsLog={snsLog}
                 showAddCard={showAddCard}
-                sharedAlbumPhotos={sharedAlbumPhotos}
+                sharedAlbumPhotos={sharedAlbumPhotos.map((p) => p.url)}
                 onOpenAddCard={handleOpenAddCard}
                 onCancelAddCard={handleCancelAddCard}
                 onAddDailyCard={handleAddDailyCard}
@@ -508,16 +508,13 @@ export default function WorkspacePage() {
                 onUploadSnsLog={handleUploadSnsLog}
               />
 
-              {/* ── 공유 앨범 ──
-                  여행에서 함께 놀러간 사람들끼리 찍은 사진들을 모아두는 섹션.
-                  - 5열 × 3행(=15장)이 한 화면에 보이고, 그 이상이면 박스 내부에서 세로 스크롤
-                  - 사진 클릭 시 라이트박스 모달이 열려 확대 보기 (← → / ESC 단축키)
-                  - 사진 hover 시 우상단 "×" 버튼 → 삭제 확인 모달
-                  TODO(API/Backend 담당): useSharedAlbum 훅으로 분리하고 실제 API 연결 */}
+              {/* ── 공유 앨범 ── */}
               <SharedAlbumSection
                 photos={sharedAlbumPhotos}
+                uploading={albumUploading}
                 onAddPhotos={handleAddSharedPhotos}
                 onRemovePhoto={handleRemoveSharedPhoto}
+                onDownloadPhoto={handleDownloadPhoto}
               />
 
               {/* ── 위험 영역 (나가기 / 삭제) ── */}
