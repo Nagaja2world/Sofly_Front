@@ -213,27 +213,6 @@ function WeatherIconGroupEdit({
 }
 
 /** 보기 모드 사진 그리드 (3장 가로 배치, 빈 슬롯은 출력 안함) — 앨범에서 사용 */
-function PhotoGridView({ photos, alt }: { photos: string[]; alt: string }) {
-  if (!photos || photos.length === 0) return null;
-
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      {photos.slice(0, 3).map((src, i) => (
-        <div
-          key={i}
-          className="relative aspect-square rounded-lg overflow-hidden bg-gray-200"
-        >
-          <img
-            src={src}
-            alt={`${alt} ${i + 1}`}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /** 보기 모드 앨범 — 사진 있으면 그리드 + "+" 버튼, 없으면 클릭 가능한 빈 상태 */
 function ViewModeAlbum({
