@@ -93,8 +93,7 @@ export default function WorkspacePage() {
       .catch((err) =>
         console.warn("[WorkspacePage] 워크스페이스 조회 실패:", err),
       );
-    loadAlbum(workspaceId);
-  }, [workspaceId, loadAlbum]);
+  }, [workspaceId]);
 
   const handleWorkspaceUpdate = async (
     title: string,
@@ -321,6 +320,11 @@ export default function WorkspacePage() {
       // 앨범 로드 실패 시 빈 상태 유지
     }
   }, []);
+
+  useEffect(() => {
+    if (!workspaceId || isNaN(workspaceId)) return;
+    loadAlbum(workspaceId);
+  }, [workspaceId, loadAlbum]);
 
   const handleAddSharedPhotos = async (files: FileList) => {
     if (!workspaceId) return;
