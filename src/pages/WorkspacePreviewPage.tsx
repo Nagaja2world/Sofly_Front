@@ -34,7 +34,7 @@ interface ItineraryDay {
 }
 
 interface TravelLog {
-  dayNumber: number;
+  mainTitle: string | null;
   oneLineSummary?: string;
   weather?: WeatherType;
   content?: JSONContent;
@@ -233,21 +233,21 @@ const MOCK_BODY_CONTENT: JSONContent = {
 
 const MOCK_TRAVEL_LOGS: TravelLog[] = [
   {
-    dayNumber: 1,
+    mainTitle: "1일차",
     oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
     weather: "sunny",
     content: MOCK_BODY_CONTENT,
     albumPhotos: [],
   },
   {
-    dayNumber: 2,
+    mainTitle: "2일차",
     oneLineSummary: "프랑크푸르트 여행 2일차, 날씨가 다웠다.",
     weather: "sunny",
     content: MOCK_BODY_CONTENT,
     albumPhotos: [],
   },
   {
-    dayNumber: 3,
+    mainTitle: "3일차",
     oneLineSummary: "프랑크푸르트 여행 3일차, 날씨가 다웠다.",
     weather: "sunny",
     content: MOCK_BODY_CONTENT,
@@ -452,14 +452,15 @@ export default function WorkspacePreviewPage() {
                     "[&::-webkit-scrollbar-thumb]:rounded",
                   ].join(" ")}
                 >
-                  {travelLogs.map((log) => (
-                    <div key={log.dayNumber} className="shrink-0">
+                  {travelLogs.map((log, i) => (
+                    <div key={i} className="shrink-0">
                       <TravelLogCard
-                        dayNumber={log.dayNumber}
+                        mainTitle={log.mainTitle}
                         oneLineSummary={log.oneLineSummary}
                         weather={log.weather}
                         content={log.content}
                         albumPhotos={log.albumPhotos}
+                        readOnly
                       />
                     </div>
                   ))}

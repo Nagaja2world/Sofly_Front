@@ -12,27 +12,20 @@ export default function WorkspaceInfoBar({ workspace, onSave, onSaveImage }: Wor
   const [isSaving, setIsSaving] = useState(false);
   const [title, setTitle] = useState(workspace.title);
   const [destination, setDestination] = useState(workspace.destination);
-  const [startDate, setStartDate] = useState(workspace.startDate);
-  const [endDate, setEndDate] = useState(workspace.endDate);
 
   /* 커버 이미지 */
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // workspace prop이 바뀌면 폼 초기화
   useEffect(() => {
     setTitle(workspace.title);
     setDestination(workspace.destination);
-    setStartDate(workspace.startDate);
-    setEndDate(workspace.endDate);
   }, [workspace]);
 
   const handleCancel = () => {
     setTitle(workspace.title);
     setDestination(workspace.destination);
-    setStartDate(workspace.startDate);
-    setEndDate(workspace.endDate);
     setImageFile(null);
     setImagePreview(null);
     setIsEditing(false);
@@ -49,7 +42,7 @@ export default function WorkspaceInfoBar({ workspace, onSave, onSaveImage }: Wor
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave(title, destination, startDate, endDate);
+      await onSave(title, destination, workspace.startDate, workspace.endDate);
       if (imageFile) {
         await onSaveImage(imageFile);
       }
@@ -121,24 +114,6 @@ export default function WorkspaceInfoBar({ workspace, onSave, onSaveImage }: Wor
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
               placeholder="목적지"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">출발일</label>
-            <input
-              type="date"
-              className={inputClass}
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-pretendard text-body5 text-gray-500">귀국일</label>
-            <input
-              type="date"
-              className={inputClass}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
         </div>

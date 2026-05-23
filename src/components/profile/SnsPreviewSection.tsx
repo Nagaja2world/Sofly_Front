@@ -47,7 +47,6 @@ export default function SnsPreviewSection({
 
   /** 상세 팝업 상태 — SNS 페이지와 동일한 패턴 */
   const [selectedPost, setSelectedPost] = useState<SnsPost | null>(null);
-  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
 
   /** 워크스페이스 가져오기 — 공통 훅 */
   const importer = useImportWorkspace();
@@ -58,15 +57,6 @@ export default function SnsPreviewSection({
 
   const handleClosePopup = () => {
     setSelectedPost(null);
-  };
-
-  const handleToggleFollow = (authorId: string) => {
-    setFollowingIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(authorId)) next.delete(authorId);
-      else next.add(authorId);
-      return next;
-    });
   };
 
   const handleSeeMore = () => {
@@ -99,11 +89,7 @@ export default function SnsPreviewSection({
         key={selectedPost?.id ?? "closed"}
         post={selectedPost}
         onClose={handleClosePopup}
-        onToggleFollow={handleToggleFollow}
         onImportWorkspaceRequest={importer.request}
-        isFollowing={
-          selectedPost ? followingIds.has(selectedPost.author.id) : false
-        }
       />
 
       {/* ── 워크스페이스 가져오기 확인 팝업 ── */}

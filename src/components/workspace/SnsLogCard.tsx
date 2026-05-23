@@ -2,20 +2,11 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import PlusIcon from "@/assets/plus.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
+import type { SnsMedia } from "@/types/snsType";
 
 /* ══════════════════════════════════════════
    타입
    ══════════════════════════════════════════ */
-
-/** 미디어 한 개 (사진 or 영상) */
-export interface SnsMedia {
-  /** 고유 id (편집/삭제 시 사용) */
-  id: string;
-  /** 미디어 타입 */
-  type: "image" | "video";
-  /** 표시 URL (현재는 ObjectURL, API 연결 시 서버 URL로 교체) */
-  url: string;
-}
 
 /**
  * 편집 모드에서 부모로 전달되는 데이터 묶음

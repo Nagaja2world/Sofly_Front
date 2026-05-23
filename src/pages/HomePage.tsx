@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/common/Header";
 import SearchModeBar from "@/components/SearchModeBar";
+import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
+import { buildHotelSearchParams } from "@/pages/HotelSearchPage";
 import FeatureCard from "@/components/homepage/FeatureCard";
 import useAuthStore, { OAUTH_URLS } from "@/store/useAuthStore";
 //import type { Airport } from "@/components/searchbar/AirportSearchDropdown";
@@ -56,6 +58,13 @@ export default function HomePage() {
     const qs = buildFlightSearchQuery(params);
     navigate(`/flight-search?${qs}`);
   };
+
+  const handleHotelSearch = useCallback(
+    (params: HotelSearchBarParams) => {
+      navigate(`/hotel-search?${buildHotelSearchParams(params).toString()}`);
+    },
+    [navigate],
+  );
 
   /* 소셜 로그인: 백엔드 OAuth URL로 리다이렉트 */
   const handleKakaoLogin = () => {
@@ -121,7 +130,10 @@ export default function HomePage() {
         {/* ── SearchModeBar: 고정 음수 마진으로 Hero 하단에 겹침 ── */}
         <div className="mt-[220px] z-10 px-4 relative">
           <div className="max-w-[1200px] w-full mx-auto">
-            <SearchModeBar onFlightSearch={handleSearch} />
+            <SearchModeBar
+              onFlightSearch={handleSearch}
+              onHotelSearch={handleHotelSearch}
+            />
           </div>
         </div>
 

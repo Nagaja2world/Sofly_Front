@@ -19,6 +19,10 @@ interface CalendarDropdownProps {
   onChange: (range: DateRange) => void;
   /** 드롭다운 닫기 */
   onClose: () => void;
+  /** start 버튼 라벨 (기본: "가는편") */
+  startLabel?: string;
+  /** end 버튼 라벨 (기본: "오는편") */
+  endLabel?: string;
   /** 추가 클래스 */
   className?: string;
 }
@@ -63,6 +67,8 @@ export default function CalendarDropdown({
   onOpen,
   onChange,
   onClose,
+  startLabel = "가는편",
+  endLabel = "오는편",
   className = "",
 }: CalendarDropdownProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -129,23 +135,23 @@ export default function CalendarDropdown({
       ref={ref}
       className={["relative flex gap-3 flex-[2] min-w-0", className].join(" ")}
     >
-      {/* 가는편 트리거 */}
+      {/* start 트리거 */}
       <SelectField
         className="flex-1 min-w-0"
         bg="gray"
         value={dateRange.start ? fmtDate(dateRange.start) : undefined}
-        placeholder="가는편"
+        placeholder={startLabel}
         rightIcon={<CalendarIcon />}
         onClick={() => onOpen("start")}
         isOpen={isOpen && selecting === "start"}
       />
 
-      {/* 오는편 트리거 */}
+      {/* end 트리거 */}
       <SelectField
         className="flex-1 min-w-0"
         bg="gray"
         value={dateRange.end ? fmtDate(dateRange.end) : undefined}
-        placeholder="오는편"
+        placeholder={endLabel}
         rightIcon={<CalendarIcon />}
         onClick={() => onOpen("end")}
         isOpen={isOpen && selecting === "end"}
@@ -273,8 +279,8 @@ export default function CalendarDropdown({
           <div className="mt-3 pt-3 border-t border-gray-200">
             <p className="font-pretendard text-body4 text-gray-500 text-center m-0">
               {selecting === "start"
-                ? "가는편 날짜를 선택하세요"
-                : "오는편 날짜를 선택하세요"}
+                ? `${startLabel} 날짜를 선택하세요`
+                : `${endLabel} 날짜를 선택하세요`}
             </p>
           </div>
         </div>

@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchWorkspaceById,
   updateWorkspace,
   uploadCoverImage,
   deleteWorkspace,
+  saveFlightToWorkspace,
   type Workspace,
+  type SaveFlightPayload,
 } from "@/api/workspaceApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
@@ -15,6 +17,7 @@ import { type SnsLogData } from "@/components/workspace/SnsLogCard";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
 import FlightDetailModal from "@/components/workspace/FlightDetailModal";
+import AddFlightModal from "@/components/workspace/AddFlightModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import AIChatSidebar from "@/components/workspace/AIChatSidebar";
 import FlightSection from "@/components/workspace/FlightSection";
@@ -25,9 +28,17 @@ import DangerZone from "@/components/workspace/DangerZone";
 import { useSchedule } from "@/hooks/useSchedule";
 import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { useWorkspaceFlights } from "@/hooks/useWorkspaceFlights";
-import { useChatResize } from "@/hooks/useChatResize";
 import { useTravelLogs } from "@/hooks/useTravelLogs";
 import { resolveCoverImage, type WorkspaceFlight } from "@/api/workspaceApi";
+import {
+  fetchAlbum,
+  uploadAlbumPhotos,
+  deleteAlbumPhoto,
+  getPhotoDownloadUrl,
+  type AlbumPhoto,
+} from "@/api/albumApi";
+import { useIsCompact } from "@/hooks/useMediaQuery";
+import CompactWorkspaceView from "@/components/workspace/compact/CompactWorkspaceView";
 
 /* (목업 데이터 제거됨 — 멤버/항공편/일정/여행기록 모두 API에서 로드) */
 
@@ -61,6 +72,7 @@ import { resolveCoverImage, type WorkspaceFlight } from "@/api/workspaceApi";
  *  여행 일정의 지도 보기는 ItineraryDayCard 내부에서 인라인 패널로
  *  처리되므로 부모(WorkspacePage)에서 별도 콜백을 넘길 필요 없음.
  */
+
 export default function WorkspacePage() {
   const navigate = useNavigate();
   const { id: workspaceIdParam } = useParams<{ id: string }>();
@@ -72,7 +84,6 @@ export default function WorkspacePage() {
     navigate("/");
   };
 
-  /* ── 워크스페이스 상세 (API) ── */
   const [workspaceDetail, setWorkspaceDetail] = useState<Workspace | null>(
     null,
   );
@@ -119,7 +130,7 @@ export default function WorkspacePage() {
     if (!workspaceDetail) return;
     await handleWorkspaceUpdate(
       workspaceDetail.title,
-      newCountry, // ← destination을 newCountry로 덮어씀
+      newCountry,
       workspaceDetail.startDate,
       workspaceDetail.endDate,
     );
@@ -134,16 +145,11 @@ export default function WorkspacePage() {
     rawFlights: WorkspaceFlight[] | undefined,
   ): string {
     if (!rawFlights || rawFlights.length === 0) return "";
-
-    /* 가는편(OUTBOUND)을 우선 찾고, 없으면 첫 항목 사용 */
     const outbound =
       rawFlights.find((f) => f.flightType === "OUTBOUND") ?? rawFlights[0];
-
-    /* 도착 도시명이 있으면 도시명, 없으면 공항코드로 폴백 */
     return outbound.arrivalCity ?? outbound.arrivalAirport ?? "";
   }
 
-  /* ── 커스텀 훅 ── */
   const {
     members,
     myRole,
@@ -187,7 +193,8 @@ export default function WorkspacePage() {
     handleDeleteSchedule,
   } = useSchedule(workspaceId);
 
-  const { chatWidth, handleResizeStart } = useChatResize();
+  /* 좁은 화면(<768px) 여부 — true면 CompactWorkspaceView 렌더 */
+  const isCompact = useIsCompact();
 
   useEffect(() => {
     loadMembers();
@@ -199,7 +206,52 @@ export default function WorkspacePage() {
     loadSchedule();
   }, [loadSchedule]);
 
-  /* ── 워크스페이스 삭제 ── */
+  const workspaceDetailRef = useRef<Workspace | null>(null);
+  useEffect(() => {
+    workspaceDetailRef.current = workspaceDetail;
+  }, [workspaceDetail]);
+
+  useEffect(() => {
+    if (rawFlights.length === 0) return;
+    const ws = workspaceDetailRef.current;
+    if (!ws) return;
+
+    const outbound = rawFlights.filter((f) => f.flightType === "OUTBOUND");
+    const returns = rawFlights.filter((f) => f.flightType === "RETURN");
+
+    const earliest = outbound.sort((a, b) =>
+      a.departureTime.localeCompare(b.departureTime),
+    )[0];
+    const latest = returns.sort((a, b) =>
+      b.departureTime.localeCompare(a.departureTime),
+    )[0];
+
+    const newStart = earliest
+      ? earliest.departureTime.split("T")[0]
+      : ws.startDate;
+    const newEnd = latest ? latest.departureTime.split("T")[0] : ws.endDate;
+
+    if (newStart !== ws.startDate || newEnd !== ws.endDate) {
+      handleWorkspaceUpdate(ws.title, ws.destination, newStart, newEnd);
+    }
+  }, [rawFlights]);
+
+  const [showAddFlightModal, setShowAddFlightModal] = useState(false);
+  const [isSavingFlight, setIsSavingFlight] = useState(false);
+
+  const handleSaveFlight = async (payload: SaveFlightPayload) => {
+    setIsSavingFlight(true);
+    try {
+      await saveFlightToWorkspace(workspaceId, payload);
+      setShowAddFlightModal(false);
+      await loadFlights();
+    } catch (err) {
+      console.warn("[WorkspacePage] 항공편 저장 실패:", err);
+    } finally {
+      setIsSavingFlight(false);
+    }
+  };
+
   const [showDeleteWorkspace, setShowDeleteWorkspace] = useState(false);
   const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
 
@@ -214,17 +266,19 @@ export default function WorkspacePage() {
     }
   };
 
-  /* ── 사이드바 토글 ── */
   const [isMemberOpen, setIsMemberOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [chatRoomCount, setChatRoomCount] = useState(0);
 
-  /* ── 여행 기록 ── */
   const {
     travelLogs,
     loadTravelLogs,
     handleAddDailyCard: addDailyCard,
     handleSaveTravelLog,
+    handleUploadTravellogPhotos,
     handleDeleteTravelLog,
+    handleUpdateMainTitle,
+    handleReorderLogs,
   } = useTravelLogs(workspaceId);
 
   useEffect(() => {
@@ -253,65 +307,81 @@ export default function WorkspacePage() {
     alert("SNS 페이지에 업로드되었습니다. (TODO: 실제 게시 로직 구현)");
   };
 
-  /* ──────────────────────────────────────────
-     공유 앨범 (이슈 #??: 워크스페이스 공유 앨범)
-     ──────────────────────────────────────────
-     여행에서 함께 놀러간 사람들끼리 찍은 사진을 모아두는 공간.
-     "여행 기록" 섹션 바로 아래에 별도 섹션으로 렌더됨.
-     5열 × 3행이 한 화면에 보이고, 그 이상은 박스 내부에서 세로 스크롤.
+  const [sharedAlbumPhotos, setSharedAlbumPhotos] = useState<AlbumPhoto[]>([]);
+  const [albumUploading, setAlbumUploading] = useState(false);
+  const [albumLoading, setAlbumLoading] = useState(false);
+  const [albumPage, setAlbumPage] = useState(0);
+  const [albumHasNext, setAlbumHasNext] = useState(false);
 
-     현재는 ObjectURL로 클라이언트 미리보기만 처리하고 있으며,
-     실제 업로드/조회/삭제 로직은 useSharedAlbum 같은 훅으로 옮기는 것을
-     권장 (useTravelLogs와 동일한 패턴).
-     TODO(API/Backend 담당): 백엔드 엔드포인트가 준비되면
-       - GET    /workspaces/:id/shared-album       → 목록 로드
-       - POST   /workspaces/:id/shared-album       → 사진 업로드 (multipart)
-       - DELETE /workspaces/:id/shared-album/:pid  → 사진 삭제
-     로 교체. 그땐 useTravelLogs처럼 커스텀 훅으로 빼고
-     setSharedAlbumPhotos / objectUrl 관리 코드는 제거 가능. */
-  const [sharedAlbumPhotos, setSharedAlbumPhotos] = useState<string[]>([]);
-
-  /** 공유 앨범에서 만들어진 ObjectURL을 추적해서 페이지 언마운트 시 일괄 해제.
-   *  API 연결 시 서버 URL을 쓰게 되면 이 ref와 useEffect는 모두 제거. */
-  const sharedAlbumObjectUrlsRef = useRef<string[]>([]);
+  const loadAlbum = useCallback(
+    async (wsId: number, page: number, reset: boolean) => {
+      setAlbumLoading(true);
+      try {
+        const data = await fetchAlbum(wsId, page);
+        setSharedAlbumPhotos((prev) =>
+          reset ? (data.photos ?? []) : [...prev, ...(data.photos ?? [])],
+        );
+        setAlbumPage(page);
+        setAlbumHasNext(data.hasNext ?? false);
+      } catch {
+        // 앨범 로드 실패 시 빈 상태 유지
+      } finally {
+        setAlbumLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    return () => {
-      sharedAlbumObjectUrlsRef.current.forEach((url) =>
-        URL.revokeObjectURL(url),
+    if (!workspaceId || isNaN(workspaceId)) return;
+    loadAlbum(workspaceId, 0, true);
+  }, [workspaceId, loadAlbum]);
+
+  const handleLoadMoreAlbum = () => {
+    if (!workspaceId || albumLoading || !albumHasNext) return;
+    loadAlbum(workspaceId, albumPage + 1, false);
+  };
+
+  const handleAddSharedPhotos = async (files: FileList) => {
+    if (!workspaceId) return;
+    setAlbumUploading(true);
+    try {
+      const uploaded = await uploadAlbumPhotos(
+        Number(workspaceId),
+        Array.from(files),
       );
-      sharedAlbumObjectUrlsRef.current = [];
-    };
-  }, []);
-
-  /** 공유 앨범에 사진 추가
-   *  현재: File → ObjectURL → state append (즉시 미리보기)
-   *  추후: FormData 업로드 → 서버 URL 응답 → state append 로 교체. */
-  const handleAddSharedPhotos = (files: FileList) => {
-    const urls: string[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const url = URL.createObjectURL(files[i]);
-      urls.push(url);
-      sharedAlbumObjectUrlsRef.current.push(url);
+      setSharedAlbumPhotos((prev) => [...prev, ...uploaded]);
+    } catch {
+      alert("사진 업로드에 실패했습니다.");
+    } finally {
+      setAlbumUploading(false);
     }
-    setSharedAlbumPhotos((prev) => [...prev, ...urls]);
   };
 
-  /** 공유 앨범에서 사진 한 장 삭제
-   *  ObjectURL이면 즉시 revoke로 메모리 회수. */
-  const handleRemoveSharedPhoto = (index: number) => {
-    setSharedAlbumPhotos((prev) => {
-      const target = prev[index];
-      if (target && target.startsWith("blob:")) {
-        URL.revokeObjectURL(target);
-        sharedAlbumObjectUrlsRef.current =
-          sharedAlbumObjectUrlsRef.current.filter((u) => u !== target);
-      }
-      return prev.filter((_, i) => i !== index);
-    });
+  const handleRemoveSharedPhoto = async (photoId: number) => {
+    if (!workspaceId) return;
+    try {
+      await deleteAlbumPhoto(Number(workspaceId), photoId);
+      setSharedAlbumPhotos((prev) => prev.filter((p) => p.id !== photoId));
+    } catch {
+      alert("사진 삭제에 실패했습니다.");
+    }
   };
 
-  /* ── 워크스페이스명 ── */
+  const handleDownloadPhoto = async (photoId: number) => {
+    if (!workspaceId) return;
+    try {
+      const url = await getPhotoDownloadUrl(Number(workspaceId), photoId);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "";
+      a.target = "_blank";
+      a.click();
+    } catch {
+      alert("다운로드 URL을 가져오는 데 실패했습니다.");
+    }
+  };
+
   const workspaceName = workspaceDetail?.title ?? "워크스페이스";
 
   const travelLocation =
@@ -319,181 +389,180 @@ export default function WorkspacePage() {
     extractCountryFromFlights(rawFlights);
   return (
     <>
-      {/* ══════════════════════════════════════════
-          모바일 (md 미만) — 추후 별도 모바일 디자인 들어올 예정
-          ══════════════════════════════════════════ */}
-      <div className="md:hidden px-4 py-6">
-        <p className="font-pretendard text-body3 text-gray-500 text-center m-0">
-          모바일 화면은 준비 중입니다.
-        </p>
-      </div>
-
-      {/* ══════════════════════════════════════════
-          데스크톱 (md 이상)
-          - 자체 Header를 풀폭으로 렌더링 (Layout/NoHeaderLayout의 헤더 대신)
-          - 컨테이너는 좌우 패딩 없음 → 사이드바가 화면 양 끝까지 맞닿음
-          - 위 패딩 없음 → 사이드바가 Header와 맞닿음
-          ══════════════════════════════════════════ */}
-      <div className="hidden md:block bg-background flex-1">
-        {/* ── 풀폭 Header ── */}
-        <div className="w-full bg-white border-b border-gray-300 sticky top-0 z-50">
-          <div className="px-4">
-            <Header variant="login" onLogout={handleLogout} />
+      {isCompact ? (
+        /* ══ 좁은 화면 (< 768px) ══ */
+        <CompactWorkspaceView
+          workspaceName={workspaceName}
+          onBack={() => navigate(-1)}
+          onShare={() => {
+            /* TODO: 공유 동작 스펙 확정 시 교체 — 우선 URL 복사 */
+            navigator.clipboard?.writeText(window.location.href);
+          }}
+          member={{
+            members,
+            onAddMember: () => setShowInviteModal(true),
+          }}
+          flight={{
+            flights,
+            rawFlights,
+            onFlightClick: setSelectedFlight,
+            onFlightDelete: (id, label) => setDeleteFlightTarget({ id, label }),
+          }}
+        />
+      ) : (
+        /* ══ 넓은 화면 (>= 768px) — 기존 데스크톱 ══ */
+        <div className="bg-background flex-1">
+          <div className="w-full bg-white border-b border-gray-300 sticky top-0 z-50">
+            <div className="px-4">
+              <Header variant="login" onLogout={handleLogout} />
+            </div>
           </div>
-        </div>
 
-        {/* ── 페이지 컨텐츠 ── */}
-        <div className="w-full pb-6">
-          <div
-            className="grid items-start gap-6"
-            style={{
-              gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr ${isChatOpen ? `${chatWidth}px` : "48px"}`,
-            }}
-          >
-            {/* ══ 좌측: 멤버 사이드바 (펼침/접힘) ══ */}
-            {isMemberOpen ? (
-              <aside className="self-stretch">
-                <div
-                  className={[
-                    "h-full min-h-full",
-                    "bg-white",
-                    "rounded-br-xl",
-                    "border border-l-0 border-t-0 border-gray-300",
-                  ].join(" ")}
-                >
-                  <div className="sticky top-0">
-                    <MemberSidebar
-                      workspaceName={workspaceName}
-                      members={members}
-                      coverImageUrl={
-                        workspaceDetail
-                          ? resolveCoverImage(
-                              workspaceDetail.coverImageUrl,
-                              workspaceDetail.id,
-                            )
-                          : null
-                      }
-                      country={travelLocation}
-                      onCollapse={() => setIsMemberOpen(false)}
-                      onAddMember={() => setShowInviteModal(true)}
-                      onRenameWorkspace={handleRenameWorkspace}
-                      onChangeCountry={handleChangeCountry}
-                      onChangeCoverImage={handleCoverImageUpload}
-                    />
-                  </div>
-                </div>
-              </aside>
-            ) : (
-              <aside className="self-stretch">
-                <div
-                  className={[
-                    "h-full min-h-full",
-                    "bg-white",
-                    "rounded-br-xl",
-                    "border border-l-0 border-t-0 border-gray-300",
-                    "flex flex-col items-center",
-                  ].join(" ")}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setIsMemberOpen(true)}
-                    aria-label="멤버 사이드바 펼치기"
+          <div className="w-full pb-6">
+            <div
+              className="grid items-start gap-6"
+              style={{
+                gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr`,
+              }}
+            >
+              {isMemberOpen ? (
+                <aside className="self-stretch">
+                  <div
                     className={[
-                      "sticky top-4",
-                      "mt-4",
-                      "p-1.5 rounded",
-                      "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-                      "transition-colors cursor-pointer",
-                      "border-none bg-transparent",
-                      "inline-flex items-center justify-center",
+                      "h-full min-h-full",
+                      "bg-white",
+                      "rounded-br-xl",
+                      "border border-l-0 border-t-0 border-gray-300",
                     ].join(" ")}
                   >
-                    <LayoutLeftIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </aside>
-            )}
+                    <div className="sticky top-0">
+                      <MemberSidebar
+                        workspaceName={workspaceName}
+                        members={members}
+                        coverImageUrl={
+                          workspaceDetail
+                            ? resolveCoverImage(
+                                workspaceDetail.coverImageUrl,
+                                workspaceDetail.id,
+                              )
+                            : null
+                        }
+                        country={travelLocation}
+                        onCollapse={() => setIsMemberOpen(false)}
+                        onAddMember={() => setShowInviteModal(true)}
+                        onRenameWorkspace={handleRenameWorkspace}
+                        onChangeCountry={handleChangeCountry}
+                        onChangeCoverImage={handleCoverImageUpload}
+                      />
+                    </div>
+                  </div>
+                </aside>
+              ) : (
+                <aside className="self-stretch">
+                  <div
+                    className={[
+                      "h-full min-h-full",
+                      "bg-white",
+                      "rounded-br-xl",
+                      "border border-l-0 border-t-0 border-gray-300",
+                      "flex flex-col items-center",
+                    ].join(" ")}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setIsMemberOpen(true)}
+                      aria-label="멤버 사이드바 펼치기"
+                      className={[
+                        "sticky top-4",
+                        "mt-4",
+                        "p-1.5 rounded",
+                        "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+                        "transition-colors cursor-pointer",
+                        "border-none bg-transparent",
+                        "inline-flex items-center justify-center",
+                      ].join(" ")}
+                    >
+                      <LayoutLeftIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                </aside>
+              )}
 
-            {/* ══ 가운데: 메인 컨텐츠 ══ */}
-            <main className="min-w-0 flex flex-col gap-8 pt-6">
-              {/* ── 항공 일정 ── */}
-              <FlightSection
-                flights={flights}
-                rawFlights={rawFlights}
-                onFlightClick={setSelectedFlight}
-                onFlightDelete={(id, label) =>
-                  setDeleteFlightTarget({ id, label })
-                }
-              />
+              <main className="min-w-0 flex flex-col gap-8 pt-6 pr-6">
+                <FlightSection
+                  flights={flights}
+                  rawFlights={rawFlights}
+                  onFlightClick={setSelectedFlight}
+                  onFlightDelete={(id, label) =>
+                    setDeleteFlightTarget({ id, label })
+                  }
+                  onAdd={() => setShowAddFlightModal(true)}
+                />
 
-              {/* ── 여행 일정 ──
-                  지도 보기는 ItineraryDayCard 내부에서 인라인으로 처리되므로
-                  여기서 onMapClick을 넘기지 않음. */}
-              <ItinerarySection
-                itineraryDays={itineraryDays}
-                scheduleList={scheduleList}
-                currentSchedule={currentSchedule}
-                isLoading={isLoadingSchedule}
-                isSaving={isSavingSchedule}
-                onSelectVersion={handleSelectScheduleVersion}
-                onSaveDay={handleSaveItineraryDay}
-                onDeleteItem={handleDeleteItem}
-                onCategoryChange={handleCategoryChange}
-                onDeleteSchedule={handleDeleteSchedule}
-              />
+                <ItinerarySection
+                  itineraryDays={itineraryDays}
+                  scheduleList={scheduleList}
+                  currentSchedule={currentSchedule}
+                  isLoading={isLoadingSchedule}
+                  isSaving={isSavingSchedule}
+                  onSelectVersion={handleSelectScheduleVersion}
+                  onSaveDay={handleSaveItineraryDay}
+                  onDeleteItem={handleDeleteItem}
+                  onCategoryChange={handleCategoryChange}
+                  onDeleteSchedule={handleDeleteSchedule}
+                />
 
-              {/* ── 여행 기록 ── */}
-              <TravelLogSection
-                travelLogs={travelLogs}
-                snsLog={snsLog}
-                showAddCard={showAddCard}
-                sharedAlbumPhotos={sharedAlbumPhotos}
-                onOpenAddCard={handleOpenAddCard}
-                onCancelAddCard={handleCancelAddCard}
-                onAddDailyCard={handleAddDailyCard}
-                onAddSnsCard={handleAddSnsCard}
-                onSaveTravelLog={handleSaveTravelLog}
-                onDeleteTravelLog={handleDeleteTravelLog}
-                onSaveSnsLog={handleSaveSnsLog}
-                onDeleteSnsLog={handleDeleteSnsLog}
-                onUploadSnsLog={handleUploadSnsLog}
-              />
+                <TravelLogSection
+                  travelLogs={travelLogs}
+                  snsLog={snsLog}
+                  showAddCard={showAddCard}
+                  sharedAlbumPhotos={sharedAlbumPhotos.map((p) => p.url)}
+                  onOpenAddCard={handleOpenAddCard}
+                  onCancelAddCard={handleCancelAddCard}
+                  onAddDailyCard={handleAddDailyCard}
+                  onAddSnsCard={handleAddSnsCard}
+                  onSaveTravelLog={handleSaveTravelLog}
+                  onUploadTravellogPhotos={handleUploadTravellogPhotos}
+                  onDeleteTravelLog={handleDeleteTravelLog}
+                  onUpdateMainTitle={handleUpdateMainTitle}
+                  onReorderLogs={handleReorderLogs}
+                  onSaveSnsLog={handleSaveSnsLog}
+                  onDeleteSnsLog={handleDeleteSnsLog}
+                  onUploadSnsLog={handleUploadSnsLog}
+                />
 
-              {/* ── 공유 앨범 ──
-                  여행에서 함께 놀러간 사람들끼리 찍은 사진들을 모아두는 섹션.
-                  - 5열 × 3행(=15장)이 한 화면에 보이고, 그 이상이면 박스 내부에서 세로 스크롤
-                  - 사진 클릭 시 라이트박스 모달이 열려 확대 보기 (← → / ESC 단축키)
-                  - 사진 hover 시 우상단 "×" 버튼 → 삭제 확인 모달
-                  TODO(API/Backend 담당): useSharedAlbum 훅으로 분리하고 실제 API 연결 */}
-              <SharedAlbumSection
-                photos={sharedAlbumPhotos}
-                onAddPhotos={handleAddSharedPhotos}
-                onRemovePhoto={handleRemoveSharedPhoto}
-              />
+                <SharedAlbumSection
+                  photos={sharedAlbumPhotos}
+                  uploading={albumUploading}
+                  hasNext={albumHasNext}
+                  loadingMore={albumLoading}
+                  onAddPhotos={handleAddSharedPhotos}
+                  onRemovePhoto={handleRemoveSharedPhoto}
+                  onDownloadPhoto={handleDownloadPhoto}
+                  onLoadMore={handleLoadMoreAlbum}
+                />
 
-              {/* ── 위험 영역 (나가기 / 삭제) ── */}
-              <DangerZone
-                myRole={myRole}
-                onLeave={() => setShowLeaveConfirm(true)}
-                onDelete={() => setShowDeleteWorkspace(true)}
-              />
-            </main>
-
-            {/* ══ 우측: AI 채팅 사이드바 (그리드 컬럼, 드래그로 폭 조절) ══ */}
-            <AIChatSidebar
-              isOpen={isChatOpen}
-              chatWidth={chatWidth}
-              workspaceId={workspaceId}
-              onResizeStart={handleResizeStart}
-              onCollapse={() => setIsChatOpen(false)}
-              onExpand={() => setIsChatOpen(true)}
-              onScheduleSaved={loadSchedule}
-            />
+                <DangerZone
+                  myRole={myRole}
+                  onLeave={() => setShowLeaveConfirm(true)}
+                  onDelete={() => setShowDeleteWorkspace(true)}
+                />
+              </main>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── 멤버 초대 모달 ── */}
+          <AIChatSidebar
+            isOpen={isChatOpen}
+            workspaceId={workspaceId}
+            roomCount={chatRoomCount}
+            onCollapse={() => setIsChatOpen(false)}
+            onExpand={() => setIsChatOpen(true)}
+            onScheduleSaved={loadSchedule}
+            onRoomCountChange={setChatRoomCount}
+          />
+        </div>
+      )}
+
       {showInviteModal && (
         <InviteMemberModal
           onInvite={handleInviteSelect}
@@ -501,7 +570,6 @@ export default function WorkspacePage() {
         />
       )}
 
-      {/* ── 초대 확인 팝업 ── */}
       <ConfirmPopup
         isOpen={inviteTarget !== null}
         onClose={() => setInviteTarget(null)}
@@ -513,7 +581,6 @@ export default function WorkspacePage() {
         variant="primary"
       />
 
-      {/* ── 초대 토스트 ── */}
       {inviteToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100]">
           <div className="bg-gray-900 text-white font-pretendard text-body4 px-5 py-3 rounded-xl shadow-lg">
@@ -522,7 +589,6 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      {/* ── 나가기 확인 팝업 ── */}
       <ConfirmPopup
         isOpen={showLeaveConfirm}
         onClose={() => setShowLeaveConfirm(false)}
@@ -538,7 +604,6 @@ export default function WorkspacePage() {
         variant="danger"
       />
 
-      {/* ── 워크스페이스 삭제 모달 ── */}
       {showDeleteWorkspace && workspaceDetail && (
         <DeleteWorkspaceModal
           workspaceName={workspaceDetail.title}
@@ -548,7 +613,6 @@ export default function WorkspacePage() {
         />
       )}
 
-      {/* ── 항공편 삭제 확인 팝업 ── */}
       <ConfirmPopup
         isOpen={deleteFlightTarget !== null}
         onClose={() => setDeleteFlightTarget(null)}
@@ -560,13 +624,19 @@ export default function WorkspacePage() {
         variant="danger"
       />
 
-      {/* ── 항공편 상세 모달 ── */}
       {selectedFlight && (
         <FlightDetailModal
           flight={selectedFlight}
           onClose={() => setSelectedFlight(null)}
         />
       )}
+
+      <AddFlightModal
+        isOpen={showAddFlightModal}
+        isSaving={isSavingFlight}
+        onClose={() => setShowAddFlightModal(false)}
+        onSave={handleSaveFlight}
+      />
     </>
   );
 }

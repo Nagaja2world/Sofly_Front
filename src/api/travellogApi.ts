@@ -46,9 +46,9 @@ export interface PhotoResponse {
 
 export interface TravellogSummaryResponse {
   id: number;
-  day: number | null;
+  mainTitle: string | null;
   travelDate: string | null;
-  title: string;
+  title: string | null;
   weather: WeatherApi | null;
   photoCount: number;
   createdAt: string;
@@ -56,10 +56,10 @@ export interface TravellogSummaryResponse {
 
 export interface TravellogResponse {
   id: number;
-  day: number | null;
+  mainTitle: string | null;
   travelDate: string | null;
-  title: string;
-  content: string;
+  title: string | null;
+  content: string | null;
   weather: WeatherApi | null;
   workspaceId: number;
   authorId: number;
@@ -70,29 +70,37 @@ export interface TravellogResponse {
 }
 
 export interface CreateTravellogPayload {
-  title: string;
-  content: string;
-  day?: number;
+  mainTitle?: string | null;
+  title?: string | null;
+  content?: string | null;
   travelDate?: string;
   weather?: WeatherApi;
 }
 
 export interface UpdateTravellogPayload {
+  mainTitle?: string | null;
   title?: string | null;
   content?: string | null;
-  day?: number | null;
   travelDate?: string | null;
   weather?: WeatherApi | null;
 }
 
 /* ── API 함수 ── */
 
-/** 여행기 목록 조회 */
+/** 여행기 목록 조회 (summary) */
 export async function fetchTravellogs(workspaceId: number): Promise<TravellogSummaryResponse[]> {
   const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/travellogs`, {
     headers: authHeaders(),
   });
   return unwrap<TravellogSummaryResponse[]>(res);
+}
+
+/** 여행기 전체 조회 (content 포함 — 단건 N번 호출 대체) */
+export async function fetchTravellogsFull(workspaceId: number): Promise<TravellogResponse[]> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/travellogs/full`, {
+    headers: authHeaders(),
+  });
+  return unwrap<TravellogResponse[]>(res);
 }
 
 /** 여행기 단건 조회 */

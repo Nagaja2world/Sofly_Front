@@ -61,9 +61,6 @@ export default function SnsPage({
 }: SnsPageProps) {
   /** 선택된 게시물 (상세 팝업 열림 여부) */
   const [selectedPost, setSelectedPost] = useState<SnsPost | null>(null);
-  /** 팔로우 상태 로컬 캐시
-   *  TODO: API 연결 시 서버 상태로 대체. 지금은 클릭 즉시 UI 반영용. */
-  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   /** 검색어 / 트렌딩 선택 필터 (옵션 기능, 추후 확장 여지) */
   const [filterKeyword, setFilterKeyword] = useState("");
 
@@ -92,16 +89,6 @@ export default function SnsPage({
 
   const handleClosePopup = () => {
     setSelectedPost(null);
-  };
-
-  const handleToggleFollow = (authorId: string) => {
-    setFollowingIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(authorId)) next.delete(authorId);
-      else next.add(authorId);
-      return next;
-    });
-    /* TODO: 백엔드 API 호출 */
   };
 
   const handleSearch = (keyword: string) => {
@@ -186,11 +173,7 @@ export default function SnsPage({
         key={selectedPost?.id ?? "closed"}
         post={selectedPost}
         onClose={handleClosePopup}
-        onToggleFollow={handleToggleFollow}
         onImportWorkspaceRequest={importer.request}
-        isFollowing={
-          selectedPost ? followingIds.has(selectedPost.author.id) : false
-        }
       />
 
       {/* ── 워크스페이스 가져오기 확인 팝업 ──

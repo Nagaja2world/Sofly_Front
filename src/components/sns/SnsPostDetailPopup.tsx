@@ -7,17 +7,13 @@ import type { SnsPost } from "@/types/snsType";
 /* ══════════════════════════════════════════
    타입
    ══════════════════════════════════════════ */
+const CAPTION_MAX_LENGTH_BEFORE_TRUNCATION = 80;
 
 interface SnsPostDetailPopupProps {
   /** 표시할 게시물. null이면 닫혀 있음 */
   post: SnsPost | null;
   /** 닫기 콜백 (× 버튼 / 백드롭 클릭 / ESC) */
   onClose: () => void;
-  /**
-   * 팔로우 토글 콜백 (옵션)
-   * - 추후 API 연결 시 사용
-   */
-  onToggleFollow?: (authorId: string) => void;
   /**
    * "워크스페이스 가져오기" 버튼 클릭 시 호출.
    * - 상위에서 ConfirmPopup을 띄우고, 확인되면 실제 가져오기 API를 호출하는 책임을 짐.
@@ -27,8 +23,6 @@ interface SnsPostDetailPopupProps {
    *    상세 팝업 위에 ConfirmPopup이 z-index로 덮어쓰는 형태.
    */
   onImportWorkspaceRequest?: (post: SnsPost) => void;
-  /** 작성자가 이미 팔로우 중인지 (옵션, 기본 false) */
-  isFollowing?: boolean;
 }
 
 /* ══════════════════════════════════════════
@@ -41,14 +35,14 @@ interface SnsPostDetailPopupProps {
  * 와이어프레임 기준 레이아웃 (920×600px 정도, 모바일에서는 풀스크린):
  *
  *  ┌────────────────────────────────────────────┐
- *  │ ◯ id        [팔로우]                   ×  │  ← 헤더
+ *  │ ◯ id                                   ×  │  ← 헤더
  *  ├────────────────────────────────────────────┤
  *  │                                            │
  *  │  ‹      [   이미지 캐러셀   ]      ›       │  ← 본문
  *  │                                            │
  *  ├────────────────────────────────────────────┤
- *  │ ♡  [워크스페이스 보러가기] [가져오기]      │  ← 액션 바
- *  │ ─── 캡션 텍스트 ──────────────── 캡션 ↕   │
+ *  │     [워크스페이스 보러가기] [가져오기]     │  ← 액션 바
+ *  │ ─── 캡션 텍스트 ────────────── 더보기 ↕   │
  *  └────────────────────────────────────────────┘
  *
  * 키보드 단축키:
@@ -65,9 +59,7 @@ interface SnsPostDetailPopupProps {
 export default function SnsPostDetailPopup({
   post,
   onClose,
-  onToggleFollow,
   onImportWorkspaceRequest,
-  isFollowing = false,
 }: SnsPostDetailPopupProps) {
   const navigate = useNavigate();
   const [mediaIndex, setMediaIndex] = useState(0);
@@ -218,43 +210,34 @@ export default function SnsPostDetailPopup({
             </h2>
           </div>
 
-          {/* 우측: 팔로우 버튼 + 닫기 */}
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              btnType={isFollowing ? "outlined" : "solid"}
-              onClick={() => onToggleFollow?.(post.author.id)}
-              aria-label={isFollowing ? "팔로우 취소" : "팔로우"}
+          {/* 우측: 닫기 버튼 */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+            className={[
+              "shrink-0 inline-flex items-center justify-center",
+              "w-9 h-9 rounded-full",
+              "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+              "bg-transparent border-none cursor-pointer transition-colors",
+            ].join(" ")}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 18 18"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
             >
-              {isFollowing ? "팔로잉" : "팔로우"}
-            </Button>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="닫기"
-              className={[
-                "inline-flex items-center justify-center",
-                "w-9 h-9 rounded-full",
-                "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
-                "bg-transparent border-none cursor-pointer transition-colors",
-              ].join(" ")}
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 18 18"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path
-                  d="M4 4L14 14M14 4L4 14"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          </div>
+              <path
+                d="M4 4L14 14M14 4L4 14"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
         </header>
 
         {/* ══ 본문: 이미지 캐러셀 ══ */}
@@ -271,6 +254,7 @@ export default function SnsPostDetailPopup({
                 src={currentMedia.url}
                 controls
                 className="max-w-full max-h-full"
+                title={post.caption ?? post.author.username + "의 게시물"}
               />
             )
           ) : (
@@ -398,7 +382,7 @@ export default function SnsPostDetailPopup({
                 {post.caption}
               </p>
               {/* 캡션이 길 가능성 — 항상 토글 노출하되, 충분히 짧으면 효과 없음 */}
-              {post.caption.length > 80 && (
+              {post.caption.length > CAPTION_MAX_LENGTH_BEFORE_TRUNCATION && (
                 <button
                   type="button"
                   onClick={() => setCaptionExpanded((v) => !v)}
