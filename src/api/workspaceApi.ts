@@ -268,7 +268,7 @@ export function buildDummyWorkspacePayload(): CreateWorkspacePayload {
   const fmt = (d: Date) => d.toISOString().split('T')[0];
   return {
     title: '새 워크스페이스',
-    destination: '미정',
+    destination: '목적지를 설정해주세요',
     countryCode: 'KR',
     startDate: fmt(today),
     endDate: fmt(nextWeek),

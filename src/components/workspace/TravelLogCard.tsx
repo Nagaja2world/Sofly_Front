@@ -53,8 +53,10 @@ export interface TravelLogData {
 }
 
 interface TravelLogCardProps {
-  /** 일차 번호 */
-  dayNumber: number;
+  /** 여행 기록 제목 (예: "1일차", "파리 도착날") */
+  mainTitle: string | null;
+  /** 헤더 제목 저장 콜백 */
+  onSaveMainTitle?: (title: string) => void;
   /** 한 줄 여행 텍스트 "프랑크푸르트 여행 1일차, 날씨가 다웠다." */
   oneLineSummary?: string;
   /** 한 줄 여행 우측 날씨 (선택된 1개) */
@@ -78,6 +80,7 @@ interface TravelLogCardProps {
    *
    * readOnly가 true이면 편집 모드 진입 불가이므로 무시됨.
    */
+  onUploadPhotos?: (files: File[]) => void;
   onSave?: (data: TravelLogData) => void;
   /**
    * 카드 삭제 콜백.
@@ -210,25 +213,102 @@ function WeatherIconGroupEdit({
 }
 
 /** 보기 모드 사진 그리드 (3장 가로 배치, 빈 슬롯은 출력 안함) — 앨범에서 사용 */
-function PhotoGridView({ photos, alt }: { photos: string[]; alt: string }) {
-  if (!photos || photos.length === 0) return null;
+
+/** 보기 모드 앨범 — 사진 있으면 그리드 + "+" 버튼, 없으면 클릭 가능한 빈 상태 */
+function ViewModeAlbum({
+  photos,
+  readOnly,
+  onUploadPhotos,
+}: {
+  photos: string[];
+  readOnly: boolean;
+  onUploadPhotos?: (files: File[]) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleClick = () => fileInputRef.current?.click();
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    onUploadPhotos?.(Array.from(e.target.files));
+    e.target.value = "";
+  };
+
+  const canUpload = !readOnly && !!onUploadPhotos;
 
   return (
-    <div className="grid grid-cols-3 gap-2">
-      {photos.slice(0, 3).map((src, i) => (
-        <div
-          key={i}
-          className="relative aspect-square rounded-lg overflow-hidden bg-gray-200"
-        >
-          <img
-            src={src}
-            alt={`${alt} ${i + 1}`}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
+    <>
+      {photos.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-3 gap-2">
+            {photos.map((src, i) => (
+              <div
+                key={i}
+                className="relative aspect-square rounded-lg overflow-hidden bg-gray-200"
+              >
+                <img
+                  src={src}
+                  alt={`앨범 ${i + 1}`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+            {canUpload && (
+              <button
+                type="button"
+                onClick={handleClick}
+                aria-label="사진 추가"
+                className={[
+                  "aspect-square rounded-lg",
+                  "border border-dashed border-gray-300 bg-white",
+                  "text-gray-400 hover:text-gray-700 hover:border-gray-500",
+                  "transition-colors cursor-pointer",
+                  "flex items-center justify-center",
+                ].join(" ")}
+              >
+                <PlusIcon className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
-      ))}
-    </div>
+      ) : canUpload ? (
+        <button
+          type="button"
+          onClick={handleClick}
+          className={[
+            "w-full aspect-square max-w-[120px] rounded-lg",
+            "border border-dashed border-gray-300 bg-white",
+            "text-gray-400 hover:text-gray-700 hover:border-gray-500",
+            "transition-colors cursor-pointer",
+            "flex items-center justify-center",
+          ].join(" ")}
+          aria-label="사진 추가"
+        >
+          <PlusIcon className="w-6 h-6" />
+        </button>
+      ) : (
+        <div
+          className={[
+            "h-24 rounded-lg border border-dashed border-gray-300",
+            "flex items-center justify-center",
+            "font-pretendard text-body4 text-gray-500",
+          ].join(" ")}
+        >
+          등록된 사진이 없습니다.
+        </div>
+      )}
+
+      {canUpload && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleChange}
+        />
+      )}
+    </>
   );
 }
 
@@ -974,12 +1054,14 @@ function BodyEditor({
  * - 좌우 패딩: 16px / 섹션 수직 패딩: 24px / 라벨↔본문 간격: 16px
  */
 export default function TravelLogCard({
-  dayNumber,
+  mainTitle,
+  onSaveMainTitle,
   oneLineSummary,
   weather,
   content,
   albumPhotos,
   sharedAlbumPhotos,
+  onUploadPhotos,
   onSave,
   onDelete,
   readOnly = false,
@@ -987,6 +1069,28 @@ export default function TravelLogCard({
 }: TravelLogCardProps) {
   /** 편집 모드 여부 */
   const [isEditing, setIsEditing] = useState(false);
+
+  /** 헤더 제목 인라인 편집 */
+  const [isTitleEditing, setIsTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(mainTitle ?? "");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const startTitleEdit = () => {
+    if (readOnly) return;
+    setTitleDraft(mainTitle ?? "");
+    setIsTitleEditing(true);
+    setTimeout(() => titleInputRef.current?.focus(), 0);
+  };
+
+  const commitTitleEdit = () => {
+    setIsTitleEditing(false);
+    onSaveMainTitle?.(titleDraft.trim());
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") commitTitleEdit();
+    if (e.key === "Escape") setIsTitleEditing(false);
+  };
 
   /** 삭제 확인 모달 열림 여부 */
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -1086,9 +1190,35 @@ export default function TravelLogCard({
       <header className="shrink-0 flex items-center justify-between gap-2 px-4 py-3">
         <div className="flex items-center gap-2 min-w-0">
           <PinIcon className="w-6 h-6 shrink-0" />
-          <span className="font-pretendard text-body2 font-semibold text-gray-900 truncate">
-            {dayNumber}일차
-          </span>
+          {isTitleEditing ? (
+            <input
+              ref={titleInputRef}
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={commitTitleEdit}
+              onKeyDown={handleTitleKeyDown}
+              placeholder="제목을 입력해보세요"
+              className={[
+                "font-pretendard text-body2 font-semibold text-gray-900",
+                "border-none outline-none bg-transparent",
+                "w-full min-w-0 placeholder:text-gray-300",
+              ].join(" ")}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={startTitleEdit}
+              disabled={readOnly}
+              title={readOnly ? undefined : "클릭해서 제목 편집"}
+              className={[
+                "font-pretendard text-body2 font-semibold text-gray-900 truncate",
+                "border-none bg-transparent p-0 text-left",
+                readOnly ? "cursor-default" : "cursor-text hover:text-gray-500 transition-colors",
+              ].join(" ")}
+            >
+              {mainTitle || <span className="text-gray-300 font-normal">제목을 입력해보세요</span>}
+            </button>
+          )}
         </div>
 
         {isEditing ? (
@@ -1125,7 +1255,7 @@ export default function TravelLogCard({
             <button
               type="button"
               onClick={enterEditMode}
-              aria-label={`${dayNumber}일차 여행 기록 편집`}
+              aria-label={"여행 기록 편집"}
               className={[
                 "p-1 rounded",
                 "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
@@ -1144,7 +1274,7 @@ export default function TravelLogCard({
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                aria-label={`${dayNumber}일차 여행 기록 삭제`}
+                aria-label="여행 기록 삭제"
                 className={[
                   "p-1 rounded",
                   "text-gray-500 hover:text-red-600 hover:bg-red-50",
@@ -1250,20 +1380,14 @@ export default function TravelLogCard({
                 albumPhotos: (d.albumPhotos ?? []).filter((_, i) => i !== idx),
               }));
             }}
-            alt={`${dayNumber}일차 앨범`}
+            alt="앨범"
           />
-        ) : albumPhotos && albumPhotos.length > 0 ? (
-          <PhotoGridView photos={albumPhotos} alt={`${dayNumber}일차 앨범`} />
         ) : (
-          <div
-            className={[
-              "h-24 rounded-lg border border-dashed border-gray-300",
-              "flex items-center justify-center",
-              "font-pretendard text-body4 text-gray-500",
-            ].join(" ")}
-          >
-            등록된 사진이 없습니다.
-          </div>
+          <ViewModeAlbum
+            photos={albumPhotos ?? []}
+            readOnly={readOnly}
+            onUploadPhotos={onUploadPhotos}
+          />
         )}
       </div>
 
@@ -1276,7 +1400,7 @@ export default function TravelLogCard({
           setShowDeleteConfirm(false);
           onDelete?.();
         }}
-        title={`${dayNumber}일차 카드를 삭제하시겠어요?`}
+        title="여행 기록을 삭제하시겠어요?"
         description={
           "삭제하면 해당 일차의 여행 기록과\n첨부된 사진이 모두 사라지며, 되돌릴 수 없습니다."
         }

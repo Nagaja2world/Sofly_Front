@@ -1,6 +1,7 @@
 import FlightInfoCard, { type FlightLegInfo } from "@/components/workspace/FlightInfoCard";
 import SectionHeader from "@/components/workspace/SectionHeader";
 import { type WorkspaceFlight } from "@/api/workspaceApi";
+import PlusIcon from "@/assets/plus.svg?react";
 
 export interface FlightInfo {
   id: number;
@@ -16,6 +17,7 @@ interface FlightSectionProps {
   rawFlights: WorkspaceFlight[];
   onFlightClick: (flight: WorkspaceFlight) => void;
   onFlightDelete: (id: number, label: string) => void;
+  onAdd: () => void;
 }
 
 export default function FlightSection({
@@ -23,10 +25,23 @@ export default function FlightSection({
   rawFlights,
   onFlightClick,
   onFlightDelete,
+  onAdd,
 }: FlightSectionProps) {
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeader title="항공 일정" />
+      <SectionHeader
+        title="항공 일정"
+        action={
+          <button
+            type="button"
+            onClick={onAdd}
+            aria-label="항공편 추가"
+            className="p-0.5 rounded text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer border-none bg-transparent inline-flex items-center justify-center"
+          >
+            <PlusIcon className="w-5 h-5" />
+          </button>
+        }
+      />
       {flights.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex flex-col items-center gap-2 text-center">
           <p className="font-pretendard text-body3 text-gray-700 m-0">

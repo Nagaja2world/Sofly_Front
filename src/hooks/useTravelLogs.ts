@@ -6,8 +6,7 @@ import type {
 } from "@/components/workspace/TravelLogCard";
 import type { TravelLog } from "@/components/workspace/TravelLogSection";
 import {
-  fetchTravellogs,
-  fetchTravellog,
+  fetchTravellogsFull,
   createTravellog,
   updateTravellog,
   deleteTravellog,
@@ -33,7 +32,7 @@ const WEATHER_UI_TO_API: Record<WeatherType, WeatherApi> = {
 };
 
 /** 마크다운 문자열 → Tiptap JSONContent (단순 paragraph 분리) */
-function markdownToTiptap(markdown: string): JSONContent | undefined {
+function markdownToTiptap(markdown: string | null | undefined): JSONContent | undefined {
   if (!markdown?.trim()) return undefined;
   const paragraphs = markdown.split(/\n\n+/).filter(Boolean);
   return {
@@ -70,8 +69,8 @@ function tiptapToMarkdown(json: JSONContent | undefined): string {
 function apiToTravelLog(res: TravellogResponse): TravelLog {
   return {
     id: res.id,
-    dayNumber: res.day ?? res.id,
-    oneLineSummary: res.title,
+    mainTitle: res.mainTitle ?? null,
+    oneLineSummary: res.title ?? undefined,
     weather: res.weather ? WEATHER_API_TO_UI[res.weather] : undefined,
     content: markdownToTiptap(res.content),
     albumPhotos: res.photos.map((p) => p.url),
@@ -86,18 +85,14 @@ export function useTravelLogs(workspaceId: number) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** 목록 로드 (summary만) — 카드 렌더에 필요한 title, weather, photoCount */
+  /** 목록 로드 (full 엔드포인트 — 1번 호출로 content 포함 전체 조회) */
   const loadTravelLogs = useCallback(async () => {
     if (!workspaceId || isNaN(workspaceId)) return;
     setIsLoading(true);
     setError(null);
     try {
-      const summaries = await fetchTravellogs(workspaceId);
-      // summary에는 content가 없으므로 단건 조회로 content 포함 로드
-      const details = await Promise.all(
-        summaries.map((s) => fetchTravellog(workspaceId, s.id)),
-      );
-      setTravelLogs(details.map(apiToTravelLog));
+      const logs = await fetchTravellogsFull(workspaceId);
+      setTravelLogs(logs.map(apiToTravelLog));
     } catch (err) {
       console.warn("[useTravelLogs] 목록 로드 실패:", err);
       setError("여행 기록을 불러오지 못했습니다.");
@@ -106,29 +101,35 @@ export function useTravelLogs(workspaceId: number) {
     }
   }, [workspaceId]);
 
-  /** 일자별 카드 추가 */
+  /** 일자별 카드 추가 — 빈 바디로 생성 */
   const handleAddDailyCard = useCallback(async () => {
-    const nextDay =
-      travelLogs.length > 0
-        ? Math.max(...travelLogs.map((l) => l.dayNumber)) + 1
-        : 1;
     try {
-      const res = await createTravellog(workspaceId, {
-        title: `${nextDay}일차 여행 기록`,
-        content: "오늘의 여행을 기록해보세요 ✏️",
-        day: nextDay,
-      });
+      const res = await createTravellog(workspaceId, {});
       setTravelLogs((prev) => [...prev, apiToTravelLog(res)]);
     } catch (err) {
       console.warn("[useTravelLogs] 카드 추가 실패:", err);
     }
-  }, [workspaceId, travelLogs]);
+  }, [workspaceId]);
 
-  /** 카드 저장 (수정) */
+  /** mainTitle 수정 (헤더 인라인 편집) */
+  const handleUpdateMainTitle = useCallback(
+    async (logId: number, mainTitle: string) => {
+      try {
+        const res = await updateTravellog(workspaceId, logId, { mainTitle: mainTitle || null });
+        setTravelLogs((prev) =>
+          prev.map((log) => (log.id === logId ? apiToTravelLog(res) : log)),
+        );
+      } catch (err) {
+        console.warn("[useTravelLogs] 제목 수정 실패:", err);
+      }
+    },
+    [workspaceId],
+  );
+
+  /** 카드 저장 (본문/날씨/한줄요약 수정) */
   const handleSaveTravelLog = useCallback(
     async (logId: number, data: TravelLogData, files?: File[]) => {
       try {
-        // 텍스트/날씨 수정
         const payload = {
           title: data.oneLineSummary ?? null,
           content: tiptapToMarkdown(data.content) || null,
@@ -136,7 +137,6 @@ export function useTravelLogs(workspaceId: number) {
         };
         let res = await updateTravellog(workspaceId, logId, payload);
 
-        // 새 파일 업로드가 있으면 추가 요청
         if (files && files.length > 0) {
           res = await uploadTravellogPhotos(workspaceId, logId, files);
         }
@@ -146,6 +146,21 @@ export function useTravelLogs(workspaceId: number) {
         );
       } catch (err) {
         console.warn("[useTravelLogs] 저장 실패:", err);
+      }
+    },
+    [workspaceId],
+  );
+
+  /** 앨범 사진 직접 업로드 (view 모드에서 즉시 저장) */
+  const handleUploadTravellogPhotos = useCallback(
+    async (logId: number, files: File[]) => {
+      try {
+        const res = await uploadTravellogPhotos(workspaceId, logId, files);
+        setTravelLogs((prev) =>
+          prev.map((log) => (log.id === logId ? apiToTravelLog(res) : log)),
+        );
+      } catch (err) {
+        console.warn("[useTravelLogs] 사진 업로드 실패:", err);
       }
     },
     [workspaceId],
@@ -164,13 +179,26 @@ export function useTravelLogs(workspaceId: number) {
     [workspaceId],
   );
 
+  /** 카드 순서 변경 (로컬) */
+  const handleReorderLogs = useCallback((fromIdx: number, toIdx: number) => {
+    setTravelLogs((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  }, []);
+
   return {
     travelLogs,
     isLoading,
     error,
     loadTravelLogs,
     handleAddDailyCard,
+    handleUpdateMainTitle,
     handleSaveTravelLog,
+    handleUploadTravellogPhotos,
     handleDeleteTravelLog,
+    handleReorderLogs,
   };
 }

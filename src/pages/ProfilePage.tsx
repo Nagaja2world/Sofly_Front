@@ -17,6 +17,7 @@ import {
   resolveCoverImage,
   type Workspace,
 } from "@/api/workspaceApi";
+import { createChatRoom } from "@/api/chatApi";
 import type { SnsPost } from "@/types/snsType";
 
 import profileHeroSvg from "@/assets/profile_hero.svg";
@@ -200,6 +201,7 @@ export default function ProfilePage() {
     try {
       const payload = buildDummyWorkspacePayload();
       const created = await createWorkspace(payload);
+      await createChatRoom(created.id).catch(() => {});
       setWorkspaces((prev) => [...prev, created]);
       navigate(`/workspace/${created.id}`);
     } catch (err) {
