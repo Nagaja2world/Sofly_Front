@@ -278,18 +278,27 @@ function ViewDataRow({
   row,
   onDelete,
   onCategoryChange,
+  onRowClick,
+  isSelected,
 }: {
   row: ItineraryRow;
   onDelete?: () => void;
   onCategoryChange?: (cat: ScheduleCategory) => void;
+  onRowClick?: () => void;
+  isSelected?: boolean;
 }) {
   return (
     <div
+      onClick={onRowClick}
       className={[
         "group grid items-center gap-2",
         "px-5 py-3.5",
         "rounded-lg border border-gray-200 bg-gray-50",
         "font-pretendard text-body3",
+        onRowClick ? "cursor-pointer" : "",
+        isSelected // ← 추가
+          ? "border-amber-400 bg-amber-50"
+          : "border-gray-200",
       ].join(" ")}
       style={{ gridTemplateColumns: VIEW_GRID_COLS }}
     >
@@ -302,7 +311,10 @@ function ViewDataRow({
       </span>
 
       {/* 분류 */}
-      <span className="flex justify-center">
+      <span
+        className="flex justify-center"
+        onClick={(e) => e.stopPropagation()}
+      >
         <CategoryBadge category={row._category} onSelect={onCategoryChange} />
       </span>
 
@@ -320,7 +332,10 @@ function ViewDataRow({
         {onDelete && (
           <button
             type="button"
-            onClick={onDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
             aria-label="일정 삭제"
             className={[
               "shrink-0 w-6 h-6 rounded",
@@ -751,6 +766,7 @@ export default function ItineraryDayCard({
 }: ItineraryDayCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showMap, setShowMap] = useState(true);
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number;
     title: string;
@@ -899,6 +915,7 @@ export default function ItineraryDayCard({
               .join(",")}
             rows={rows}
             dayNumber={dayNumber}
+            selectedIndex={selectedRowIndex}
           />
         </div>
       )}
@@ -976,10 +993,12 @@ export default function ItineraryDayCard({
             등록된 일정이 없습니다.
           </div>
         ) : (
-          rows.map((row) => (
+          rows.map((row, index) => (
             <ViewDataRow
               key={row.id}
               row={row}
+              onRowClick={() => setSelectedRowIndex(index)}
+              isSelected={selectedRowIndex === index}
               onDelete={
                 onDeleteItem
                   ? () => {
