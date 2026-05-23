@@ -6,6 +6,7 @@ import PlusIcon from "@/assets/plus.svg?react";
 import MapIcon from "@/assets/map.svg?react";
 import DayItineraryMap from "@/components/workspace/DayItineraryMap";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
+import { getCategoryStyle } from "@/utils/itineraryCategory";
 import {
   searchPlaces,
   fetchPlacePhotoUri,
@@ -17,18 +18,35 @@ import {
    타입
    ══════════════════════════════════════════ */
 
+/** 한 일정 행
+ *
+ *  화면 표시 5필드: visitTime(시각) · title(제목) · _category(분류)
+ *                  · cost(비용) · remark(메모)
+ *
+ *  `_`로 시작하는 필드는 API 연동/지도 표시를 위한 내부 메타데이터로,
+ *  표에는 직접 노출되지 않음(분류 컬럼에 쓰이는 _category는 예외).
+ */
 export interface ItineraryRow {
+  /** 고유 id (drag&drop, edit, 삭제 식별에 사용). API item id의 문자열 형태. */
   id: string;
+  /** 제목 — 장소명 "공항 도착", "감자 레스토랑" */
   title: string;
+  /** 방문 시각 "14:30" — 없으면 "-" 표시 */
   visitTime?: string;
+  /** 예상 비용 "13,000원" — 없으면 "-" 표시 */
   cost?: string;
+  /** 메모(비고) — 없으면 "-" 표시. 보기 모드에서 2줄까지, 편집 시 50자 제한. */
   remark?: string;
+
+  /* ── 내부 메타데이터 (API/지도 연동용) ── */
+  /** 분류 — 표의 "분류" 컬럼에 배지로 표시됨 */
   _category?: string;
   _address?: string | null;
   _latitude?: number | null;
   _longitude?: number | null;
   _placeId?: string | null;
   _photoReference?: string | null;
+  /** 비용 원본 숫자 (cost 문자열과 별개로 보존) */
   _estimatedCost?: number | null;
 }
 
@@ -51,8 +69,8 @@ interface ItineraryDayCardProps {
   onDeleteItem?: (itemId: number) => void;
   /**
    * 카테고리 변경 콜백.
-   * 보기 모드에서 카테고리 아이콘을 클릭해 변경할 때 호출됨.
-   * 미지정 시 카테고리 아이콘은 클릭 불가능한 단순 표시용으로 렌더됨.
+   * 보기 모드에서 분류 배지를 클릭해 변경할 때 호출됨.
+   * 미지정 시 분류 배지는 클릭 불가능한 단순 표시용으로 렌더됨.
    */
   onCategoryChange?: (itemId: number, category: ScheduleCategory) => void;
   /**
@@ -73,184 +91,37 @@ interface ItineraryDayCardProps {
 }
 
 /* ══════════════════════════════════════════
-   카테고리 설정
+   공통 상수
    ══════════════════════════════════════════ */
 
-const CATEGORY_CONFIG = {
-  TRANSPORT: {
-    label: "교통",
-    bgColor: "bg-sky-100",
-    iconColor: "text-sky-500",
-    badgeBg: "bg-sky-50",
-    badgeText: "text-sky-600",
-    badgeBorder: "border-sky-200",
-    circleFrom: "from-sky-400",
-    circleTo: "to-sky-500",
-  },
-  ACCOMMODATION: {
-    label: "숙소",
-    bgColor: "bg-violet-100",
-    iconColor: "text-violet-500",
-    badgeBg: "bg-violet-50",
-    badgeText: "text-violet-600",
-    badgeBorder: "border-violet-200",
-    circleFrom: "from-violet-400",
-    circleTo: "to-violet-500",
-  },
-  RESTAURANT: {
-    label: "식당",
-    bgColor: "bg-orange-100",
-    iconColor: "text-orange-500",
-    badgeBg: "bg-orange-50",
-    badgeText: "text-orange-600",
-    badgeBorder: "border-orange-200",
-    circleFrom: "from-orange-400",
-    circleTo: "to-orange-500",
-  },
-  CAFE: {
-    label: "카페",
-    bgColor: "bg-amber-100",
-    iconColor: "text-amber-600",
-    badgeBg: "bg-amber-50",
-    badgeText: "text-amber-700",
-    badgeBorder: "border-amber-200",
-    circleFrom: "from-amber-400",
-    circleTo: "to-amber-500",
-  },
-  ATTRACTION: {
-    label: "관광",
-    bgColor: "bg-emerald-100",
-    iconColor: "text-emerald-600",
-    badgeBg: "bg-emerald-50",
-    badgeText: "text-emerald-700",
-    badgeBorder: "border-emerald-200",
-    circleFrom: "from-emerald-400",
-    circleTo: "to-emerald-500",
-  },
-} as const;
+/** 메모 입력 최대 글자 수 (편집 모드) */
+const REMARK_MAX_LENGTH = 50;
 
-type CategoryKey = keyof typeof CATEGORY_CONFIG;
+/** 카테고리 목록 (편집 모드 분류 선택 드롭다운용) */
+const CATEGORY_KEYS: ScheduleCategory[] = [
+  "TRANSPORT",
+  "ACCOMMODATION",
+  "RESTAURANT",
+  "CAFE",
+  "ATTRACTION",
+];
 
-function getCategoryConfig(category?: string) {
-  return (
-    CATEGORY_CONFIG[(category as CategoryKey) ?? "ATTRACTION"] ??
-    CATEGORY_CONFIG.ATTRACTION
-  );
-}
+/** 보기 모드 표 컬럼 비율
+ *  시각 | 제목 | 분류 | 비용 | 메모 */
+const VIEW_GRID_COLS =
+  "80px minmax(140px, 2fr) 92px minmax(90px, 1fr) minmax(160px, 2.2fr)";
 
-/* ══════════════════════════════════════════
-   카테고리 아이콘 (인라인 SVG)
-   ══════════════════════════════════════════ */
+/** 편집 모드 표 컬럼 비율
+ *  드래그(28px) | 분류 | 제목 | 시각 | 비용 | 메모 | 삭제(28px) */
+const EDIT_GRID_COLS =
+  "28px 96px minmax(140px, 2fr) 88px minmax(90px, 1fr) minmax(150px, 2fr) 28px";
 
-function CategoryIcon({
-  category,
-  className,
-}: {
-  category?: string;
-  className?: string;
-}) {
-  const cls = className ?? "w-6 h-6";
-
-  switch (category as CategoryKey) {
-    case "TRANSPORT":
-      return (
-        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
-          <path
-            d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
-            fill="currentColor"
-          />
-        </svg>
-      );
-    case "ACCOMMODATION":
-      return (
-        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
-          <path
-            d="M2 20v-8l10-7 10 7v8"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M9 20v-6h6v6"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M2 20h20"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-        </svg>
-      );
-    case "RESTAURANT":
-      return (
-        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
-          <path
-            d="M18 2v6c0 1.66-1.34 3-3 3h0v9a1 1 0 0 1-2 0V2"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M7 2v4M7 10v10a1 1 0 0 1-2 0V10M7 6A3 3 0 0 1 4 9v1h6V9A3 3 0 0 1 7 6z"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      );
-    case "CAFE":
-      return (
-        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
-          <path
-            d="M17 8h1a4 4 0 0 1 0 8h-1"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M6.5 1v2M9.5 1v2M12.5 1v2"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-        </svg>
-      );
-    case "ATTRACTION":
-    default:
-      return (
-        <svg viewBox="0 0 24 24" fill="none" className={cls} aria-hidden>
-          <path
-            d="M3 21h18M6 21V9M18 21V9M12 3l9 6H3l9-6z"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M9 21v-6h6v6"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      );
-  }
+/** 새 행 생성 */
+function createEmptyRow(): ItineraryRow {
+  return {
+    id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    title: "",
+  };
 }
 
 /* ══════════════════════════════════════════
@@ -291,24 +162,21 @@ function PlacePhotoImg({
 }
 
 /* ══════════════════════════════════════════
-   카테고리 선택 드롭다운
+   분류 배지
    ══════════════════════════════════════════ */
 
-function CategoryPicker({
-  value,
-  onChange,
-  size = "sm",
+/** 보기 모드 분류 배지.
+ *  onSelect가 있으면 클릭해서 카테고리를 바꿀 수 있는 드롭다운으로 동작. */
+function CategoryBadge({
+  category,
+  onSelect,
 }: {
-  value?: string;
-  onChange: (cat: ScheduleCategory) => void;
-  /** 'sm': 편집 모드 (36px), 'lg': 보기 모드 (44px) */
-  size?: "sm" | "lg";
+  category?: string;
+  onSelect?: (cat: ScheduleCategory) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const config = getCategoryConfig(value);
-  const btnSize = size === "lg" ? "w-11 h-11" : "w-9 h-9";
-  const iconSize = size === "lg" ? "w-5 h-5" : "w-4 h-4";
+  const style = getCategoryStyle(category);
 
   useEffect(() => {
     if (!open) return;
@@ -320,73 +188,62 @@ function CategoryPicker({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  const badge = (
+    <span
+      className={[
+        "inline-flex items-center justify-center px-2.5 py-1 rounded-md",
+        "font-pretendard text-body5 font-medium",
+        style.badgeBg,
+        style.badgeText,
+      ].join(" ")}
+    >
+      {style.label}
+    </span>
+  );
+
+  /* 변경 불가 — 단순 표시 */
+  if (!onSelect) return badge;
+
+  /* 변경 가능 — 클릭 드롭다운 */
   return (
-    <div ref={ref} className="relative shrink-0">
+    <div ref={ref} className="relative inline-block">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title="카테고리 변경"
-        className={[
-          btnSize,
-          "rounded-full flex items-center justify-center",
-          config.bgColor,
-          "cursor-pointer transition-opacity hover:opacity-80",
-          "border-2",
-          open ? "border-primary" : "border-transparent",
-        ].join(" ")}
+        title="분류 변경"
+        className="bg-transparent border-none p-0 cursor-pointer"
       >
-        <CategoryIcon
-          category={value}
-          className={`${iconSize} ${config.iconColor}`}
-        />
+        {badge}
       </button>
-
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[120px]">
-          {(Object.keys(CATEGORY_CONFIG) as CategoryKey[]).map((key) => {
-            const c = CATEGORY_CONFIG[key];
-            const isSelected = (value ?? "ATTRACTION") === key;
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[100px]">
+          {CATEGORY_KEYS.map((key) => {
+            const s = getCategoryStyle(key);
+            const isSelected = (category ?? "ATTRACTION") === key;
             return (
               <button
                 key={key}
                 type="button"
                 onClick={() => {
-                  onChange(key);
+                  onSelect(key);
                   setOpen(false);
                 }}
                 className={[
-                  "flex items-center gap-2 w-full px-3 py-2",
+                  "flex items-center gap-2 w-full px-3 py-1.5",
                   "bg-transparent border-none cursor-pointer text-left",
                   "hover:bg-gray-50 transition-colors",
                   isSelected ? "bg-gray-50" : "",
                 ].join(" ")}
               >
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center ${c.bgColor} shrink-0`}
-                >
-                  <CategoryIcon
-                    category={key}
-                    className={`w-3 h-3 ${c.iconColor}`}
-                  />
-                </div>
+                <span
+                  className={[
+                    "inline-block w-2 h-2 rounded-full",
+                    s.badgeBg,
+                  ].join(" ")}
+                />
                 <span className="font-pretendard text-[12px] text-gray-700">
-                  {c.label}
+                  {s.label}
                 </span>
-                {isSelected && (
-                  <svg
-                    className="ml-auto w-3 h-3 text-primary shrink-0"
-                    viewBox="0 0 12 10"
-                    fill="none"
-                  >
-                    <path
-                      d="M1 5L4.5 8.5L11 1.5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
               </button>
             );
           })}
@@ -397,7 +254,106 @@ function CategoryPicker({
 }
 
 /* ══════════════════════════════════════════
-   장소명 검색 자동완성 인풋
+   보기 모드 서브 컴포넌트 — 5컬럼 표
+   ══════════════════════════════════════════ */
+
+/** 보기 모드 컬럼 헤더 */
+function ViewHeaderRow() {
+  return (
+    <div
+      className="grid items-center px-5 py-3 font-pretendard text-body4 text-gray-600"
+      style={{ gridTemplateColumns: VIEW_GRID_COLS }}
+    >
+      <span className="text-center">시각</span>
+      <span>제목</span>
+      <span className="text-center">분류</span>
+      <span className="text-center">비용</span>
+      <span>메모</span>
+    </div>
+  );
+}
+
+/** 보기 모드 데이터 행 */
+function ViewDataRow({
+  row,
+  onDelete,
+  onCategoryChange,
+}: {
+  row: ItineraryRow;
+  onDelete?: () => void;
+  onCategoryChange?: (cat: ScheduleCategory) => void;
+}) {
+  return (
+    <div
+      className={[
+        "group grid items-center gap-2",
+        "px-5 py-3.5",
+        "rounded-lg border border-gray-200 bg-gray-50",
+        "font-pretendard text-body3",
+      ].join(" ")}
+      style={{ gridTemplateColumns: VIEW_GRID_COLS }}
+    >
+      {/* 시각 */}
+      <span className="text-center text-gray-500">{row.visitTime || "-"}</span>
+
+      {/* 제목 */}
+      <span className="font-medium text-gray-900 truncate" title={row.title}>
+        {row.title}
+      </span>
+
+      {/* 분류 */}
+      <span className="flex justify-center">
+        <CategoryBadge category={row._category} onSelect={onCategoryChange} />
+      </span>
+
+      {/* 비용 */}
+      <span className="text-center text-gray-700">{row.cost || "-"}</span>
+
+      {/* 메모 + (hover 시) 삭제 버튼 */}
+      <span className="flex items-center gap-2 min-w-0">
+        <span
+          className="flex-1 min-w-0 text-gray-500 line-clamp-2"
+          title={row.remark}
+        >
+          {row.remark || "-"}
+        </span>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="일정 삭제"
+            className={[
+              "shrink-0 w-6 h-6 rounded",
+              "inline-flex items-center justify-center",
+              "border-none bg-transparent",
+              "text-gray-300 hover:text-red-500 hover:bg-red-50",
+              "opacity-0 group-hover:opacity-100",
+              "transition-all cursor-pointer",
+            ].join(" ")}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              aria-hidden
+            >
+              <path
+                d="M2 2L10 10M10 2L2 10"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )}
+      </span>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   장소명 검색 자동완성 인풋 (편집 모드)
    ══════════════════════════════════════════ */
 
 function PlaceSearchInput({
@@ -414,7 +370,6 @@ function PlaceSearchInput({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  // portal 드롭다운 DOM ref — 포털은 wrapperRef 바깥 DOM에 있어서 별도로 추적 필요
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -426,7 +381,6 @@ function PlaceSearchInput({
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
-      // wrapper 또는 portal 드롭다운 내부 클릭이면 닫지 않음
       if (
         wrapperRef.current?.contains(target) ||
         dropdownRef.current?.contains(target)
@@ -470,7 +424,6 @@ function PlaceSearchInput({
     onSelectPlace(place);
   };
 
-  /* Portal 드롭다운의 fixed 위치 계산 */
   const getDropdownStyle = (): React.CSSProperties => {
     if (!wrapperRef.current) return {};
     const rect = wrapperRef.current.getBoundingClientRect();
@@ -581,218 +534,23 @@ function PlaceSearchInput({
    편집 모드 서브 컴포넌트
    ══════════════════════════════════════════ */
 
-function createEmptyRow(): ItineraryRow {
-  return {
-    id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    title: "",
-  };
-}
-
-/* ══════════════════════════════════════════
-   보기 모드 — 타임라인 카드
-   ══════════════════════════════════════════ */
-
-function ViewTimelineRow({
-  row,
-  index,
-  total,
-  onDelete,
-  onRowClick,
-  onCategoryChange,
-}: {
-  row: ItineraryRow;
-  index: number;
-  total: number;
-  onDelete?: () => void;
-  onRowClick?: (index: number) => void;
-  onCategoryChange?: (category: ScheduleCategory) => void;
-}) {
-  const config = getCategoryConfig(row._category);
-  const itemId = parseInt(row.id, 10);
-  const isDeletable = !isNaN(itemId) && !!onDelete;
-  const hasCost = row._estimatedCost != null && row._estimatedCost > 0;
-
+/** 편집 모드 컬럼 헤더 */
+function EditHeaderRow() {
   return (
-    <div className="flex gap-3">
-      {/* 왼쪽: 번호 배지 + 시각 + 연결선 */}
-      <div
-        className="flex flex-col items-center"
-        style={{ width: 48, minWidth: 48 }}
-      >
-        <div
-          className={[
-            "w-7 h-7 rounded-full shrink-0",
-            "bg-gradient-to-b",
-            config.circleFrom,
-            config.circleTo,
-            "flex items-center justify-center",
-            "text-white font-pretendard text-xs font-bold",
-            "shadow-sm",
-          ].join(" ")}
-        >
-          {index + 1}
-        </div>
-        {row.visitTime && (
-          <span className="font-pretendard text-[11px] text-gray-500 mt-1 leading-tight text-center">
-            {row.visitTime}
-          </span>
-        )}
-        {index < total - 1 && (
-          <div
-            className="w-px bg-gray-200 flex-1 mt-2"
-            style={{ minHeight: 16 }}
-          />
-        )}
-      </div>
-
-      {/* 오른쪽: 카드 */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onRowClick?.(index)}
-        onKeyDown={(e) => e.key === "Enter" && onRowClick?.(index)}
-        className={[
-          "flex-1 min-w-0",
-          "rounded-xl border border-gray-100 bg-white",
-          "flex items-start gap-3 p-4",
-          index < total - 1 ? "mb-3" : "",
-          "group hover:border-gray-200 hover:shadow-sm transition-all",
-          onRowClick ? "cursor-pointer" : "",
-        ].join(" ")}
-      >
-        {/* 카테고리 아이콘 — onCategoryChange 있으면 클릭 가능한 CategoryPicker */}
-        {onCategoryChange ? (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            <CategoryPicker
-              value={row._category}
-              onChange={onCategoryChange}
-              size="lg"
-            />
-          </div>
-        ) : (
-          <div
-            className={[
-              "w-11 h-11 rounded-full shrink-0",
-              "flex items-center justify-center",
-              config.bgColor,
-            ].join(" ")}
-          >
-            <CategoryIcon
-              category={row._category}
-              className={`w-5 h-5 ${config.iconColor}`}
-            />
-          </div>
-        )}
-
-        {/* 텍스트 */}
-        <div className="flex-1 min-w-0">
-          <span
-            className={[
-              "inline-flex items-center px-2 py-0.5 rounded-full",
-              "font-pretendard text-[11px] font-medium",
-              "border",
-              config.badgeBg,
-              config.badgeText,
-              config.badgeBorder,
-              "mb-1",
-            ].join(" ")}
-          >
-            {config.label}
-          </span>
-          <div className="font-pretendard text-body3 font-semibold text-gray-900 leading-snug">
-            {row.title}
-          </div>
-          {row.remark && (
-            <div className="font-pretendard text-[12px] text-gray-400 mt-0.5 line-clamp-1">
-              {row.remark}
-            </div>
-          )}
-        </div>
-
-        {/* 예상 비용 배지 */}
-        <div
-          className={[
-            "shrink-0 px-3 py-1 rounded-full",
-            "font-pretendard text-[13px] font-medium",
-            hasCost
-              ? "bg-orange-50 text-orange-600 border border-orange-200"
-              : "bg-emerald-50 text-emerald-600 border border-emerald-200",
-          ].join(" ")}
-        >
-          {row.cost || "0원"}
-        </div>
-
-        {/* 삭제 버튼 */}
-        {isDeletable && (
-          <button
-            type="button"
-            onClick={onDelete}
-            aria-label="일정 삭제"
-            className={[
-              "shrink-0 w-6 h-6 rounded",
-              "inline-flex items-center justify-center",
-              "border-none bg-transparent",
-              "text-gray-300 hover:text-red-500 hover:bg-red-50",
-              "opacity-0 group-hover:opacity-100",
-              "transition-all cursor-pointer",
-            ].join(" ")}
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              aria-hidden
-            >
-              <path
-                d="M2 2L10 10M10 2L2 10"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        )}
-      </div>
+    <div
+      className="grid items-center gap-2 px-3 py-3 font-pretendard text-body4 text-gray-600"
+      style={{ gridTemplateColumns: EDIT_GRID_COLS }}
+    >
+      <span />
+      <span className="text-center">분류</span>
+      <span className="text-center">제목</span>
+      <span className="text-center">시각</span>
+      <span className="text-center">비용</span>
+      <span className="text-center">메모</span>
+      <span />
     </div>
   );
 }
-
-/* ══════════════════════════════════════════
-   보기 모드 — 하단 요약 푸터
-   ══════════════════════════════════════════ */
-
-function ViewFooter({ rows }: { rows: ItineraryRow[] }) {
-  const totalCost = rows.reduce((sum, r) => sum + (r._estimatedCost ?? 0), 0);
-
-  return (
-    <div className="mt-1 mx-0 rounded-xl border border-gray-100 bg-gray-50 grid grid-cols-2 divide-x divide-gray-200">
-      <div className="flex flex-col items-center py-3 px-4">
-        <span className="font-pretendard text-[11px] text-gray-400 mb-0.5">
-          총 일정
-        </span>
-        <span className="font-pretendard text-body3 font-semibold text-gray-800">
-          {rows.length}개
-        </span>
-      </div>
-      <div className="flex flex-col items-center py-3 px-4">
-        <span className="font-pretendard text-[11px] text-gray-400 mb-0.5">
-          총 예상 비용
-        </span>
-        <span className="font-pretendard text-body3 font-semibold text-orange-500">
-          {totalCost > 0 ? `${totalCost.toLocaleString("ko-KR")}원` : "0원"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════
-   편집 모드 서브 컴포넌트 (드래그&드롭 재정렬)
-   ══════════════════════════════════════════ */
 
 /** 6점 그립 아이콘 */
 function DragHandleIcon() {
@@ -812,6 +570,17 @@ function DragHandleIcon() {
       <circle cx="7" cy="13.5" r="1.5" />
     </svg>
   );
+}
+
+/** 편집 모드 분류 선택 드롭다운 (작은 배지 버튼) */
+function EditCategorySelect({
+  value,
+  onChange,
+}: {
+  value?: string;
+  onChange: (cat: ScheduleCategory) => void;
+}) {
+  return <CategoryBadge category={value} onSelect={onChange} />;
 }
 
 function EditDataRow({
@@ -846,6 +615,11 @@ function EditDataRow({
     });
   };
 
+  const cellInput =
+    "w-full min-w-0 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg " +
+    "font-pretendard text-body3 text-gray-900 placeholder:text-gray-400 " +
+    "outline-none focus:border-primary focus:bg-white transition-colors";
+
   return (
     <div
       draggable
@@ -854,7 +628,7 @@ function EditDataRow({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       className={[
-        "flex items-center gap-3 px-3 py-3",
+        "grid items-center gap-2 px-3 py-2",
         "rounded-xl border bg-white",
         "transition-all duration-150",
         isDragging ? "opacity-40 scale-[0.98] shadow-inner" : "",
@@ -862,83 +636,69 @@ function EditDataRow({
           ? "border-primary border-2 shadow-md"
           : "border-gray-200 hover:border-gray-300 hover:shadow-sm",
       ].join(" ")}
+      style={{ gridTemplateColumns: EDIT_GRID_COLS }}
     >
       {/* 드래그 핸들 */}
       <div
-        className="shrink-0 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing transition-colors px-0.5"
+        className="shrink-0 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing transition-colors flex justify-center"
         aria-label="드래그하여 순서 변경"
       >
         <DragHandleIcon />
       </div>
 
-      {/* 카테고리 선택 */}
-      <CategoryPicker
-        value={row._category}
-        onChange={(cat) => onChange({ _category: cat })}
-      />
-
-      {/* 입력 필드 그룹 */}
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        {/* 장소명 검색 자동완성 */}
-        <PlaceSearchInput
-          value={row.title}
-          onChange={(title) => onChange({ title })}
-          onSelectPlace={handlePlaceSelect}
+      {/* 분류 */}
+      <div className="flex justify-center">
+        <EditCategorySelect
+          value={row._category}
+          onChange={(cat) => onChange({ _category: cat })}
         />
-        {/* 시각 / 비용 / 비고 */}
-        <div className="flex gap-1.5">
-          <input
-            type="text"
-            value={row.visitTime ?? ""}
-            onChange={(e) => onChange({ visitTime: e.target.value })}
-            placeholder="09:30"
-            aria-label="방문 시각"
-            className={[
-              "w-20 shrink-0 px-2 py-1",
-              "bg-gray-50 border border-gray-200 rounded-lg text-center",
-              "font-pretendard text-[12px] text-gray-700",
-              "placeholder:text-gray-400",
-              "outline-none focus:border-primary focus:bg-white transition-colors",
-            ].join(" ")}
-          />
-          <input
-            type="text"
-            value={row.cost ?? ""}
-            onChange={(e) => onChange({ cost: e.target.value })}
-            placeholder="0원"
-            aria-label="예상 비용"
-            className={[
-              "w-24 shrink-0 px-2 py-1",
-              "bg-gray-50 border border-gray-200 rounded-lg text-center",
-              "font-pretendard text-[12px] text-gray-700",
-              "placeholder:text-gray-400",
-              "outline-none focus:border-primary focus:bg-white transition-colors",
-            ].join(" ")}
-          />
-          <input
-            type="text"
-            value={row.remark ?? ""}
-            onChange={(e) => onChange({ remark: e.target.value })}
-            placeholder="메모 (선택)"
-            aria-label="비고"
-            className={[
-              "flex-1 min-w-0 px-2 py-1",
-              "bg-gray-50 border border-gray-200 rounded-lg",
-              "font-pretendard text-[12px] text-gray-700",
-              "placeholder:text-gray-400",
-              "outline-none focus:border-primary focus:bg-white transition-colors",
-            ].join(" ")}
-          />
-        </div>
       </div>
 
-      {/* 삭제 버튼 */}
+      {/* 제목 — 장소 검색 자동완성 */}
+      <PlaceSearchInput
+        value={row.title}
+        onChange={(title) => onChange({ title })}
+        onSelectPlace={handlePlaceSelect}
+      />
+
+      {/* 시각 */}
+      <input
+        type="text"
+        value={row.visitTime ?? ""}
+        onChange={(e) => onChange({ visitTime: e.target.value })}
+        placeholder="14:30"
+        aria-label="방문 시각"
+        className={cellInput + " text-center"}
+      />
+
+      {/* 비용 */}
+      <input
+        type="text"
+        value={row.cost ?? ""}
+        onChange={(e) => onChange({ cost: e.target.value })}
+        placeholder="13,000원"
+        aria-label="예상 비용"
+        className={cellInput + " text-center"}
+      />
+
+      {/* 메모 — 50자 제한 */}
+      <input
+        type="text"
+        value={row.remark ?? ""}
+        onChange={(e) => onChange({ remark: e.target.value })}
+        placeholder="메모 (선택)"
+        aria-label="메모"
+        maxLength={REMARK_MAX_LENGTH}
+        className={cellInput}
+      />
+
+      {/* 삭제 */}
       <button
         type="button"
         onClick={onDelete}
         aria-label="행 삭제"
         className={[
-          "shrink-0 w-6 h-6 rounded-md",
+          "shrink-0 w-6 h-6 rounded-md justify-self-center",
           "inline-flex items-center justify-center",
           "border-none bg-transparent",
           "text-gray-300 hover:text-red-500 hover:bg-red-50",
@@ -965,25 +725,20 @@ function EditDataRow({
 /**
  * 워크스페이스 페이지의 여행 일정 N일차 카드
  *
- * 두 가지 모드를 가짐:
+ * 두 가지 모드:
  *
  * 1) 보기 모드 (기본)
  *    - 헤더: 📍 + "N일차" + 편집 버튼(edit2) + 지도 토글 버튼
- *    - 본문 상단: 지도 패널 (showMap === true 시 표시)
- *    - 본문 하단: 타임라인 카드 목록
- *    - 행 클릭 시 해당 장소 핀이 지도에서 강조됨
+ *    - 지도 패널 (showMap === true 시 표시)
+ *    - 5컬럼 표: 시각 | 제목 | 분류 | 비용 | 메모
  *
  * 2) 편집 모드 (헤더 편집 버튼 클릭 시 진입)
  *    - 헤더: 📍 + "N일차" + 취소 / 저장 버튼
- *    - 본문: 드래그&드롭 재정렬 가능한 편집 행 목록 + "+ 일정 추가"
- *    - 저장 시 onSave(rows) 호출 → 부모가 state 갱신 (API 연결 시 PATCH)
- *    - 취소 시 진입 시점의 rows로 되돌림
+ *    - 드래그&드롭 재정렬 가능한 편집 행 + "+ 일정 추가"
+ *    - 편집 행 컬럼: 드래그 | 분류 | 제목(장소검색) | 시각 | 비용 | 메모 | 삭제
+ *    - 저장 시 onSave(rows) 호출 → 부모가 state 갱신
  *
- * readOnly 모드 (SNS 미리보기 페이지 등):
- *  - readOnly={true}로 넘기면 편집 버튼이 사라져 편집 모드 진입 자체가 불가능.
- *  - 지도 보기는 read-only 동작이므로 readOnly와 무관하게 그대로 동작함.
- *  - 행별 삭제/카테고리 변경도 부모가 onDeleteItem/onCategoryChange를
- *    넘기지 않음으로써 자연스럽게 막힘.
+ * readOnly 모드: 편집 버튼 숨김, 지도 보기는 그대로 동작.
  */
 export default function ItineraryDayCard({
   dayNumber,
@@ -1001,7 +756,6 @@ export default function ItineraryDayCard({
     title: string;
   } | null>(null);
   const [draftRows, setDraftRows] = useState<ItineraryRow[]>(rows);
-  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
 
   /* 드래그&드롭 */
   const dragIndexRef = React.useRef<number | null>(null);
@@ -1048,7 +802,7 @@ export default function ItineraryDayCard({
   return (
     <article
       className={[
-        "bg-white rounded-xl border border-gray-200 overflow-hidden",
+        "bg-white rounded-xl border border-gray-300 overflow-hidden",
         "transition-shadow duration-200",
         isEditing ? "shadow-md" : "",
         className,
@@ -1061,8 +815,6 @@ export default function ItineraryDayCard({
           {dayNumber}일차
         </span>
 
-        {/* 보기 모드: edit2 버튼(readOnly 아닐 때만) + 지도 토글 버튼
-            편집 모드: 취소·저장 버튼 */}
         {isEditing ? (
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -1092,7 +844,7 @@ export default function ItineraryDayCard({
           </div>
         ) : (
           <>
-            {/* readOnly === true 이면 편집 버튼 숨김 (편집 모드 진입 자체 불가) */}
+            {/* readOnly이면 편집 버튼 숨김 */}
             {!readOnly && (
               <button
                 type="button"
@@ -1110,9 +862,7 @@ export default function ItineraryDayCard({
               </button>
             )}
 
-            {/* 지도 토글 버튼 — 지도 보기는 read-only 동작이므로
-                readOnly와 무관하게 항상 표시.
-                SNS 미리보기 페이지에서도 동선 확인은 의미가 있음. */}
+            {/* 지도 토글 — readOnly와 무관하게 항상 표시 */}
             <button
               type="button"
               onClick={() => setShowMap((v) => !v)}
@@ -1149,17 +899,17 @@ export default function ItineraryDayCard({
               .join(",")}
             rows={rows}
             dayNumber={dayNumber}
-            selectedIndex={selectedRowIndex}
           />
         </div>
       )}
 
+      {/* ── 컬럼 헤더 ── */}
+      <div className="border-t border-gray-200 px-2">
+        {isEditing ? <EditHeaderRow /> : <ViewHeaderRow />}
+      </div>
+
       {/* ── 데이터 행들 ── */}
-      <div
-        className={
-          isEditing ? "flex flex-col gap-2 px-3 pt-3 pb-3" : "px-4 pt-4 pb-3"
-        }
-      >
+      <div className="flex flex-col gap-2 px-2 pb-2">
         {isEditing ? (
           <>
             {draftRows.length === 0 ? (
@@ -1226,42 +976,28 @@ export default function ItineraryDayCard({
             등록된 일정이 없습니다.
           </div>
         ) : (
-          <>
-            {rows.map((row, idx) => (
-              <ViewTimelineRow
-                key={row.id}
-                row={row}
-                index={idx}
-                total={rows.length}
-                onRowClick={(i) => {
-                  if (showMap) {
-                    setSelectedRowIndex(i);
-                  } else {
-                    setShowMap(true);
-                    setSelectedRowIndex(i);
-                  }
-                }}
-                onDelete={
-                  onDeleteItem
-                    ? () => {
-                        const id = parseInt(row.id, 10);
-                        if (!isNaN(id))
-                          setDeleteTarget({ id, title: row.title });
-                      }
-                    : undefined
-                }
-                onCategoryChange={
-                  onCategoryChange
-                    ? (cat) => {
-                        const id = parseInt(row.id, 10);
-                        if (!isNaN(id)) onCategoryChange(id, cat);
-                      }
-                    : undefined
-                }
-              />
-            ))}
-            <ViewFooter rows={rows} />
-          </>
+          rows.map((row) => (
+            <ViewDataRow
+              key={row.id}
+              row={row}
+              onDelete={
+                onDeleteItem
+                  ? () => {
+                      const id = parseInt(row.id, 10);
+                      if (!isNaN(id)) setDeleteTarget({ id, title: row.title });
+                    }
+                  : undefined
+              }
+              onCategoryChange={
+                onCategoryChange
+                  ? (cat) => {
+                      const id = parseInt(row.id, 10);
+                      if (!isNaN(id)) onCategoryChange(id, cat);
+                    }
+                  : undefined
+              }
+            />
+          ))
         )}
       </div>
 
