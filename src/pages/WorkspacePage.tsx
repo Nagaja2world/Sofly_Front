@@ -17,6 +17,7 @@ import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
 import FlightDetailModal from "@/components/workspace/FlightDetailModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import AIChatSidebar from "@/components/workspace/AIChatSidebar";
+import WorkspaceInfoBar from "@/components/workspace/WorkspaceInfoBar";
 import FlightSection from "@/components/workspace/FlightSection";
 import ItinerarySection from "@/components/workspace/ItinerarySection";
 import TravelLogSection from "@/components/workspace/TravelLogSection";
@@ -27,7 +28,8 @@ import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { useWorkspaceFlights } from "@/hooks/useWorkspaceFlights";
 import { useChatResize } from "@/hooks/useChatResize";
 import { useTravelLogs } from "@/hooks/useTravelLogs";
-import { resolveCoverImage, type WorkspaceFlight } from "@/api/workspaceApi";
+import { useIsCompact } from "@/hooks/useMediaQuery";
+import CompactWorkspaceView from "@/components/workspace/compact/CompactWorkspaceView";
 
 /* (목업 데이터 제거됨 — 멤버/항공편/일정/여행기록 모두 API에서 로드) */
 
@@ -105,43 +107,10 @@ export default function WorkspacePage() {
     setWorkspaceDetail(updated);
   };
 
-  const handleRenameWorkspace = async (newName: string) => {
-    if (!workspaceDetail) return;
-    await handleWorkspaceUpdate(
-      newName,
-      workspaceDetail.destination,
-      workspaceDetail.startDate,
-      workspaceDetail.endDate,
-    );
-  };
-
-  const handleChangeCountry = async (newCountry: string) => {
-    if (!workspaceDetail) return;
-    await handleWorkspaceUpdate(
-      workspaceDetail.title,
-      newCountry, // ← destination을 newCountry로 덮어씀
-      workspaceDetail.startDate,
-      workspaceDetail.endDate,
-    );
-  };
-
   const handleCoverImageUpload = async (file: File) => {
     const updated = await uploadCoverImage(workspaceId, file);
     setWorkspaceDetail(updated);
   };
-
-  function extractCountryFromFlights(
-    rawFlights: WorkspaceFlight[] | undefined,
-  ): string {
-    if (!rawFlights || rawFlights.length === 0) return "";
-
-    /* 가는편(OUTBOUND)을 우선 찾고, 없으면 첫 항목 사용 */
-    const outbound =
-      rawFlights.find((f) => f.flightType === "OUTBOUND") ?? rawFlights[0];
-
-    /* 도착 도시명이 있으면 도시명, 없으면 공항코드로 폴백 */
-    return outbound.arrivalCity ?? outbound.arrivalAirport ?? "";
-  }
 
   /* ── 커스텀 훅 ── */
   const {
@@ -188,6 +157,9 @@ export default function WorkspacePage() {
   } = useSchedule(workspaceId);
 
   const { chatWidth, handleResizeStart } = useChatResize();
+
+  /* 좁은 화면(<768px) 여부 — true면 CompactWorkspaceView 렌더 */
+  const isCompact = useIsCompact();
 
   useEffect(() => {
     loadMembers();
@@ -314,184 +286,186 @@ export default function WorkspacePage() {
   /* ── 워크스페이스명 ── */
   const workspaceName = workspaceDetail?.title ?? "워크스페이스";
 
-  const travelLocation =
-    workspaceDetail?.destination?.trim() ||
-    extractCountryFromFlights(rawFlights);
   return (
     <>
-      {/* ══════════════════════════════════════════
-          모바일 (md 미만) — 추후 별도 모바일 디자인 들어올 예정
-          ══════════════════════════════════════════ */}
-      <div className="md:hidden px-4 py-6">
-        <p className="font-pretendard text-body3 text-gray-500 text-center m-0">
-          모바일 화면은 준비 중입니다.
-        </p>
-      </div>
-
-      {/* ══════════════════════════════════════════
-          데스크톱 (md 이상)
-          - 자체 Header를 풀폭으로 렌더링 (Layout/NoHeaderLayout의 헤더 대신)
-          - 컨테이너는 좌우 패딩 없음 → 사이드바가 화면 양 끝까지 맞닿음
-          - 위 패딩 없음 → 사이드바가 Header와 맞닿음
-          ══════════════════════════════════════════ */}
-      <div className="hidden md:block bg-background flex-1">
-        {/* ── 풀폭 Header ── */}
-        <div className="w-full bg-white border-b border-gray-300 sticky top-0 z-50">
-          <div className="px-4">
-            <Header variant="login" onLogout={handleLogout} />
+      {isCompact ? (
+        /* ══ 좁은 화면 (< 768px) ══ */
+        <CompactWorkspaceView
+          workspaceName={workspaceName}
+          onBack={() => navigate(-1)}
+          onShare={() => {
+            /* TODO: 공유 동작 스펙 확정 시 교체 — 우선 URL 복사 */
+            navigator.clipboard?.writeText(window.location.href);
+          }}
+          member={{
+            members,
+            onAddMember: () => setShowInviteModal(true),
+          }}
+          flight={{
+            flights,
+            rawFlights,
+            onFlightClick: setSelectedFlight,
+            onFlightDelete: (id, label) => setDeleteFlightTarget({ id, label }),
+          }}
+        />
+      ) : (
+        /* ══ 넓은 화면 (>= 768px) — 기존 데스크톱 ══ */
+        <div className="bg-background flex-1">
+          {/* ── 풀폭 Header ── */}
+          <div className="w-full bg-white border-b border-gray-300 sticky top-0 z-50">
+            <div className="px-4">
+              <Header variant="login" onLogout={handleLogout} />
+            </div>
           </div>
-        </div>
 
-        {/* ── 페이지 컨텐츠 ── */}
-        <div className="w-full pb-6">
-          <div
-            className="grid items-start gap-6"
-            style={{
-              gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr ${isChatOpen ? `${chatWidth}px` : "48px"}`,
-            }}
-          >
-            {/* ══ 좌측: 멤버 사이드바 (펼침/접힘) ══ */}
-            {isMemberOpen ? (
-              <aside className="self-stretch">
-                <div
-                  className={[
-                    "h-full min-h-full",
-                    "bg-white",
-                    "rounded-br-xl",
-                    "border border-l-0 border-t-0 border-gray-300",
-                  ].join(" ")}
-                >
-                  <div className="sticky top-0">
-                    <MemberSidebar
-                      workspaceName={workspaceName}
-                      members={members}
-                      coverImageUrl={
-                        workspaceDetail
-                          ? resolveCoverImage(
-                              workspaceDetail.coverImageUrl,
-                              workspaceDetail.id,
-                            )
-                          : null
-                      }
-                      country={travelLocation}
-                      onCollapse={() => setIsMemberOpen(false)}
-                      onAddMember={() => setShowInviteModal(true)}
-                      onRenameWorkspace={handleRenameWorkspace}
-                      onChangeCountry={handleChangeCountry}
-                      onChangeCoverImage={handleCoverImageUpload}
-                    />
-                  </div>
-                </div>
-              </aside>
-            ) : (
-              <aside className="self-stretch">
-                <div
-                  className={[
-                    "h-full min-h-full",
-                    "bg-white",
-                    "rounded-br-xl",
-                    "border border-l-0 border-t-0 border-gray-300",
-                    "flex flex-col items-center",
-                  ].join(" ")}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setIsMemberOpen(true)}
-                    aria-label="멤버 사이드바 펼치기"
+          {/* ── 페이지 컨텐츠 ── */}
+          <div className="w-full pb-6">
+            <div
+              className="grid items-start gap-6"
+              style={{
+                gridTemplateColumns: `${isMemberOpen ? "240px" : "48px"} 1fr ${isChatOpen ? `${chatWidth}px` : "48px"}`,
+              }}
+            >
+              {/* ══ 좌측: 멤버 사이드바 (펼침/접힘) ══ */}
+              {isMemberOpen ? (
+                <aside className="self-stretch">
+                  <div
                     className={[
-                      "sticky top-4",
-                      "mt-4",
-                      "p-1.5 rounded",
-                      "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
-                      "transition-colors cursor-pointer",
-                      "border-none bg-transparent",
-                      "inline-flex items-center justify-center",
+                      "h-full min-h-full",
+                      "bg-white",
+                      "rounded-br-xl",
+                      "border border-l-0 border-t-0 border-gray-300",
                     ].join(" ")}
                   >
-                    <LayoutLeftIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </aside>
-            )}
+                    <div className="sticky top-0">
+                      <MemberSidebar
+                        workspaceName={workspaceName}
+                        members={members}
+                        onCollapse={() => setIsMemberOpen(false)}
+                        onAddMember={() => setShowInviteModal(true)}
+                      />
+                    </div>
+                  </div>
+                </aside>
+              ) : (
+                <aside className="self-stretch">
+                  <div
+                    className={[
+                      "h-full min-h-full",
+                      "bg-white",
+                      "rounded-br-xl",
+                      "border border-l-0 border-t-0 border-gray-300",
+                      "flex flex-col items-center",
+                    ].join(" ")}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setIsMemberOpen(true)}
+                      aria-label="멤버 사이드바 펼치기"
+                      className={[
+                        "sticky top-4",
+                        "mt-4",
+                        "p-1.5 rounded",
+                        "text-gray-500 hover:text-gray-900 hover:bg-gray-100",
+                        "transition-colors cursor-pointer",
+                        "border-none bg-transparent",
+                        "inline-flex items-center justify-center",
+                      ].join(" ")}
+                    >
+                      <LayoutLeftIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                </aside>
+              )}
 
-            {/* ══ 가운데: 메인 컨텐츠 ══ */}
-            <main className="min-w-0 flex flex-col gap-8 pt-6">
-              {/* ── 항공 일정 ── */}
-              <FlightSection
-                flights={flights}
-                rawFlights={rawFlights}
-                onFlightClick={setSelectedFlight}
-                onFlightDelete={(id, label) =>
-                  setDeleteFlightTarget({ id, label })
-                }
-              />
+              {/* ══ 가운데: 메인 컨텐츠 ══ */}
+              <main className="min-w-0 flex flex-col gap-8 pt-6">
+                {/* ── 워크스페이스 정보 ── */}
+                {workspaceDetail && (
+                  <WorkspaceInfoBar
+                    workspace={workspaceDetail}
+                    onSave={handleWorkspaceUpdate}
+                    onSaveImage={handleCoverImageUpload}
+                  />
+                )}
 
-              {/* ── 여행 일정 ──
+                {/* ── 항공 일정 ── */}
+                <FlightSection
+                  flights={flights}
+                  rawFlights={rawFlights}
+                  onFlightClick={setSelectedFlight}
+                  onFlightDelete={(id, label) =>
+                    setDeleteFlightTarget({ id, label })
+                  }
+                />
+
+                {/* ── 여행 일정 ──
                   지도 보기는 ItineraryDayCard 내부에서 인라인으로 처리되므로
                   여기서 onMapClick을 넘기지 않음. */}
-              <ItinerarySection
-                itineraryDays={itineraryDays}
-                scheduleList={scheduleList}
-                currentSchedule={currentSchedule}
-                isLoading={isLoadingSchedule}
-                isSaving={isSavingSchedule}
-                onSelectVersion={handleSelectScheduleVersion}
-                onSaveDay={handleSaveItineraryDay}
-                onDeleteItem={handleDeleteItem}
-                onCategoryChange={handleCategoryChange}
-                onDeleteSchedule={handleDeleteSchedule}
-              />
+                <ItinerarySection
+                  itineraryDays={itineraryDays}
+                  scheduleList={scheduleList}
+                  currentSchedule={currentSchedule}
+                  isLoading={isLoadingSchedule}
+                  isSaving={isSavingSchedule}
+                  onSelectVersion={handleSelectScheduleVersion}
+                  onSaveDay={handleSaveItineraryDay}
+                  onDeleteItem={handleDeleteItem}
+                  onCategoryChange={handleCategoryChange}
+                  onDeleteSchedule={handleDeleteSchedule}
+                />
 
-              {/* ── 여행 기록 ── */}
-              <TravelLogSection
-                travelLogs={travelLogs}
-                snsLog={snsLog}
-                showAddCard={showAddCard}
-                sharedAlbumPhotos={sharedAlbumPhotos}
-                onOpenAddCard={handleOpenAddCard}
-                onCancelAddCard={handleCancelAddCard}
-                onAddDailyCard={handleAddDailyCard}
-                onAddSnsCard={handleAddSnsCard}
-                onSaveTravelLog={handleSaveTravelLog}
-                onDeleteTravelLog={handleDeleteTravelLog}
-                onSaveSnsLog={handleSaveSnsLog}
-                onDeleteSnsLog={handleDeleteSnsLog}
-                onUploadSnsLog={handleUploadSnsLog}
-              />
+                {/* ── 여행 기록 ── */}
+                <TravelLogSection
+                  travelLogs={travelLogs}
+                  snsLog={snsLog}
+                  showAddCard={showAddCard}
+                  sharedAlbumPhotos={sharedAlbumPhotos}
+                  onOpenAddCard={handleOpenAddCard}
+                  onCancelAddCard={handleCancelAddCard}
+                  onAddDailyCard={handleAddDailyCard}
+                  onAddSnsCard={handleAddSnsCard}
+                  onSaveTravelLog={handleSaveTravelLog}
+                  onDeleteTravelLog={handleDeleteTravelLog}
+                  onSaveSnsLog={handleSaveSnsLog}
+                  onDeleteSnsLog={handleDeleteSnsLog}
+                  onUploadSnsLog={handleUploadSnsLog}
+                />
 
-              {/* ── 공유 앨범 ──
+                {/* ── 공유 앨범 ──
                   여행에서 함께 놀러간 사람들끼리 찍은 사진들을 모아두는 섹션.
                   - 5열 × 3행(=15장)이 한 화면에 보이고, 그 이상이면 박스 내부에서 세로 스크롤
                   - 사진 클릭 시 라이트박스 모달이 열려 확대 보기 (← → / ESC 단축키)
                   - 사진 hover 시 우상단 "×" 버튼 → 삭제 확인 모달
                   TODO(API/Backend 담당): useSharedAlbum 훅으로 분리하고 실제 API 연결 */}
-              <SharedAlbumSection
-                photos={sharedAlbumPhotos}
-                onAddPhotos={handleAddSharedPhotos}
-                onRemovePhoto={handleRemoveSharedPhoto}
-              />
+                <SharedAlbumSection
+                  photos={sharedAlbumPhotos}
+                  onAddPhotos={handleAddSharedPhotos}
+                  onRemovePhoto={handleRemoveSharedPhoto}
+                />
 
-              {/* ── 위험 영역 (나가기 / 삭제) ── */}
-              <DangerZone
-                myRole={myRole}
-                onLeave={() => setShowLeaveConfirm(true)}
-                onDelete={() => setShowDeleteWorkspace(true)}
-              />
-            </main>
+                {/* ── 위험 영역 (나가기 / 삭제) ── */}
+                <DangerZone
+                  myRole={myRole}
+                  onLeave={() => setShowLeaveConfirm(true)}
+                  onDelete={() => setShowDeleteWorkspace(true)}
+                />
+              </main>
 
-            {/* ══ 우측: AI 채팅 사이드바 (그리드 컬럼, 드래그로 폭 조절) ══ */}
-            <AIChatSidebar
-              isOpen={isChatOpen}
-              chatWidth={chatWidth}
-              workspaceId={workspaceId}
-              onResizeStart={handleResizeStart}
-              onCollapse={() => setIsChatOpen(false)}
-              onExpand={() => setIsChatOpen(true)}
-              onScheduleSaved={loadSchedule}
-            />
+              {/* ══ 우측: AI 채팅 사이드바 (그리드 컬럼, 드래그로 폭 조절) ══ */}
+              <AIChatSidebar
+                isOpen={isChatOpen}
+                chatWidth={chatWidth}
+                workspaceId={workspaceId}
+                onResizeStart={handleResizeStart}
+                onCollapse={() => setIsChatOpen(false)}
+                onExpand={() => setIsChatOpen(true)}
+                onScheduleSaved={loadSchedule}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── 멤버 초대 모달 ── */}
       {showInviteModal && (
