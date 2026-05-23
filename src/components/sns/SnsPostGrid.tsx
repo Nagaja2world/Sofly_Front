@@ -104,6 +104,7 @@ export default function SnsPostGrid({
                   ].join(" ")}
                   muted
                   playsInline
+                  title={post.caption ?? post.author.username + "의 게시물"}
                 />
               )
             ) : (

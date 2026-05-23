@@ -145,7 +145,7 @@ export default function SnsSidebar({
                   className={[
                     "font-montserrat text-body2 font-semibold tabular-nums",
                     /* 1~3위만 primary 색으로 강조 */
-                    dest.rank <= 3 ? "text-[#D4B23E]" : "text-gray-400",
+                    dest.rank <= 3 ? "text-primary" : "text-gray-400",
                     "shrink-0 w-5 text-right",
                   ].join(" ")}
                 >

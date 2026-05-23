@@ -1,8 +1,24 @@
-import type { SnsMedia } from "@/components/workspace/SnsLogCard";
-
 /* ══════════════════════════════════════════
-   SNS 페이지 타입 정의
+   SNS 관련 공유 타입 정의
+
+   - SNS 페이지/게시물 관련 모든 타입을 여기서 정의.
+   - 컴포넌트(SnsLogCard, SnsPostGrid 등)는 여기서 import해 사용.
+   - 타입 파일이 컴포넌트 파일을 import하는 역의존성을 피하기 위함.
    ══════════════════════════════════════════ */
+
+/**
+ * 미디어 한 개 (사진 or 영상)
+ *
+ * 워크스페이스의 SnsLogCard와 SNS 페이지(피드/그리드/상세 팝업)에서 공통으로 사용.
+ */
+export interface SnsMedia {
+  /** 고유 id (편집/삭제 시 사용) */
+  id: string;
+  /** 미디어 타입 */
+  type: "image" | "video";
+  /** 표시 URL (현재는 ObjectURL, API 연결 시 서버 URL로 교체) */
+  url: string;
+}
 
 /**
  * SNS 게시물 작성자 (게시 시점의 워크스페이스 멤버 또는 사용자)
@@ -28,7 +44,7 @@ export interface SnsPost {
   id: string;
   /** 작성자 정보 */
   author: SnsAuthor;
-  /** 미디어 목록 (재사용: SnsLogCard와 동일한 타입) */
+  /** 미디어 목록 (SnsLogCard와 동일 타입) */
   media: SnsMedia[];
   /** 캡션 (옵션) */
   caption?: string;
