@@ -109,6 +109,10 @@ export interface CompactTravelLogProps {
   onUpdateMainTitle?: (id: number, title: string) => void;
   /** 카드 본문/날씨/한줄요약 편집 저장 (useTravelLogs.handleSaveTravelLog) */
   onSaveTravelLog?: (id: number, data: CompactTravelLogData) => void;
+  /** 앨범 사진 즉시 업로드 (useTravelLogs.handleUploadTravellogPhotos).
+      데스크톱 TravelLogSection과 props 표면을 맞추기 위한 채널 —
+      현재 데스크톱·compact 모두 카드 내부에서 호출하지 않는 예약 채널. */
+  onUploadTravellogPhotos?: (id: number, files: File[]) => void;
   /** 카드 삭제 (useTravelLogs.handleDeleteTravelLog) */
   onDeleteTravelLog?: (id: number) => void;
   /** 새 카드 추가 (useTravelLogs.handleAddDailyCard) */
@@ -280,6 +284,7 @@ export default function CompactWorkspaceView({
           sharedAlbumPhotos={travelLog.sharedAlbumPhotos}
           onUpdateMainTitle={travelLog.onUpdateMainTitle}
           onSaveTravelLog={travelLog.onSaveTravelLog}
+          onUploadTravellogPhotos={travelLog.onUploadTravellogPhotos}
           onDeleteTravelLog={travelLog.onDeleteTravelLog}
           onAddDailyCard={travelLog.onAddDailyCard}
           onReorderLogs={travelLog.onReorderLogs}

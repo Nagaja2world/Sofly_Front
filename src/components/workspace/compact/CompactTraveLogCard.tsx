@@ -121,6 +121,16 @@ interface CompactTravelLogCardProps {
    */
   onSave?: (data: CompactTravelLogData) => void;
   /**
+   * 앨범 사진 즉시 업로드 콜백 — 데스크톱 TravelLogCard의 동명 prop과
+   * 동일한 계약(시그니처)을 노출하기 위한 채널.
+   *
+   * 데스크톱 TravelLogCard도 이 prop을 타입에만 선언하고 구조분해/호출하지
+   * 않는다(편집 모드 앨범은 File을 onSave의 albumPhotos로만 넘김). compact도
+   * 양쪽 props 표면을 맞추기 위해 선언만 해 두며, 실제 호출은 하지 않는다.
+   * 따라서 ESLint unused 경고를 피하려 구조분해 목록에도 넣지 않는다.
+   */
+  onUploadPhotos?: (files: File[]) => void;
+  /**
    * 카드 삭제 콜백. 헤더 "×" → 확인 모달 → 호출.
    * 미지정 시 삭제 버튼이 숨겨짐.
    */
