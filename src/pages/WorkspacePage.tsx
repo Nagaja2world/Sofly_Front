@@ -39,6 +39,7 @@ import {
 } from "@/api/albumApi";
 import { useIsCompact } from "@/hooks/useMediaQuery";
 import CompactWorkspaceView from "@/components/workspace/compact/CompactWorkspaceView";
+import BottomIllust from "@/assets/bottom_illust.svg?react";
 
 /* (목업 데이터 제거됨 — 멤버/항공편/일정/여행기록 모두 API에서 로드) */
 
@@ -629,6 +630,14 @@ export default function WorkspacePage() {
                   onLeave={() => setShowLeaveConfirm(true)}
                   onDelete={() => setShowDeleteWorkspace(true)}
                 />
+
+                {/* ── 데코레이션: 메인 콘텐츠 하단 (Footer 바로 위) ── */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none select-none -mb-5"
+                >
+                  <BottomIllust className="w-full h-auto" />
+                </div>
               </main>
             </div>
           </div>
