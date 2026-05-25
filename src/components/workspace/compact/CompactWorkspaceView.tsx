@@ -22,6 +22,8 @@ import {
 import { type WorkspaceFlight } from "@/api/workspaceApi";
 import { type AlbumPhoto } from "@/api/albumApi";
 
+import MoBottomIllust from "@/assets/mo_bottom_illust.svg?react";
+
 /* ══════════════════════════════════════════
    CompactWorkspaceView
    ══════════════════════════════════════════
@@ -312,6 +314,13 @@ export default function CompactWorkspaceView({
           onLeave={dangerZone.onLeave}
           onDelete={dangerZone.onDelete}
         />
+        {/* ── 데코레이션: 본문 하단 (Footer 바로 위) ── */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none select-none px-4 -mt-2 -mb-5"
+        >
+          <MoBottomIllust className="w-full h-auto" />
+        </div>
       </main>
 
       {/* ── 푸터 ── */}
