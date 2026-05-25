@@ -112,6 +112,17 @@ interface CompactTravelLogSectionProps {
    * 미지정 시 카드 본문 편집 버튼이 숨겨짐.
    */
   onSaveTravelLog?: (id: number, data: CompactTravelLogData) => void;
+  /**
+   * 앨범 사진 즉시 업로드 콜백 — 데스크톱 TravelLogSection의 동명 prop과
+   * 동일한 계약(시그니처)을 노출하기 위한 채널.
+   *
+   * 데스크톱에서도 이 콜백은 카드 내부에서 호출되지 않는 "예약된 채널"이며
+   * (TravelLogCard가 편집 모드에서 File을 onSave의 albumPhotos로만 넘김),
+   * compact도 동일하게 선언만 해 두어 양쪽 props 표면을 일치시킨다.
+   * 실제 호출 배선은 데스크톱에 없는 UI를 새로 만드는 별도 작업이므로
+   * 여기서는 하지 않는다 (API 연결과도 무관 — 통로만 열어 둠).
+   */
+  onUploadTravellogPhotos?: (id: number, files: File[]) => void;
   /** 카드 삭제. 미지정 시 삭제 버튼 숨김. */
   onDeleteTravelLog?: (id: number) => void;
   /** 새 카드 추가. 미지정 시 "추가" 버튼 숨김. */
@@ -161,6 +172,7 @@ export default function CompactTravelLogSection({
   sharedAlbumPhotos,
   onUpdateMainTitle,
   onSaveTravelLog,
+  onUploadTravellogPhotos,
   onDeleteTravelLog,
   onAddDailyCard,
   onReorderLogs,
@@ -376,6 +388,11 @@ export default function CompactTravelLogSection({
                   onSave={
                     onSaveTravelLog && log.id != null
                       ? (data) => onSaveTravelLog(log.id!, data)
+                      : undefined
+                  }
+                  onUploadPhotos={
+                    onUploadTravellogPhotos && log.id != null
+                      ? (files) => onUploadTravellogPhotos(log.id!, files)
                       : undefined
                   }
                   onDelete={
