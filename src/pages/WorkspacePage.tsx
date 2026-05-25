@@ -270,6 +270,50 @@ export default function WorkspacePage() {
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [chatRoomCount, setChatRoomCount] = useState(0);
 
+  /* ── 워크스페이스 공유 ──
+     NavBar(variant="back")의 공유 버튼에서 호출. 공유 동작 스펙이
+     확정되기 전까지는 현재 URL을 클립보드에 복사하고, 결과를
+     하단 토스트로 알린다. (inviteToast와 동일한 토스트 UI 패턴)
+
+     navigator.clipboard는 보안 컨텍스트(HTTPS/localhost)에서만
+     동작하고 권한 거부 시 reject되므로, 실패 시에도 사용자에게
+     명확히 안내한다. */
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const shareToastTimerRef = useRef<number | null>(null);
+
+  const showShareToast = (message: string) => {
+    setShareToast(message);
+    if (shareToastTimerRef.current) {
+      window.clearTimeout(shareToastTimerRef.current);
+    }
+    shareToastTimerRef.current = window.setTimeout(() => {
+      setShareToast(null);
+      shareToastTimerRef.current = null;
+    }, 2000);
+  };
+
+  /* 언마운트 시 토스트 타이머 정리 */
+  useEffect(() => {
+    return () => {
+      if (shareToastTimerRef.current) {
+        window.clearTimeout(shareToastTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      if (!navigator.clipboard) {
+        throw new Error("Clipboard API unavailable");
+      }
+      await navigator.clipboard.writeText(url);
+      showShareToast("워크스페이스 링크를 복사했어요.");
+    } catch {
+      showShareToast("링크 복사에 실패했어요. 주소창의 URL을 복사해 주세요.");
+    }
+  };
+
   const {
     travelLogs,
     loadTravelLogs,
@@ -392,12 +436,10 @@ export default function WorkspacePage() {
       {isCompact ? (
         /* ══ 좁은 화면 (< 768px) ══ */
         <CompactWorkspaceView
+          workspaceId={workspaceId}
           workspaceName={workspaceName}
           onBack={() => navigate(-1)}
-          onShare={() => {
-            /* TODO: 공유 동작 스펙 확정 시 교체 — 우선 URL 복사 */
-            navigator.clipboard?.writeText(window.location.href);
-          }}
+          onShare={handleShare}
           member={{
             members,
             onAddMember: () => setShowInviteModal(true),
@@ -407,6 +449,46 @@ export default function WorkspacePage() {
             rawFlights,
             onFlightClick: setSelectedFlight,
             onFlightDelete: (id, label) => setDeleteFlightTarget({ id, label }),
+            onAdd: () => setShowAddFlightModal(true),
+          }}
+          itinerary={{
+            days: itineraryDays,
+            onSaveDay: handleSaveItineraryDay,
+            onCategoryChange: handleCategoryChange,
+          }}
+          travelLog={{
+            travelLogs,
+            snsLog,
+            sharedAlbumPhotos: sharedAlbumPhotos.map((p) => p.url),
+            onUpdateMainTitle: handleUpdateMainTitle,
+            onSaveTravelLog: handleSaveTravelLog,
+            onUploadTravellogPhotos: handleUploadTravellogPhotos,
+            onDeleteTravelLog: handleDeleteTravelLog,
+            onAddDailyCard: handleAddDailyCard,
+            onReorderLogs: handleReorderLogs,
+            onSaveSnsLog: handleSaveSnsLog,
+            onDeleteSnsLog: handleDeleteSnsLog,
+            onAddSnsCard: handleAddSnsCard,
+          }}
+          album={{
+            photos: sharedAlbumPhotos,
+            uploading: albumUploading,
+            hasNext: albumHasNext,
+            loadingMore: albumLoading,
+            onAddPhotos: handleAddSharedPhotos,
+            onRemovePhoto: handleRemoveSharedPhoto,
+            onDownloadPhoto: handleDownloadPhoto,
+            onLoadMore: handleLoadMoreAlbum,
+          }}
+          dangerZone={{
+            myRole,
+            onLeave: () => setShowLeaveConfirm(true),
+            onDelete: () => setShowDeleteWorkspace(true),
+          }}
+          chat={{
+            roomCount: chatRoomCount,
+            onScheduleSaved: loadSchedule,
+            onRoomCountChange: setChatRoomCount,
           }}
         />
       ) : (
@@ -585,6 +667,17 @@ export default function WorkspacePage() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100]">
           <div className="bg-gray-900 text-white font-pretendard text-body4 px-5 py-3 rounded-xl shadow-lg">
             {inviteToast}
+          </div>
+        </div>
+      )}
+
+      {/* 공유 링크 복사 결과 토스트.
+          inviteToast와 동시에 뜰 일은 거의 없지만, 겹쳐도 읽히도록
+          inviteToast(bottom-6)보다 한 단 위에 배치. */}
+      {shareToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100]">
+          <div className="bg-gray-900 text-white font-pretendard text-body4 px-5 py-3 rounded-xl shadow-lg">
+            {shareToast}
           </div>
         </div>
       )}

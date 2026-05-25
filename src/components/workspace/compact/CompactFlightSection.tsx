@@ -1,6 +1,7 @@
 import CompactFlightCard from "./CompactFlightCard";
 import { type FlightInfo } from "@/components/workspace/FlightSection";
 import { type WorkspaceFlight } from "@/api/workspaceApi";
+import PlusIcon from "@/assets/plus.svg?react";
 
 /* ══════════════════════════════════════════
    CompactFlightSection
@@ -14,6 +15,8 @@ import { type WorkspaceFlight } from "@/api/workspaceApi";
 
    SectionHeader는 데스크톱과 동일하게 재사용해도 무방하나,
    좁은 화면 제목 크기 조정을 위해 자체 헤더를 둠 (text-body1 굵게).
+   데스크톱 FlightSection처럼 제목 옆에 "+"(항공편 추가) 버튼을 둠 —
+   누르면 onAdd가 호출되어 부모(WorkspacePage)가 AddFlightModal을 연다.
 */
 
 interface CompactFlightSectionProps {
@@ -21,6 +24,11 @@ interface CompactFlightSectionProps {
   rawFlights: WorkspaceFlight[];
   onFlightClick: (flight: WorkspaceFlight) => void;
   onFlightDelete: (id: number, label: string) => void;
+  /**
+   * 항공편 추가 버튼 클릭 콜백.
+   * 미지정 시 제목 옆 "+" 버튼이 표시되지 않음.
+   */
+  onAdd?: () => void;
 }
 
 export default function CompactFlightSection({
@@ -28,6 +36,7 @@ export default function CompactFlightSection({
   rawFlights,
   onFlightClick,
   onFlightDelete,
+  onAdd,
 }: CompactFlightSectionProps) {
   /* 가는편 먼저, 오는편 나중. 같은 방향이 여러 개면 입력 순서 유지. */
   const outbound = flights.filter((f) => f.direction === "가는편");
@@ -36,10 +45,27 @@ export default function CompactFlightSection({
 
   return (
     <section className="flex flex-col gap-3">
-      {/* ── 섹션 제목 ── */}
-      <h2 className="font-pretendard text-body1 font-semibold text-gray-900 m-0">
-        항공 일정
-      </h2>
+      {/* ── 섹션 제목 + 추가 버튼 ── */}
+      <div className="flex items-center gap-2">
+        <h2 className="font-pretendard text-body1 font-semibold text-gray-900 m-0">
+          항공 일정
+        </h2>
+        {onAdd && (
+          <button
+            type="button"
+            onClick={onAdd}
+            aria-label="항공편 추가"
+            className={[
+              "p-0.5 rounded border-none bg-transparent",
+              "text-gray-700 hover:text-gray-900 hover:bg-gray-100",
+              "transition-colors cursor-pointer",
+              "inline-flex items-center justify-center",
+            ].join(" ")}
+          >
+            <PlusIcon className="w-5 h-5" />
+          </button>
+        )}
+      </div>
 
       {flights.length === 0 ? (
         /* ── 빈 상태 ── */

@@ -37,11 +37,39 @@
 }
 
 @layer utilities {
+  /* ──────────────────────────────────────────
+     전체화면 모달 슬라이드업 진입 애니메이션
+     ──────────────────────────────────────────
+     CompactAIChatModal 등 하단에서 올라오는 전체화면 모달용.
+     아래(translateY 100%)에서 제자리로 부드럽게 올라옴.
+     prefers-reduced-motion 환경에서는 애니메이션을 끄고 즉시 표시. */
+  @keyframes modal-slide-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .modal-slide-up {
+    animation: modal-slide-up 260ms ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-slide-up {
+      animation: none;
+    }
+  }
 }
 
 @keyframes chat-slide-in {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .chat-slide-in {
