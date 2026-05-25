@@ -1,47 +1,93 @@
-import { useEffect, useRef, useState } from 'react';
-import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
-import type { ItineraryRow } from '@/components/workspace/ItineraryDayCard';
+import { useEffect, useRef, useState } from "react";
+import { importLibrary, setOptions } from "@googlemaps/js-api-loader";
+import type { ItineraryRow } from "@/components/workspace/ItineraryDayCard";
 
 /* ══════════════════════════════════════════
    환경변수
    ══════════════════════════════════════════ */
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as
+  | string
+  | undefined;
 const GOOGLE_MAP_ID = import.meta.env.VITE_GOOGLE_MAP_ID as string | undefined;
 
 /* ══════════════════════════════════════════
    지도 스타일
    ══════════════════════════════════════════ */
 const DARK_MAP_STYLES = [
-  { elementType: 'geometry', stylers: [{ color: '#f5f3ef' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f3ef' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#6b7280' }] },
-  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#d1d5db' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#374151' }] },
-  { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e8f0e9' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e5e7eb' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#fef3c7' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#fde68a' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#f3f4f6' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#dbeafe' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3b82f6' }] },
+  { elementType: "geometry", stylers: [{ color: "#f5f3ef" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#f5f3ef" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
+  {
+    featureType: "administrative",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#d1d5db" }],
+  },
+  {
+    featureType: "administrative.locality",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#374151" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels",
+    stylers: [{ visibility: "off" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "geometry",
+    stylers: [{ color: "#e8f0e9" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#e5e7eb" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#fef3c7" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#fde68a" }],
+  },
+  {
+    featureType: "transit",
+    elementType: "geometry",
+    stylers: [{ color: "#f3f4f6" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#dbeafe" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#3b82f6" }],
+  },
 ];
 
 /* ══════════════════════════════════════════
    카테고리별 색상 / 라벨
    ══════════════════════════════════════════ */
 const CATEGORY_CONFIG: Record<string, { color: string; label: string }> = {
-  TRANSPORT:     { color: '#0EA5E9', label: '교통' },
-  ACCOMMODATION: { color: '#8B5CF6', label: '숙소' },
-  RESTAURANT:    { color: '#F59E0B', label: '식당' },
-  CAFE:          { color: '#F59E0B', label: '카페' },
-  ATTRACTION:    { color: '#10B981', label: '관광' },
-  DEFAULT:       { color: '#9CA3AF', label: '장소' },
+  TRANSPORT: { color: "#0EA5E9", label: "교통" },
+  ACCOMMODATION: { color: "#8B5CF6", label: "숙소" },
+  RESTAURANT: { color: "#F59E0B", label: "식당" },
+  CAFE: { color: "#F59E0B", label: "카페" },
+  ATTRACTION: { color: "#10B981", label: "관광" },
+  DEFAULT: { color: "#9CA3AF", label: "장소" },
 };
 
 function getCategoryConfig(category?: string) {
-  return CATEGORY_CONFIG[category ?? 'DEFAULT'] ?? CATEGORY_CONFIG.DEFAULT;
+  return CATEGORY_CONFIG[category ?? "DEFAULT"] ?? CATEGORY_CONFIG.DEFAULT;
 }
 
 /* ══════════════════════════════════════════
@@ -53,7 +99,7 @@ async function geocodeAddress(
 ): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
     geocoder.geocode({ address }, (results, status) => {
-      if (status === 'OK' && results?.[0]) {
+      if (status === "OK" && results?.[0]) {
         const loc = results[0].geometry.location;
         resolve({ lat: loc.lat(), lng: loc.lng() });
       } else {
@@ -79,16 +125,20 @@ function buildMarkerSvg(color: string, index: number): string {
 /* ══════════════════════════════════════════
    InfoWindow HTML
    ══════════════════════════════════════════ */
-function escapeHtml(value = '') {
+function escapeHtml(value = "") {
   return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
-function buildInfoWindowContent(row: ItineraryRow, index: number, dayNumber: number): string {
+function buildInfoWindowContent(
+  row: ItineraryRow,
+  index: number,
+  dayNumber: number,
+): string {
   const cfg = getCategoryConfig(row._category);
   return `
     <div style="background:#fff;border:1px solid #e5e7eb;border-top:3px solid ${cfg.color};border-radius:6px;padding:12px 14px;min-width:200px;max-width:260px;font-family:-apple-system,BlinkMacSystemFont,'Pretendard',sans-serif;color:#111827;">
@@ -97,9 +147,9 @@ function buildInfoWindowContent(row: ItineraryRow, index: number, dayNumber: num
         <span style="font-size:10px;color:#9CA3AF;margin-left:auto;">${dayNumber}일차 · ${index + 1}번</span>
       </div>
       <div style="font-size:13px;font-weight:600;line-height:1.35;margin-bottom:4px;color:#111827;">${escapeHtml(row.title)}</div>
-      ${row.visitTime ? `<div style="font-size:11px;color:#6B7280;">🕐 ${escapeHtml(row.visitTime)}</div>` : ''}
-      ${row.remark ? `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;line-height:1.4;">${escapeHtml(row.remark)}</div>` : ''}
-      ${row.cost ? `<div style="font-size:11px;color:${cfg.color};font-weight:600;margin-top:6px;">${escapeHtml(row.cost)}</div>` : ''}
+      ${row.visitTime ? `<div style="font-size:11px;color:#6B7280;">🕐 ${escapeHtml(row.visitTime)}</div>` : ""}
+      ${row.remark ? `<div style="font-size:10px;color:#9CA3AF;margin-top:4px;line-height:1.4;">${escapeHtml(row.remark)}</div>` : ""}
+      ${row.cost ? `<div style="font-size:11px;color:${cfg.color};font-weight:600;margin-top:6px;">${escapeHtml(row.cost)}</div>` : ""}
     </div>
   `;
 }
@@ -112,36 +162,79 @@ interface ResolvedRow extends ItineraryRow {
   resolvedLng: number | null;
 }
 
+/** 한 행의 지오코딩 결과 — 외부(모바일 바텀시트 목록)로 전달하는 최소 정보 */
+export interface DayItineraryMapRowStatus {
+  /** 좌표 확보 여부 (true면 목록에서 탭 가능) */
+  hasCoords: boolean;
+}
+
 interface DayItineraryMapProps {
   rows: ItineraryRow[];
   dayNumber: number;
   /** 타임라인 행 클릭 시 외부에서 지정하는 활성 인덱스 */
   selectedIndex?: number | null;
+  /**
+   * 레이아웃 모드.
+   * - "split" (기본): 좌측 장소 목록 패널 + 우측 지도 (데스크톱).
+   * - "compact": 지도만 풀블리드로 렌더. 장소 목록·범례는 렌더하지 않음.
+   *   모바일에서는 장소 목록을 모달 쪽 바텀시트가 담당하고, 행 선택은
+   *   외부에서 selectedIndex로 제어함.
+   */
+  layout?: "split" | "compact";
+  /**
+   * 지오코딩이 끝나 각 행의 좌표 확보 여부가 정해질 때 호출.
+   * compact 모드에서 외부 바텀시트 목록이 "주소 없음" 행을 비활성화하는 데 사용.
+   * status 배열의 인덱스는 rows 인덱스와 일치.
+   */
+  onResolvedRowsChange?: (status: DayItineraryMapRowStatus[]) => void;
 }
 
 /* ══════════════════════════════════════════
    메인 컴포넌트
    ══════════════════════════════════════════ */
-export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayItineraryMapProps) {
+export default function DayItineraryMap({
+  rows,
+  dayNumber,
+  selectedIndex,
+  layout = "split",
+  onResolvedRowsChange,
+}: DayItineraryMapProps) {
+  const isCompact = layout === "compact";
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const mapInitializedRef = useRef(false);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const polylinesRef = useRef<google.maps.Polyline[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
-  const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
+  const directionsServiceRef = useRef<google.maps.DirectionsService | null>(
+    null,
+  );
   const directionsAvailableRef = useRef(true);
   const routePathRef = useRef<google.maps.LatLng[]>([]);
   const transitionListenersRef = useRef<google.maps.MapsEventListener[]>([]);
 
   const [resolvedRows, setResolvedRows] = useState<ResolvedRow[]>([]);
-  const [status, setStatus] = useState<'loading' | 'geocoding' | 'ready' | 'no-key'>('loading');
+  const [status, setStatus] = useState<
+    "loading" | "geocoding" | "ready" | "no-key"
+  >("loading");
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  /* ── resolvedRows → 외부로 좌표 확보 여부 전달 (compact 바텀시트 목록용) ── */
+  useEffect(() => {
+    if (!onResolvedRowsChange) return;
+    onResolvedRowsChange(
+      resolvedRows.map((r) => ({
+        hasCoords: r.resolvedLat != null && r.resolvedLng != null,
+      })),
+    );
+  }, [resolvedRows, onResolvedRowsChange]);
 
   /* ── 언마운트 시 애니메이션 정리 ── */
   useEffect(() => {
     return () => {
-      transitionListenersRef.current.forEach((l) => google.maps.event.removeListener(l));
+      transitionListenersRef.current.forEach((l) =>
+        google.maps.event.removeListener(l),
+      );
       transitionListenersRef.current = [];
     };
   }, []);
@@ -149,7 +242,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
   /* ── API 키 없음 처리 ── */
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY) {
-      setStatus('no-key');
+      setStatus("no-key");
     }
   }, []);
 
@@ -164,14 +257,14 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
         if (!window.__tripItineraryMapsConfigured) {
           setOptions({
             key: GOOGLE_MAPS_API_KEY!,
-            v: 'weekly',
+            v: "weekly",
             mapIds: GOOGLE_MAP_ID ? [GOOGLE_MAP_ID] : undefined,
           });
           window.__tripItineraryMapsConfigured = true;
         }
 
-        await importLibrary('maps');
-        await importLibrary('geometry');
+        await importLibrary("maps");
+        await importLibrary("geometry");
         if (cancelled) return;
 
         const map = new google.maps.Map(containerRef.current!, {
@@ -182,8 +275,8 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
           zoomControlOptions: {
             position: google.maps.ControlPosition.RIGHT_BOTTOM,
           },
-          gestureHandling: 'cooperative',
-          backgroundColor: '#f5f3ef',
+          gestureHandling: isCompact ? "greedy" : "cooperative",
+          backgroundColor: "#f5f3ef",
           mapId: GOOGLE_MAP_ID || undefined,
           styles: GOOGLE_MAP_ID ? undefined : DARK_MAP_STYLES,
         });
@@ -191,23 +284,31 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
         mapInstanceRef.current = map;
         infoWindowRef.current = new google.maps.InfoWindow({ maxWidth: 280 });
 
-        map.addListener('click', () => {
+        map.addListener("click", () => {
           infoWindowRef.current?.close();
           setActiveIndex(null);
         });
 
         /* 지오코딩 */
-        setStatus('geocoding');
+        setStatus("geocoding");
         const geocoder = new google.maps.Geocoder();
         const resolved: ResolvedRow[] = [];
 
         for (const row of rows) {
           if (cancelled) break;
           if (row._latitude && row._longitude) {
-            resolved.push({ ...row, resolvedLat: row._latitude, resolvedLng: row._longitude });
+            resolved.push({
+              ...row,
+              resolvedLat: row._latitude,
+              resolvedLng: row._longitude,
+            });
           } else if (row._address) {
             const coords = await geocodeAddress(geocoder, row._address);
-            resolved.push({ ...row, resolvedLat: coords?.lat ?? null, resolvedLng: coords?.lng ?? null });
+            resolved.push({
+              ...row,
+              resolvedLat: coords?.lat ?? null,
+              resolvedLng: coords?.lng ?? null,
+            });
           } else {
             resolved.push({ ...row, resolvedLat: null, resolvedLng: null });
           }
@@ -215,17 +316,19 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
 
         if (!cancelled) {
           setResolvedRows(resolved);
-          setStatus('ready');
+          setStatus("ready");
           mapInitializedRef.current = true;
         }
       } catch (err) {
-        if (!cancelled) console.error('[DayItineraryMap]', err);
+        if (!cancelled) console.error("[DayItineraryMap]", err);
       }
     }
 
     init();
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ── rows 변경 시 재지오코딩 (지도 초기화 이후) ── */
@@ -233,7 +336,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     if (!mapInitializedRef.current || !mapInstanceRef.current) return;
 
     let cancelled = false;
-    setStatus('geocoding');
+    setStatus("geocoding");
     directionsAvailableRef.current = true;
 
     async function regeocode() {
@@ -244,10 +347,18 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
         for (const row of rows) {
           if (cancelled) break;
           if (row._latitude && row._longitude) {
-            resolved.push({ ...row, resolvedLat: row._latitude, resolvedLng: row._longitude });
+            resolved.push({
+              ...row,
+              resolvedLat: row._latitude,
+              resolvedLng: row._longitude,
+            });
           } else if (row._address) {
             const coords = await geocodeAddress(geocoder, row._address);
-            resolved.push({ ...row, resolvedLat: coords?.lat ?? null, resolvedLng: coords?.lng ?? null });
+            resolved.push({
+              ...row,
+              resolvedLat: coords?.lat ?? null,
+              resolvedLng: coords?.lng ?? null,
+            });
           } else {
             resolved.push({ ...row, resolvedLat: null, resolvedLng: null });
           }
@@ -255,22 +366,24 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
 
         if (!cancelled) {
           setResolvedRows(resolved);
-          setStatus('ready');
+          setStatus("ready");
         }
       } catch (err) {
-        if (!cancelled) console.error('[DayItineraryMap] regeocode', err);
+        if (!cancelled) console.error("[DayItineraryMap] regeocode", err);
       }
     }
 
     regeocode();
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows]);
 
   /* ── 마커 + 경로 그리기 ── */
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || status !== 'ready') return;
+    if (!map || status !== "ready") return;
 
     /* 이전 오버레이 제거 */
     markersRef.current.forEach((m) => m.setMap(null));
@@ -279,14 +392,16 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     polylinesRef.current = [];
     infoWindowRef.current?.close();
 
-    const validItems = resolvedRows.filter((r) => r.resolvedLat && r.resolvedLng);
+    const validItems = resolvedRows.filter(
+      (r) => r.resolvedLat && r.resolvedLng,
+    );
     if (!validItems.length) return;
 
     /* 마커 생성 */
     validItems.forEach((row, index) => {
       const cfg = getCategoryConfig(row._category);
       const svgContent = buildMarkerSvg(cfg.color, index);
-      const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+      const blob = new Blob([svgContent], { type: "image/svg+xml" });
       const url = URL.createObjectURL(blob);
 
       const marker = new google.maps.Marker({
@@ -301,8 +416,10 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
         zIndex: index + 1,
       });
 
-      marker.addListener('click', () => {
-        infoWindowRef.current?.setContent(buildInfoWindowContent(row, index, dayNumber));
+      marker.addListener("click", () => {
+        infoWindowRef.current?.setContent(
+          buildInfoWindowContent(row, index, dayNumber),
+        );
         infoWindowRef.current?.open(map, marker);
         setActiveIndex(index);
       });
@@ -312,7 +429,9 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
 
     /* bounds 맞추기 */
     const bounds = new google.maps.LatLngBounds();
-    validItems.forEach((r) => bounds.extend({ lat: r.resolvedLat!, lng: r.resolvedLng! }));
+    validItems.forEach((r) =>
+      bounds.extend({ lat: r.resolvedLat!, lng: r.resolvedLng! }),
+    );
     map.fitBounds(bounds, { top: 48, right: 32, bottom: 48, left: 32 });
 
     /* 경로 (DirectionsService → 실패 시 직선) */
@@ -321,7 +440,10 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
         directionsServiceRef.current = new google.maps.DirectionsService();
       }
 
-      const origin = { lat: validItems[0].resolvedLat!, lng: validItems[0].resolvedLng! };
+      const origin = {
+        lat: validItems[0].resolvedLat!,
+        lng: validItems[0].resolvedLng!,
+      };
       const destination = {
         lat: validItems[validItems.length - 1].resolvedLat!,
         lng: validItems[validItems.length - 1].resolvedLng!,
@@ -333,18 +455,24 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
 
       function tryRoute(travelMode: google.maps.TravelMode) {
         directionsServiceRef.current!.route(
-          { origin, destination, waypoints, travelMode, optimizeWaypoints: false },
+          {
+            origin,
+            destination,
+            waypoints,
+            travelMode,
+            optimizeWaypoints: false,
+          },
           (result, routeStatus) => {
-            if (routeStatus === 'REQUEST_DENIED') {
+            if (routeStatus === "REQUEST_DENIED") {
               directionsAvailableRef.current = false;
               drawFallback(map!, validItems);
               return;
             }
-            if (routeStatus === 'MAX_WAYPOINTS_EXCEEDED') {
+            if (routeStatus === "MAX_WAYPOINTS_EXCEEDED") {
               drawFallback(map!, validItems);
               return;
             }
-            if (routeStatus !== 'OK' || !result?.routes?.length) {
+            if (routeStatus !== "OK" || !result?.routes?.length) {
               if (travelMode === google.maps.TravelMode.DRIVING) {
                 tryRoute(google.maps.TravelMode.WALKING);
               } else {
@@ -353,11 +481,14 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
               return;
             }
             routePathRef.current = result.routes[0].overview_path;
-            const path = result.routes[0].overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
+            const path = result.routes[0].overview_path.map((p) => ({
+              lat: p.lat(),
+              lng: p.lng(),
+            }));
             const poly = new google.maps.Polyline({
               path,
               geodesic: true,
-              strokeColor: '#F59E0B',
+              strokeColor: "#F59E0B",
               strokeOpacity: 0.65,
               strokeWeight: 3,
               icons: [
@@ -365,11 +496,11 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
                   icon: {
                     path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
                     scale: 2,
-                    strokeColor: '#F59E0B',
+                    strokeColor: "#F59E0B",
                     strokeOpacity: 0.9,
                   },
-                  offset: '100%',
-                  repeat: '80px',
+                  offset: "100%",
+                  repeat: "80px",
                 },
               ],
               map: map!,
@@ -388,7 +519,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     const poly = new google.maps.Polyline({
       path: items.map((r) => ({ lat: r.resolvedLat!, lng: r.resolvedLng! })),
       geodesic: true,
-      strokeColor: '#F59E0B',
+      strokeColor: "#F59E0B",
       strokeOpacity: 0.55,
       strokeWeight: 3,
       icons: [
@@ -396,11 +527,11 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
           icon: {
             path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
             scale: 2,
-            strokeColor: '#F59E0B',
+            strokeColor: "#F59E0B",
             strokeOpacity: 0.9,
           },
-          offset: '100%',
-          repeat: '80px',
+          offset: "100%",
+          repeat: "80px",
         },
       ],
       map,
@@ -410,7 +541,9 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
 
   /* ── 진행 중인 idle 리스너 전부 제거 ── */
   function cancelTransition() {
-    transitionListenersRef.current.forEach((l) => google.maps.event.removeListener(l));
+    transitionListenersRef.current.forEach((l) =>
+      google.maps.event.removeListener(l),
+    );
     transitionListenersRef.current = [];
   }
 
@@ -423,12 +556,15 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     cancelTransition();
 
     const currentCenter = map.getCenter()!;
-    const dist = google.maps.geometry.spherical.computeDistanceBetween(currentCenter, targetPos);
+    const dist = google.maps.geometry.spherical.computeDistanceBetween(
+      currentCenter,
+      targetPos,
+    );
 
     // 300m 이내면 바로 panTo
     if (dist < 300) {
       map.panTo(targetPos);
-      const l = google.maps.event.addListenerOnce(map, 'idle', onDone);
+      const l = google.maps.event.addListenerOnce(map, "idle", onDone);
       transitionListenersRef.current = [l];
       return;
     }
@@ -440,7 +576,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     map.fitBounds(outBounds, { top: 80, right: 80, bottom: 80, left: 80 });
 
     // Phase 2: idle 뒤 목적지 주변으로 fitBounds (줌 인)
-    const l1 = google.maps.event.addListenerOnce(map, 'idle', () => {
+    const l1 = google.maps.event.addListenerOnce(map, "idle", () => {
       transitionListenersRef.current = [];
 
       const DELTA = 0.004; // 목적지 주변 ~400m
@@ -450,7 +586,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
       );
       map.fitBounds(inBounds, { top: 48, right: 48, bottom: 48, left: 48 });
 
-      const l2 = google.maps.event.addListenerOnce(map, 'idle', () => {
+      const l2 = google.maps.event.addListenerOnce(map, "idle", () => {
         transitionListenersRef.current = [];
         onDone();
       });
@@ -470,7 +606,9 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
     setActiveIndex(index);
 
     animateZoomTransit(map, marker.getPosition()!, () => {
-      infoWindowRef.current?.setContent(buildInfoWindowContent(row, index, dayNumber));
+      infoWindowRef.current?.setContent(
+        buildInfoWindowContent(row, index, dayNumber),
+      );
       infoWindowRef.current?.open(map, marker);
     });
   }
@@ -484,16 +622,20 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
       return () => clearTimeout(timer);
     }
     handleListItemClick(selectedIndex);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIndex]);
 
   /* ── API 키 없음 UI ── */
-  if (status === 'no-key') {
+  if (status === "no-key") {
     return (
       <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl border border-gray-200">
         <div className="text-center">
-          <p className="font-pretendard text-body4 text-gray-500 mb-1">지도를 표시하려면</p>
-          <p className="font-pretendard text-body5 text-gray-400">VITE_GOOGLE_MAPS_API_KEY를 설정하세요</p>
+          <p className="font-pretendard text-body4 text-gray-500 mb-1">
+            지도를 표시하려면
+          </p>
+          <p className="font-pretendard text-body5 text-gray-400">
+            VITE_GOOGLE_MAPS_API_KEY를 설정하세요
+          </p>
         </div>
       </div>
     );
@@ -501,27 +643,80 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
 
   const validRows = resolvedRows.filter((r) => r.resolvedLat && r.resolvedLng);
 
+  /* ── 우측(또는 풀블리드) 지도 영역 — split / compact 공용 ── */
+  const mapArea = (
+    <div className="flex-1 relative overflow-hidden">
+      <div ref={containerRef} className="w-full h-full" />
+
+      {/* 지오코딩 오버레이 */}
+      {(status === "loading" || status === "geocoding") && (
+        <div className="absolute inset-0 bg-gray-50/80 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <p className="font-pretendard text-body5 text-gray-500">
+              {status === "loading" ? "지도 초기화 중…" : "장소 위치 검색 중…"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 유효 장소 없음 */}
+      {status === "ready" && validRows.length === 0 && (
+        <div className="absolute inset-0 bg-gray-50/90 flex items-center justify-center">
+          <p className="font-pretendard text-body4 text-gray-500">
+            표시할 장소 정보가 없습니다
+          </p>
+        </div>
+      )}
+
+      {/* 일차 뱃지 */}
+      <div className="absolute top-2 left-2 bg-white/90 border border-gray-200 rounded-md px-2 py-1 shadow-sm pointer-events-none">
+        <span className="font-pretendard text-[10px] font-semibold text-gray-700">
+          {dayNumber}일차 · {validRows.length}개 표시
+        </span>
+      </div>
+    </div>
+  );
+
+  /* ── compact: 좌측 목록 없이 지도만 풀블리드 ──
+     장소 목록·범례는 모달의 바텀시트가 담당하고, 행 선택은
+     외부 selectedIndex로 제어된다. */
+  if (isCompact) {
+    return (
+      <div className="flex h-full w-full overflow-hidden bg-white">
+        {mapArea}
+      </div>
+    );
+  }
+
+  /* ── split (데스크톱): 좌측 장소 목록 + 우측 지도 ── */
   return (
     <div className="flex h-full overflow-hidden rounded-xl border border-gray-200 bg-white">
       {/* 좌측: 장소 목록 */}
       <div className="w-44 flex-shrink-0 flex flex-col border-r border-gray-200 overflow-hidden">
         {/* 헤더 */}
         <div className="px-3 py-2.5 border-b border-gray-100 bg-gray-50 flex-shrink-0">
-          <p className="font-pretendard text-body5 font-semibold text-gray-700 m-0">{dayNumber}일차 경로</p>
-          <p className="font-pretendard text-[10px] text-gray-400 m-0 mt-0.5">{rows.length}개 장소</p>
+          <p className="font-pretendard text-body5 font-semibold text-gray-700 m-0">
+            {dayNumber}일차 경로
+          </p>
+          <p className="font-pretendard text-[10px] text-gray-400 m-0 mt-0.5">
+            {rows.length}개 장소
+          </p>
         </div>
 
         {/* 장소 리스트 */}
         <div className="overflow-y-auto flex-1">
-          {(status === 'loading' || status === 'geocoding') ? (
+          {status === "loading" || status === "geocoding" ? (
             <div className="px-3 py-4 text-center">
               <p className="font-pretendard text-[10px] text-gray-400">
-                {status === 'loading' ? '지도 불러오는 중…' : '위치 변환 중…'}
+                {status === "loading" ? "지도 불러오는 중…" : "위치 변환 중…"}
               </p>
             </div>
           ) : rows.length === 0 ? (
             <div className="px-3 py-4 text-center">
-              <p className="font-pretendard text-[10px] text-gray-400">장소가 없습니다</p>
+              <p className="font-pretendard text-[10px] text-gray-400">
+                장소가 없습니다
+              </p>
             </div>
           ) : (
             rows.map((row, index) => {
@@ -536,22 +731,25 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
                   type="button"
                   onClick={() => hasCoords && handleListItemClick(index)}
                   className={[
-                    'w-full text-left px-3 py-2.5',
-                    'border-b border-gray-100 last:border-0',
-                    'transition-colors',
-                    isActive ? 'bg-amber-50' : 'hover:bg-gray-50',
-                    hasCoords ? 'cursor-pointer' : 'cursor-default',
-                    'border-none bg-transparent',
-                  ].join(' ')}
+                    "w-full text-left px-3 py-2.5",
+                    "border-b border-gray-100 last:border-0",
+                    "transition-colors",
+                    isActive ? "bg-amber-50" : "hover:bg-gray-50",
+                    hasCoords ? "cursor-pointer" : "cursor-default",
+                    "border-none bg-transparent",
+                  ].join(" ")}
                   style={{
-                    borderLeft: `3px solid ${isActive ? cfg.color : 'transparent'}`,
+                    borderLeft: `3px solid ${isActive ? cfg.color : "transparent"}`,
                   }}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
                     {/* 순번 원 */}
                     <div
                       className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: `${cfg.color}20`, border: `1px solid ${cfg.color}60` }}
+                      style={{
+                        background: `${cfg.color}20`,
+                        border: `1px solid ${cfg.color}60`,
+                      }}
                     >
                       <span
                         className="font-mono text-[8px] font-bold"
@@ -567,14 +765,18 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
                       {cfg.label}
                     </span>
                     {row.visitTime && (
-                      <span className="text-[8px] text-gray-400 ml-auto font-mono">{row.visitTime}</span>
+                      <span className="text-[8px] text-gray-400 ml-auto font-mono">
+                        {row.visitTime}
+                      </span>
                     )}
                   </div>
                   <p className="font-pretendard text-[10px] font-medium text-gray-800 leading-tight truncate m-0">
                     {row.title}
                   </p>
                   {!hasCoords && (
-                    <p className="font-pretendard text-[8px] text-gray-400 mt-0.5 m-0">주소 없음</p>
+                    <p className="font-pretendard text-[8px] text-gray-400 mt-0.5 m-0">
+                      주소 없음
+                    </p>
                   )}
                 </button>
               );
@@ -585,10 +787,13 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
         {/* 범례 */}
         <div className="px-3 py-2 border-t border-gray-100 bg-gray-50 flex-shrink-0 flex flex-wrap gap-x-2 gap-y-1">
           {Object.entries(CATEGORY_CONFIG)
-            .filter(([k]) => k !== 'DEFAULT')
+            .filter(([k]) => k !== "DEFAULT")
             .map(([key, cfg]) => (
               <div key={key} className="flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.color }} />
+                <div
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ background: cfg.color }}
+                />
                 <span className="text-[8px] text-gray-500">{cfg.label}</span>
               </div>
             ))}
@@ -596,35 +801,7 @@ export default function DayItineraryMap({ rows, dayNumber, selectedIndex }: DayI
       </div>
 
       {/* 우측: 지도 */}
-      <div className="flex-1 relative overflow-hidden">
-        <div ref={containerRef} className="w-full h-full" />
-
-        {/* 지오코딩 오버레이 */}
-        {(status === 'loading' || status === 'geocoding') && (
-          <div className="absolute inset-0 bg-gray-50/80 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-              <p className="font-pretendard text-body5 text-gray-500">
-                {status === 'loading' ? '지도 초기화 중…' : '장소 위치 검색 중…'}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* 유효 장소 없음 */}
-        {status === 'ready' && validRows.length === 0 && (
-          <div className="absolute inset-0 bg-gray-50/90 flex items-center justify-center">
-            <p className="font-pretendard text-body4 text-gray-500">표시할 장소 정보가 없습니다</p>
-          </div>
-        )}
-
-        {/* 일차 뱃지 */}
-        <div className="absolute top-2 left-2 bg-white/90 border border-gray-200 rounded-md px-2 py-1 shadow-sm pointer-events-none">
-          <span className="font-pretendard text-[10px] font-semibold text-gray-700">
-            {dayNumber}일차 · {validRows.length}개 표시
-          </span>
-        </div>
-      </div>
+      {mapArea}
     </div>
   );
 }

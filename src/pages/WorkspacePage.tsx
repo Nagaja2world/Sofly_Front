@@ -392,6 +392,7 @@ export default function WorkspacePage() {
       {isCompact ? (
         /* ══ 좁은 화면 (< 768px) ══ */
         <CompactWorkspaceView
+          workspaceId={workspaceId}
           workspaceName={workspaceName}
           onBack={() => navigate(-1)}
           onShare={() => {
@@ -407,6 +408,45 @@ export default function WorkspacePage() {
             rawFlights,
             onFlightClick: setSelectedFlight,
             onFlightDelete: (id, label) => setDeleteFlightTarget({ id, label }),
+            onAdd: () => setShowAddFlightModal(true),
+          }}
+          itinerary={{
+            days: itineraryDays,
+            onSaveDay: handleSaveItineraryDay,
+            onCategoryChange: handleCategoryChange,
+          }}
+          travelLog={{
+            travelLogs,
+            snsLog,
+            sharedAlbumPhotos: sharedAlbumPhotos.map((p) => p.url),
+            onUpdateMainTitle: handleUpdateMainTitle,
+            onSaveTravelLog: handleSaveTravelLog,
+            onDeleteTravelLog: handleDeleteTravelLog,
+            onAddDailyCard: handleAddDailyCard,
+            onReorderLogs: handleReorderLogs,
+            onSaveSnsLog: handleSaveSnsLog,
+            onDeleteSnsLog: handleDeleteSnsLog,
+            onAddSnsCard: handleAddSnsCard,
+          }}
+          album={{
+            photos: sharedAlbumPhotos,
+            uploading: albumUploading,
+            hasNext: albumHasNext,
+            loadingMore: albumLoading,
+            onAddPhotos: handleAddSharedPhotos,
+            onRemovePhoto: handleRemoveSharedPhoto,
+            onDownloadPhoto: handleDownloadPhoto,
+            onLoadMore: handleLoadMoreAlbum,
+          }}
+          dangerZone={{
+            myRole,
+            onLeave: () => setShowLeaveConfirm(true),
+            onDelete: () => setShowDeleteWorkspace(true),
+          }}
+          chat={{
+            roomCount: chatRoomCount,
+            onScheduleSaved: loadSchedule,
+            onRoomCountChange: setChatRoomCount,
           }}
         />
       ) : (
