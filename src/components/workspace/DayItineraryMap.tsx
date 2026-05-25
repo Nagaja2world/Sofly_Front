@@ -162,6 +162,50 @@ interface ResolvedRow extends ItineraryRow {
   resolvedLng: number | null;
 }
 
+/**
+ * rows 전체를 ResolvedRow[]로 변환 (좌표 해석).
+ *
+ * - 이미 _latitude/_longitude가 있는 행은 그 좌표를 그대로 사용.
+ * - _address만 있는 행은 geocodeAddress로 좌표를 조회.
+ * - 둘 다 없으면 좌표 null.
+ *
+ * 주소 지오코딩은 Promise.all로 병렬 처리한다. 이전에는 for-await로
+ * 한 건씩 순차 호출해 항목이 많을수록 지도 준비가 느렸으나, 각 요청은
+ * 서로 독립적이므로 동시에 보내 초기 로딩 시간을 단축한다. (Gemini 리뷰 반영)
+ *
+ * 결과 배열의 순서/길이는 입력 rows와 정확히 일치한다 (rows.map이
+ * 인덱스를 보존하므로 순차 처리와 동일한 순서가 보장됨).
+ *
+ * 취소 처리: Promise.all은 중간 중단이 불가능하므로, 호출부에서
+ * 이 함수가 resolve된 뒤 cancelled 플래그를 확인해 결과 반영 여부를
+ * 결정한다 (기존 두 블록의 `if (!cancelled)` 가드와 동일한 방식).
+ */
+async function resolveRows(
+  rows: ItineraryRow[],
+  geocoder: google.maps.Geocoder,
+): Promise<ResolvedRow[]> {
+  return Promise.all(
+    rows.map(async (row): Promise<ResolvedRow> => {
+      if (row._latitude && row._longitude) {
+        return {
+          ...row,
+          resolvedLat: row._latitude,
+          resolvedLng: row._longitude,
+        };
+      }
+      if (row._address) {
+        const coords = await geocodeAddress(geocoder, row._address);
+        return {
+          ...row,
+          resolvedLat: coords?.lat ?? null,
+          resolvedLng: coords?.lng ?? null,
+        };
+      }
+      return { ...row, resolvedLat: null, resolvedLng: null };
+    }),
+  );
+}
+
 /** 한 행의 지오코딩 결과 — 외부(모바일 바텀시트 목록)로 전달하는 최소 정보 */
 export interface DayItineraryMapRowStatus {
   /** 좌표 확보 여부 (true면 목록에서 탭 가능) */
@@ -289,30 +333,10 @@ export default function DayItineraryMap({
           setActiveIndex(null);
         });
 
-        /* 지오코딩 */
+        /* 지오코딩 — 모든 주소 변환을 병렬 처리 (resolveRows) */
         setStatus("geocoding");
         const geocoder = new google.maps.Geocoder();
-        const resolved: ResolvedRow[] = [];
-
-        for (const row of rows) {
-          if (cancelled) break;
-          if (row._latitude && row._longitude) {
-            resolved.push({
-              ...row,
-              resolvedLat: row._latitude,
-              resolvedLng: row._longitude,
-            });
-          } else if (row._address) {
-            const coords = await geocodeAddress(geocoder, row._address);
-            resolved.push({
-              ...row,
-              resolvedLat: coords?.lat ?? null,
-              resolvedLng: coords?.lng ?? null,
-            });
-          } else {
-            resolved.push({ ...row, resolvedLat: null, resolvedLng: null });
-          }
-        }
+        const resolved = await resolveRows(rows, geocoder);
 
         if (!cancelled) {
           setResolvedRows(resolved);
@@ -342,27 +366,8 @@ export default function DayItineraryMap({
     async function regeocode() {
       try {
         const geocoder = new google.maps.Geocoder();
-        const resolved: ResolvedRow[] = [];
-
-        for (const row of rows) {
-          if (cancelled) break;
-          if (row._latitude && row._longitude) {
-            resolved.push({
-              ...row,
-              resolvedLat: row._latitude,
-              resolvedLng: row._longitude,
-            });
-          } else if (row._address) {
-            const coords = await geocodeAddress(geocoder, row._address);
-            resolved.push({
-              ...row,
-              resolvedLat: coords?.lat ?? null,
-              resolvedLng: coords?.lng ?? null,
-            });
-          } else {
-            resolved.push({ ...row, resolvedLat: null, resolvedLng: null });
-          }
-        }
+        /* 주소 변환을 병렬 처리 (resolveRows) — init과 동일 경로 */
+        const resolved = await resolveRows(rows, geocoder);
 
         if (!cancelled) {
           setResolvedRows(resolved);

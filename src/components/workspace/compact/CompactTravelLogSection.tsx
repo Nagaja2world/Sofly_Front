@@ -112,17 +112,6 @@ interface CompactTravelLogSectionProps {
    * 미지정 시 카드 본문 편집 버튼이 숨겨짐.
    */
   onSaveTravelLog?: (id: number, data: CompactTravelLogData) => void;
-  /**
-   * 앨범 사진 즉시 업로드 콜백 — 데스크톱 TravelLogSection의 동명 prop과
-   * 동일한 계약(시그니처)을 노출하기 위한 채널.
-   *
-   * 데스크톱에서도 이 콜백은 카드 내부에서 호출되지 않는 "예약된 채널"이며
-   * (TravelLogCard가 편집 모드에서 File을 onSave의 albumPhotos로만 넘김),
-   * compact도 동일하게 선언만 해 두어 양쪽 props 표면을 일치시킨다.
-   * 실제 호출 배선은 데스크톱에 없는 UI를 새로 만드는 별도 작업이므로
-   * 여기서는 하지 않는다 (API 연결과도 무관 — 통로만 열어 둠).
-   */
-  onUploadTravellogPhotos?: (id: number, files: File[]) => void;
   /** 카드 삭제. 미지정 시 삭제 버튼 숨김. */
   onDeleteTravelLog?: (id: number) => void;
   /** 새 카드 추가. 미지정 시 "추가" 버튼 숨김. */
@@ -172,7 +161,6 @@ export default function CompactTravelLogSection({
   sharedAlbumPhotos,
   onUpdateMainTitle,
   onSaveTravelLog,
-  onUploadTravellogPhotos,
   onDeleteTravelLog,
   onAddDailyCard,
   onReorderLogs,
@@ -252,19 +240,30 @@ export default function CompactTravelLogSection({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
 
-  /* 각 여행 기록 카드 래퍼의 DOM 참조 (pointermove에서 위치 판정용) */
+  /* 각 여행 기록 카드 래퍼의 DOM 참조 (pointermove에서 위치 판정용).
+     ref 콜백은 카드가 삭제돼도 배열을 줄여주지 않아 stale한 슬롯이
+     남을 수 있으나, 아래 findCardIndexAtX가 travelLogs.length 범위
+     안에서만 순회하므로 stale 슬롯에는 접근하지 않는다. (ref는 렌더
+     중 접근이 금지되므로 배열 길이를 렌더 본문에서 자르지 않는다.) */
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   /* 포인터 X좌표 아래에 있는 카드 인덱스 찾기 */
-  const findCardIndexAtX = useCallback((clientX: number): number | null => {
-    for (let i = 0; i < cardRefs.current.length; i++) {
-      const el = cardRefs.current[i];
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      if (clientX >= rect.left && clientX <= rect.right) return i;
-    }
-    return null;
-  }, []);
+  const findCardIndexAtX = useCallback(
+    (clientX: number): number | null => {
+      /* travelLogs.length 기준으로 순회 — cardRefs.current.length는
+         삭제된 카드의 stale 슬롯을 포함할 수 있으므로, 실제 데이터
+         개수를 기준으로 돌아 stale 슬롯 접근을 원천 차단한다.
+         (Gemini 리뷰 반영) */
+      for (let i = 0; i < travelLogs.length; i++) {
+        const el = cardRefs.current[i];
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right) return i;
+      }
+      return null;
+    },
+    [travelLogs.length],
+  );
 
   /* 드래그 핸들에서 포인터 누름 → 재정렬 시작 */
   const handleReorderPointerDown = useCallback(
@@ -377,11 +376,6 @@ export default function CompactTravelLogSection({
                   onSave={
                     onSaveTravelLog && log.id != null
                       ? (data) => onSaveTravelLog(log.id!, data)
-                      : undefined
-                  }
-                  onUploadPhotos={
-                    onUploadTravellogPhotos && log.id != null
-                      ? (files) => onUploadTravellogPhotos(log.id!, files)
                       : undefined
                   }
                   onDelete={

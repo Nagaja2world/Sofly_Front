@@ -80,10 +80,17 @@ const CATEGORY_KEYS: ScheduleCategory[] = [
 /** 메모 입력 최대 글자 수 (데스크톱 ItineraryDayCard와 동일) */
 const REMARK_MAX_LENGTH = 50;
 
-/** 새 빈 행 생성 — id가 "row-"로 시작해야 저장 시 신규로 인식됨 */
+/** 새 빈 행 생성 — id가 "row-"로 시작해야 저장 시 신규로 인식됨.
+ *  ("row-" 접두사는 useSchedule.handleSaveItineraryDay가 신규 항목을
+ *   판별하는 키이므로 반드시 유지.)
+ *  난수 부분은 crypto.randomUUID()로 생성 — Date.now()+Math.random()
+ *  조합보다 충돌 가능성이 없고, CompactSnsLogCard 등 다른 compact
+ *  컴포넌트와 ID 생성 방식을 일치시킴. crypto.randomUUID는 보안
+ *  컨텍스트(HTTPS/localhost)에서 동작하며 Vite 개발 서버·프로덕션
+ *  HTTPS 모두 충족. */
 function createEmptyRow(): ItineraryRow {
   return {
-    id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: `row-${crypto.randomUUID()}`,
     title: "",
     _category: "ATTRACTION",
   };
