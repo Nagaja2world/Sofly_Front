@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import {
   fetchMessagingRooms,
   createMessagingRoom,
@@ -9,8 +10,6 @@ import {
 } from '@/api/messagingApi';
 
 const HTTP_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080').replace(/\/$/, '');
-// http → ws, https → wss
-const WS_BASE = HTTP_BASE.replace(/^https/, 'wss').replace(/^http/, 'ws');
 
 export function useWorkspaceMessaging(
   workspaceId: number,
@@ -29,9 +28,10 @@ export function useWorkspaceMessaging(
     if (!token) return;
 
     const client = new Client({
-      // SockJS CJS/ESM 호환 이슈를 피해 네이티브 WebSocket 직접 사용.
-      // Spring Boot SockJS 엔드포인트는 ws:// 직접 연결도 지원.
-      brokerURL: `${WS_BASE}/ws`,
+      // 서버가 SockJS 프로토콜만 지원하므로 SockJS factory 사용.
+      // vite.config.ts의 optimizeDeps.include로 CJS→ESM pre-bundle 처리.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      webSocketFactory: () => new (SockJS as any)(`${HTTP_BASE}/ws`),
       connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       onConnect: () => {

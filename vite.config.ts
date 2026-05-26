@@ -12,4 +12,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // sockjs-client는 CJS 전용 패키지 — Vite가 esbuild로 pre-bundle해야
+  // ESM default import에서 생성자가 올바르게 노출됨.
+  optimizeDeps: {
+    include: ["sockjs-client"],
+  },
 });
