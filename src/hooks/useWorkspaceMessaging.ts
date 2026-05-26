@@ -32,9 +32,9 @@ export function useWorkspaceMessaging(
     const token = localStorage.getItem('accessToken');
     if (!token) return;
 
+    // 인스턴스가 아닌 팩토리 함수로 넘겨야 auto-reconnect 지원됨
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const socket = new (SockJS as any)(`${HTTP_BASE}/ws`);
-    const stompClient = Stomp.over(socket);
+    const stompClient = Stomp.over(() => new (SockJS as any)(`${HTTP_BASE}/ws`));
     stompClient.debug = () => {}; // 콘솔 스팸 제거
 
     stompClient.connect(
