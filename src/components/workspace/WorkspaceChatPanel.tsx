@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { type MessagingMessage } from '@/api/messagingApi';
+import ChatIcon from '@/assets/chat.svg?react';
 
 interface WorkspaceChatPanelProps {
   messages: MessagingMessage[];
@@ -83,15 +84,7 @@ export default function WorkspaceChatPanel({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className="text-gray-700">
-            <path
-              d="M10 2a8 8 0 1 1-5.293 14.1L2 18l1.9-2.707A8 8 0 0 1 10 2Z"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <ChatIcon width={16} height={16} className="text-gray-700" aria-hidden />
           <span className="font-pretendard text-body3 font-semibold text-gray-900">팀 채팅</span>
           <span
             className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-gray-300'}`}
@@ -120,15 +113,7 @@ export default function WorkspaceChatPanel({
 
         {!isLoading && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-400">
-            <svg width="32" height="32" viewBox="0 0 20 20" fill="none">
-              <path
-                d="M10 2a8 8 0 1 1-5.293 14.1L2 18l1.9-2.707A8 8 0 0 1 10 2Z"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <ChatIcon width={32} height={32} className="text-gray-300" aria-hidden />
             <span className="font-pretendard text-body4">팀원들과 대화를 시작하세요</span>
           </div>
         )}

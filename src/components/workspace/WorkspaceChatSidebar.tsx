@@ -1,5 +1,6 @@
 import { useWorkspaceMessaging } from '@/hooks/useWorkspaceMessaging';
 import WorkspaceChatPanel from './WorkspaceChatPanel';
+import ChatIcon from '@/assets/chat.svg?react';
 
 interface WorkspaceChatSidebarProps {
   isOpen: boolean;
@@ -42,15 +43,7 @@ export default function WorkspaceChatSidebar({
             'transition-shadow cursor-pointer',
           ].join(' ')}
         >
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
-            <path
-              d="M4 6h8M4 9.5h6M2 10c0 4 3 6.5 7 7l2.5 1-1-2.5C13.5 14 16 11.5 16 9c0-4-3-6-6.5-6S2 6 2 10Z"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <ChatIcon width={18} height={18} aria-hidden />
           <span className="font-pretendard text-body4 font-medium whitespace-nowrap">팀 채팅</span>
         </button>
       )}
@@ -90,15 +83,7 @@ export default function WorkspaceChatSidebar({
               'transition-shadow cursor-pointer',
             ].join(' ')}
           >
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
-              <path
-                d="M4 6h8M4 9.5h6M2 10c0 4 3 6.5 7 7l2.5 1-1-2.5C13.5 14 16 11.5 16 9c0-4-3-6-6.5-6S2 6 2 10Z"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <ChatIcon width={18} height={18} aria-hidden />
             <span className="font-pretendard text-body4 font-medium whitespace-nowrap">팀 채팅</span>
           </button>
         </div>
