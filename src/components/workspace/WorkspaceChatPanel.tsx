@@ -3,10 +3,16 @@ import { type MessagingMessage } from '@/api/messagingApi';
 import ChatIcon from '@/assets/chat.svg?react';
 import useAuthStore from '@/store/useAuthStore';
 
+interface WorkspaceMember {
+  userId: number;
+  avatarUrl?: string;
+}
+
 interface WorkspaceChatPanelProps {
   messages: MessagingMessage[];
   isConnected: boolean;
   isLoading: boolean;
+  members: WorkspaceMember[];
   onSend: (content: string) => void;
   onClose: () => void;
 }
@@ -40,9 +46,11 @@ export default function WorkspaceChatPanel({
   messages,
   isConnected,
   isLoading,
+  members,
   onSend,
   onClose,
 }: WorkspaceChatPanelProps) {
+  const avatarMap = new Map(members.map((m) => [m.userId, m.avatarUrl]));
   // auth store에서 직접 읽어야 새로고침 직후 user가 null이어도
   // 프로필 로드 완료 시 즉시 re-render되어 isMe 판단이 바로잡힘.
   const { user, fetchUserProfile } = useAuthStore();
@@ -132,8 +140,16 @@ export default function WorkspaceChatPanel({
           return (
             <div key={gi} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
               {!isMe && (
-                <div className="pt-0.5">
-                  <AvatarCircle name={group.senderNickname} />
+                <div className="pt-0.5 flex-shrink-0">
+                  {avatarMap.get(group.senderId) ? (
+                    <img
+                      src={avatarMap.get(group.senderId)}
+                      alt={group.senderNickname}
+                      className="w-7 h-7 rounded-full object-cover"
+                    />
+                  ) : (
+                    <AvatarCircle name={group.senderNickname} />
+                  )}
                 </div>
               )}
               <div className={`flex flex-col gap-1 max-w-[70%] ${isMe ? 'items-end' : 'items-start'}`}>

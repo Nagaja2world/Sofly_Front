@@ -7,7 +7,6 @@ import {
   type WorkspaceMemberApi,
 } from "@/api/workspaceApi";
 import { type UserSearchResult } from "@/api/userApi";
-import { fetchMessagingRooms, addRoomMembers } from "@/api/messagingApi";
 
 export function useWorkspaceMembers(workspaceId: number, userId: number | undefined) {
   const navigate = useNavigate();
@@ -67,20 +66,6 @@ export function useWorkspaceMembers(workspaceId: number, userId: number | undefi
     setIsInviting(true);
     try {
       await inviteMember(workspaceId, inviteTarget.id);
-
-      // 초대와 동시에 팀 채팅방 멤버에도 추가
-      try {
-        const allRooms = await fetchMessagingRooms();
-        const wsRooms = allRooms
-          .filter((r) => r.type === 'WORKSPACE' && Number(r.workspaceId) === Number(workspaceId))
-          .sort((a, b) => a.roomId - b.roomId);
-        if (wsRooms.length > 0) {
-          await addRoomMembers(wsRooms[0].roomId, [inviteTarget.id]);
-        }
-      } catch {
-        // 채팅방 추가 실패는 초대 자체에 영향을 주지 않도록 조용히 무시
-      }
-
       setInviteToast(`${inviteTarget.nickname}님에게 초대 요청을 보냈습니다.`);
       setTimeout(() => setInviteToast(null), 3500);
     } catch (err) {

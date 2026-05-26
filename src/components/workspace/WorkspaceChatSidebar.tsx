@@ -2,10 +2,16 @@ import { useWorkspaceMessaging } from '@/hooks/useWorkspaceMessaging';
 import WorkspaceChatPanel from './WorkspaceChatPanel';
 import ChatIcon from '@/assets/chat.svg?react';
 
+interface WorkspaceMember {
+  userId: number;
+  avatarUrl?: string;
+}
+
 interface WorkspaceChatSidebarProps {
   isOpen: boolean;
   workspaceId: number;
   memberUserIds: number[];
+  members: WorkspaceMember[];
   onOpen: () => void;
   onClose: () => void;
 }
@@ -14,6 +20,7 @@ export default function WorkspaceChatSidebar({
   isOpen,
   workspaceId,
   memberUserIds,
+  members,
   onOpen,
   onClose,
 }: WorkspaceChatSidebarProps) {
@@ -62,6 +69,7 @@ export default function WorkspaceChatSidebar({
               messages={messages}
               isConnected={isConnected}
               isLoading={isLoading}
+              members={members}
               onSend={sendMessage}
               onClose={onClose}
             />

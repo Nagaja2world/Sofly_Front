@@ -7,7 +7,6 @@ import {
   fetchMessagingRooms,
   createMessagingRoom,
   fetchMessageHistory,
-  addRoomMembers,
   type MessagingRoom,
   type MessagingMessage,
 } from '@/api/messagingApi';
@@ -128,11 +127,6 @@ export function useWorkspaceMessaging(
           });
           targetRooms = [created];
           console.log('[팀채팅] 새 방 생성 roomId=', created.roomId);
-        } else if (targetRooms.length > 1) {
-          // 중복 방이 있으면 가장 오래된 방(lowest ID)에 모든 워크스페이스 멤버를 추가해 통합
-          const primary = targetRooms[0];
-          console.log(`[팀채팅] 중복 방 감지 — primary=${primary.roomId}로 멤버 통합 시도`);
-          await addRoomMembers(primary.roomId, memberIdsRef.current).catch(() => {});
         }
 
         if (cancelled) return;

@@ -659,6 +659,7 @@ export default function WorkspacePage() {
             isOpen={isTeamChatOpen}
             workspaceId={workspaceId}
             memberUserIds={memberUserIds}
+            members={members}
             onOpen={() => setIsTeamChatOpen(true)}
             onClose={() => setIsTeamChatOpen(false)}
           />
