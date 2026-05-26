@@ -1,0 +1,129 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+import {
+  fetchMessagingRooms,
+  createMessagingRoom,
+  fetchMessageHistory,
+  type MessagingRoom,
+  type MessagingMessage,
+} from '@/api/messagingApi';
+
+const WS_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
+
+export function useWorkspaceMessaging(
+  workspaceId: number,
+  memberUserIds: number[],
+  enabled: boolean,
+) {
+  const [room, setRoom] = useState<MessagingRoom | null>(null);
+  const [messages, setMessages] = useState<MessagingMessage[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const clientRef = useRef<Client | null>(null);
+  const memberIdsRef = useRef(memberUserIds);
+
+  useEffect(() => {
+    memberIdsRef.current = memberUserIds;
+  }, [memberUserIds]);
+
+  const connect = useCallback((roomId: number) => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS(`${WS_BASE}/ws`),
+      connectHeaders: { Authorization: `Bearer ${token}` },
+      reconnectDelay: 5000,
+      onConnect: () => {
+        setIsConnected(true);
+        client.subscribe(
+          `/sub/chat/${roomId}`,
+          (frame) => {
+            try {
+              const msg: MessagingMessage = JSON.parse(frame.body);
+              setMessages((prev) => [...prev, msg]);
+            } catch {
+              // ignore malformed frames
+            }
+          },
+          { Authorization: `Bearer ${token}` },
+        );
+      },
+      onDisconnect: () => setIsConnected(false),
+      onStompError: (frame) =>
+        console.warn('[WorkspaceChat] STOMP 에러:', frame.headers['message']),
+    });
+
+    client.activate();
+    clientRef.current = client;
+  }, []);
+
+  const disconnect = useCallback(() => {
+    clientRef.current?.deactivate();
+    clientRef.current = null;
+    setIsConnected(false);
+  }, []);
+
+  const sendMessage = useCallback(
+    (content: string) => {
+      if (!clientRef.current?.connected || !room) return;
+      const token = localStorage.getItem('accessToken');
+      clientRef.current.publish({
+        destination: `/pub/chat.message.${room.roomId}`,
+        headers: { Authorization: `Bearer ${token ?? ''}` },
+        body: JSON.stringify({ content, type: 'TEXT' }),
+      });
+    },
+    [room],
+  );
+
+  useEffect(() => {
+    if (!enabled || !workspaceId) return;
+
+    let cancelled = false;
+
+    const init = async () => {
+      setIsLoading(true);
+      try {
+        const rooms = await fetchMessagingRooms();
+        let target = rooms.find(
+          (r) => r.type === 'WORKSPACE' && r.workspaceId === workspaceId,
+        );
+
+        if (!target) {
+          target = await createMessagingRoom({
+            type: 'WORKSPACE',
+            workspaceId,
+            memberIds: memberIdsRef.current,
+          });
+        }
+
+        if (cancelled) return;
+        setRoom(target);
+
+        const history = await fetchMessageHistory(target.roomId);
+        if (cancelled) return;
+        setMessages(history);
+
+        connect(target.roomId);
+      } catch (err) {
+        console.warn('[WorkspaceChat] 초기화 실패:', err);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    init();
+
+    return () => {
+      cancelled = true;
+      disconnect();
+      setRoom(null);
+      setMessages([]);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, workspaceId]);
+
+  return { room, messages, isConnected, isLoading, sendMessage };
+}

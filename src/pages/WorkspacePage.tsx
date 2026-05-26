@@ -20,6 +20,7 @@ import FlightDetailModal from "@/components/workspace/FlightDetailModal";
 import AddFlightModal from "@/components/workspace/AddFlightModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import AIChatSidebar from "@/components/workspace/AIChatSidebar";
+import WorkspaceChatSidebar from "@/components/workspace/WorkspaceChatSidebar";
 import FlightSection from "@/components/workspace/FlightSection";
 import ItinerarySection from "@/components/workspace/ItinerarySection";
 import TravelLogSection from "@/components/workspace/TravelLogSection";
@@ -270,6 +271,8 @@ export default function WorkspacePage() {
   const [isMemberOpen, setIsMemberOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [chatRoomCount, setChatRoomCount] = useState(0);
+  const [isTeamChatOpen, setIsTeamChatOpen] = useState(false);
+  const memberUserIds = members.map((m) => m.userId);
 
   /* ── 워크스페이스 공유 ──
      NavBar(variant="back")의 공유 버튼에서 호출. 공유 동작 스펙이
@@ -650,6 +653,15 @@ export default function WorkspacePage() {
             onExpand={() => setIsChatOpen(true)}
             onScheduleSaved={loadSchedule}
             onRoomCountChange={setChatRoomCount}
+          />
+
+          <WorkspaceChatSidebar
+            isOpen={isTeamChatOpen}
+            workspaceId={workspaceId}
+            memberUserIds={memberUserIds}
+            currentUserId={user?.id}
+            onOpen={() => setIsTeamChatOpen(true)}
+            onClose={() => setIsTeamChatOpen(false)}
           />
         </div>
       )}
