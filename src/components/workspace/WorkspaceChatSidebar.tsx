@@ -6,7 +6,6 @@ interface WorkspaceChatSidebarProps {
   isOpen: boolean;
   workspaceId: number;
   memberUserIds: number[];
-  currentUserId: number | undefined;
   onOpen: () => void;
   onClose: () => void;
 }
@@ -15,7 +14,6 @@ export default function WorkspaceChatSidebar({
   isOpen,
   workspaceId,
   memberUserIds,
-  currentUserId,
   onOpen,
   onClose,
 }: WorkspaceChatSidebarProps) {
@@ -64,7 +62,6 @@ export default function WorkspaceChatSidebar({
               messages={messages}
               isConnected={isConnected}
               isLoading={isLoading}
-              currentUserId={currentUserId}
               onSend={sendMessage}
               onClose={onClose}
             />

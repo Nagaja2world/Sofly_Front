@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { type MessagingMessage } from '@/api/messagingApi';
 import ChatIcon from '@/assets/chat.svg?react';
+import useAuthStore from '@/store/useAuthStore';
 
 interface WorkspaceChatPanelProps {
   messages: MessagingMessage[];
   isConnected: boolean;
   isLoading: boolean;
-  currentUserId: number | undefined;
   onSend: (content: string) => void;
   onClose: () => void;
 }
@@ -40,10 +40,18 @@ export default function WorkspaceChatPanel({
   messages,
   isConnected,
   isLoading,
-  currentUserId,
   onSend,
   onClose,
 }: WorkspaceChatPanelProps) {
+  // auth store에서 직접 읽어야 새로고침 직후 user가 null이어도
+  // 프로필 로드 완료 시 즉시 re-render되어 isMe 판단이 바로잡힘.
+  const { user, fetchUserProfile } = useAuthStore();
+  const currentUserId = user?.id;
+
+  useEffect(() => {
+    if (!user) fetchUserProfile();
+  }, []);
+
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
@@ -119,7 +127,8 @@ export default function WorkspaceChatPanel({
         )}
 
         {grouped.map((group, gi) => {
-          const isMe = group.senderId === currentUserId;
+          // Number() 캐스팅: API가 senderId를 string으로 내려줄 때도 올바르게 비교
+          const isMe = !!currentUserId && Number(group.senderId) === Number(currentUserId);
           return (
             <div key={gi} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
               {!isMe && (

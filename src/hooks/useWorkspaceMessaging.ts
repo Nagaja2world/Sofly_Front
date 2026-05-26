@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
 import {
   fetchMessagingRooms,
   createMessagingRoom,
@@ -10,6 +9,14 @@ import {
 } from '@/api/messagingApi';
 
 const HTTP_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080').replace(/\/$/, '');
+
+// SockJS는 CJS 전용 패키지라 dev(esbuild)와 prod(Rollup) 빌드에서
+// default export 패턴이 달라짐. 런타임에 실제 생성자를 안전하게 가져옴.
+async function loadSockJS(): Promise<new (url: string) => object> {
+  const mod = await import('sockjs-client');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (mod as any).default ?? mod;
+}
 
 export function useWorkspaceMessaging(
   workspaceId: number,
@@ -23,15 +30,14 @@ export function useWorkspaceMessaging(
   const clientRef = useRef<Client | null>(null);
   const memberIdsRef = useRef(memberUserIds);
 
-  const connect = useCallback((roomId: number) => {
+  const connect = useCallback(async (roomId: number) => {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
 
+    const SockJS = await loadSockJS();
+
     const client = new Client({
-      // 서버가 SockJS 프로토콜만 지원하므로 SockJS factory 사용.
-      // vite.config.ts의 optimizeDeps.include로 CJS→ESM pre-bundle 처리.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      webSocketFactory: () => new (SockJS as any)(`${HTTP_BASE}/ws`),
+      webSocketFactory: () => new SockJS(`${HTTP_BASE}/ws`),
       connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       onConnect: () => {
@@ -52,8 +58,8 @@ export function useWorkspaceMessaging(
       onDisconnect: () => setIsConnected(false),
       onStompError: (frame) =>
         console.warn('[WorkspaceChat] STOMP 에러:', frame.headers['message']),
-      onWebSocketError: (evt) =>
-        console.warn('[WorkspaceChat] WebSocket 연결 실패:', evt),
+      onWebSocketError: () =>
+        console.warn('[WorkspaceChat] WebSocket 연결 실패 — SockJS fallback 시도 중'),
     });
 
     client.activate();
