@@ -64,6 +64,15 @@ export async function createMessagingRoom(req: {
   };
 }
 
+export async function addRoomMembers(roomId: number, memberIds: number[]): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/messaging/rooms/${roomId}/members`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ memberIds }),
+  });
+  if (!res.ok) throw new Error(`채팅방 멤버 추가 실패: ${res.status}`);
+}
+
 export async function fetchMessageHistory(
   roomId: number,
   page = 0,

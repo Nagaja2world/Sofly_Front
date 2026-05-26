@@ -18,6 +18,7 @@ import {
   type Workspace,
 } from "@/api/workspaceApi";
 import { createChatRoom } from "@/api/chatApi";
+import { createMessagingRoom } from "@/api/messagingApi";
 import type { SnsPost } from "@/types/snsType";
 
 import profileHeroSvg from "@/assets/profile_hero.svg";
@@ -202,6 +203,11 @@ export default function ProfilePage() {
       const payload = buildDummyWorkspacePayload();
       const created = await createWorkspace(payload);
       await createChatRoom(created.id).catch(() => {});
+      await createMessagingRoom({
+        type: 'WORKSPACE',
+        workspaceId: created.id,
+        memberIds: user ? [user.id] : [],
+      }).catch(() => {});
       setWorkspaces((prev) => [...prev, created]);
       navigate(`/workspace/${created.id}`);
     } catch (err) {

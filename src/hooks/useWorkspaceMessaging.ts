@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Stomp, type CompatClient } from '@stomp/stompjs';
-// CJS entry(lib/entry.js) 대신 브라우저용 UMD 빌드를 직접 사용.
-// CDN 테스트 페이지(sockjs-client/1.6.1/sockjs.min.js)와 동일한 파일.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore — UMD 빌드는 타입 선언 없음
+// @ts-ignore
 import SockJS from 'sockjs-client/dist/sockjs.min.js';
 import {
   fetchMessagingRooms,
   createMessagingRoom,
   fetchMessageHistory,
+  addRoomMembers,
   type MessagingRoom,
   type MessagingMessage,
 } from '@/api/messagingApi';
@@ -20,46 +19,57 @@ export function useWorkspaceMessaging(
   memberUserIds: number[],
   enabled: boolean,
 ) {
-  const [room, setRoom] = useState<MessagingRoom | null>(null);
+  const [rooms, setRooms] = useState<MessagingRoom[]>([]);
   const [messages, setMessages] = useState<MessagingMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const clientRef = useRef<CompatClient | null>(null);
   const memberIdsRef = useRef(memberUserIds);
+  // 중복 메시지 방지용 수신 ID 세트
+  const receivedIdsRef = useRef<Set<string>>(new Set());
 
-  // 테스트 페이지와 동일한 접근법: Stomp.over(socket) + connect()
-  const connect = useCallback((roomId: number) => {
+  const addMessage = useCallback((msg: MessagingMessage) => {
+    // id가 없는 메시지(WebSocket 포맷 다를 때)는 createdAt+senderId로 임시 키
+    const key = msg.id ?? `${msg.senderId}-${msg.createdAt}`;
+    if (receivedIdsRef.current.has(key)) return;
+    receivedIdsRef.current.add(key);
+    setMessages((prev) => [...prev, msg]);
+  }, []);
+
+  const connect = useCallback((wsRooms: MessagingRoom[]) => {
     const token = localStorage.getItem('accessToken');
-    if (!token) return;
+    if (!token || wsRooms.length === 0) return;
 
-    // 인스턴스가 아닌 팩토리 함수로 넘겨야 auto-reconnect 지원됨
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stompClient = Stomp.over(() => new (SockJS as any)(`${HTTP_BASE}/ws`));
-    stompClient.debug = () => {}; // 콘솔 스팸 제거
+    stompClient.debug = () => {};
 
     stompClient.connect(
       { Authorization: `Bearer ${token}` },
       () => {
-        console.log(`[팀채팅] STOMP 연결 성공 → /sub/chat/${roomId} 구독`);
         setIsConnected(true);
-        stompClient.subscribe(`/sub/chat/${roomId}`, (frame) => {
-          console.log(`[팀채팅] 메시지 수신 roomId=${roomId}:`, frame.body);
-          try {
-            const msg: MessagingMessage = JSON.parse(frame.body);
-            setMessages((prev) => [...prev, msg]);
-          } catch (e) {
-            console.error('[팀채팅] 메시지 파싱 실패:', e, frame.body);
-          }
+        // 워크스페이스의 모든 방을 구독 — DB에 중복 방이 있어도
+        // 어느 방에서 온 메시지든 수신 가능
+        wsRooms.forEach((r) => {
+          console.log(`[팀채팅] 구독: /sub/chat/${r.roomId}`);
+          stompClient.subscribe(`/sub/chat/${r.roomId}`, (frame) => {
+            try {
+              const msg: MessagingMessage = JSON.parse(frame.body);
+              addMessage(msg);
+            } catch (e) {
+              console.error('[팀채팅] 파싱 실패:', e);
+            }
+          });
         });
       },
       (err: unknown) => {
-        console.warn('[WorkspaceChat] 연결 실패:', err);
+        console.warn('[팀채팅] 연결 실패:', err);
         setIsConnected(false);
       },
     );
 
     clientRef.current = stompClient;
-  }, []);
+  }, [addMessage]);
 
   const disconnect = useCallback(() => {
     if (clientRef.current?.connected) {
@@ -69,18 +79,22 @@ export function useWorkspaceMessaging(
     setIsConnected(false);
   }, []);
 
+  // 가장 오래된 방(낮은 ID)으로 전송 — 모두가 같은 채널을 쓰도록 유도
+  const primaryRoom = rooms.length > 0
+    ? rooms.reduce((min, r) => r.roomId < min.roomId ? r : min)
+    : null;
+
   const sendMessage = useCallback(
     (content: string) => {
-      if (!clientRef.current?.connected || !room) return;
+      if (!clientRef.current?.connected || !primaryRoom) return;
       const token = localStorage.getItem('accessToken');
-      // 테스트 페이지와 동일: stompClient.send()
       clientRef.current.send(
-        `/pub/chat.message.${room.roomId}`,
+        `/pub/chat.message.${primaryRoom.roomId}`,
         { Authorization: `Bearer ${token ?? ''}` },
         JSON.stringify({ content, type: 'TEXT' }),
       );
     },
-    [room],
+    [primaryRoom],
   );
 
   const membersLoaded = memberUserIds.length > 0;
@@ -89,44 +103,56 @@ export function useWorkspaceMessaging(
     if (!enabled || !workspaceId || !membersLoaded) return;
 
     memberIdsRef.current = memberUserIds;
+    receivedIdsRef.current = new Set();
     let cancelled = false;
 
     const init = async () => {
       setIsLoading(true);
       try {
-        const rooms = await fetchMessagingRooms();
-        console.log('[팀채팅] 내 채팅방 목록:', JSON.stringify(rooms));
+        const allRooms = await fetchMessagingRooms();
 
-        // workspaceId 타입 불일치 방지: Number() 캐스팅
-        const wsRooms = rooms.filter(
-          (r) => r.type === 'WORKSPACE' && Number(r.workspaceId) === Number(workspaceId),
-        );
-        console.log(`[팀채팅] workspace=${workspaceId} 해당 방:`, JSON.stringify(wsRooms));
+        // 이 워크스페이스에 속한 모든 방 수집
+        const wsRooms = allRooms
+          .filter((r) => r.type === 'WORKSPACE' && Number(r.workspaceId) === Number(workspaceId))
+          .sort((a, b) => a.roomId - b.roomId);
 
-        // 중복 방이 있을 때 가장 낮은 ID(가장 오래된 공유 방)를 선택
-        let target = wsRooms.sort((a, b) => a.roomId - b.roomId)[0];
+        console.log(`[팀채팅] workspace=${workspaceId} 방 목록:`, wsRooms.map(r => r.roomId));
 
-        if (!target) {
-          console.log('[팀채팅] 방 없음 → 생성', memberIdsRef.current);
-          target = await createMessagingRoom({
+        let targetRooms = wsRooms;
+
+        if (targetRooms.length === 0) {
+          const created = await createMessagingRoom({
             type: 'WORKSPACE',
             workspaceId,
             memberIds: memberIdsRef.current,
           });
-          console.log('[팀채팅] 생성된 방:', JSON.stringify(target));
+          targetRooms = [created];
+          console.log('[팀채팅] 새 방 생성 roomId=', created.roomId);
+        } else if (targetRooms.length > 1) {
+          // 중복 방이 있으면 가장 오래된 방(lowest ID)에 모든 워크스페이스 멤버를 추가해 통합
+          const primary = targetRooms[0];
+          console.log(`[팀채팅] 중복 방 감지 — primary=${primary.roomId}로 멤버 통합 시도`);
+          await addRoomMembers(primary.roomId, memberIdsRef.current).catch(() => {});
         }
 
         if (cancelled) return;
-        setRoom(target);
-        console.log(`[팀채팅] 선택된 roomId=${target.roomId} 로 연결 시작`);
+        setRooms(targetRooms);
 
-        const history = await fetchMessageHistory(target.roomId);
+        // 가장 오래된 방(primary)의 히스토리를 로드
+        const primary = targetRooms[0];
+        const history = await fetchMessageHistory(primary.roomId);
         if (cancelled) return;
+
+        // 히스토리 메시지를 receivedIds에 등록해 WebSocket 중복 수신 방지
+        history.forEach((m) => {
+          const key = m.id ?? `${m.senderId}-${m.createdAt}`;
+          receivedIdsRef.current.add(key);
+        });
         setMessages(history);
 
-        connect(target.roomId);
+        connect(targetRooms);
       } catch (err) {
-        console.warn('[WorkspaceChat] 초기화 실패:', err);
+        console.warn('[팀채팅] 초기화 실패:', err);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -137,11 +163,11 @@ export function useWorkspaceMessaging(
     return () => {
       cancelled = true;
       disconnect();
-      setRoom(null);
+      setRooms([]);
       setMessages([]);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, workspaceId, membersLoaded]);
 
-  return { room, messages, isConnected, isLoading, sendMessage };
+  return { messages, isConnected, isLoading, sendMessage };
 }
