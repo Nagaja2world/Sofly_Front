@@ -40,14 +40,15 @@ export function useWorkspaceMessaging(
     stompClient.connect(
       { Authorization: `Bearer ${token}` },
       () => {
+        console.log(`[팀채팅] STOMP 연결 성공 → /sub/chat/${roomId} 구독`);
         setIsConnected(true);
-        // 테스트 페이지와 동일: subscribe에 Authorization 헤더 없음
         stompClient.subscribe(`/sub/chat/${roomId}`, (frame) => {
+          console.log(`[팀채팅] 메시지 수신 roomId=${roomId}:`, frame.body);
           try {
             const msg: MessagingMessage = JSON.parse(frame.body);
             setMessages((prev) => [...prev, msg]);
-          } catch {
-            // ignore malformed frames
+          } catch (e) {
+            console.error('[팀채팅] 메시지 파싱 실패:', e, frame.body);
           }
         });
       },
@@ -94,20 +95,30 @@ export function useWorkspaceMessaging(
       setIsLoading(true);
       try {
         const rooms = await fetchMessagingRooms();
-        let target = rooms.find(
-          (r) => r.type === 'WORKSPACE' && r.workspaceId === workspaceId,
+        console.log('[팀채팅] 내 채팅방 목록:', JSON.stringify(rooms));
+
+        // workspaceId 타입 불일치 방지: Number() 캐스팅
+        const wsRooms = rooms.filter(
+          (r) => r.type === 'WORKSPACE' && Number(r.workspaceId) === Number(workspaceId),
         );
+        console.log(`[팀채팅] workspace=${workspaceId} 해당 방:`, JSON.stringify(wsRooms));
+
+        // 중복 방이 있을 때 가장 낮은 ID(가장 오래된 공유 방)를 선택
+        let target = wsRooms.sort((a, b) => a.roomId - b.roomId)[0];
 
         if (!target) {
+          console.log('[팀채팅] 방 없음 → 생성', memberIdsRef.current);
           target = await createMessagingRoom({
             type: 'WORKSPACE',
             workspaceId,
             memberIds: memberIdsRef.current,
           });
+          console.log('[팀채팅] 생성된 방:', JSON.stringify(target));
         }
 
         if (cancelled) return;
         setRoom(target);
+        console.log(`[팀채팅] 선택된 roomId=${target.roomId} 로 연결 시작`);
 
         const history = await fetchMessageHistory(target.roomId);
         if (cancelled) return;
