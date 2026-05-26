@@ -18,7 +18,9 @@ interface WorkspaceChatPanelProps {
 }
 
 function formatTime(iso: string) {
-  const d = new Date(iso);
+  // 백엔드가 타임존 없이 UTC 시간을 반환하는 경우 Z를 붙여 UTC로 파싱
+  const normalized = /Z|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + 'Z';
+  const d = new Date(normalized);
   const h = d.getHours();
   const m = String(d.getMinutes()).padStart(2, '0');
   const ampm = h < 12 ? '오전' : '오후';

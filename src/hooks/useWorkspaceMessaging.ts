@@ -50,7 +50,6 @@ export function useWorkspaceMessaging(
         // 워크스페이스의 모든 방을 구독 — DB에 중복 방이 있어도
         // 어느 방에서 온 메시지든 수신 가능
         wsRooms.forEach((r) => {
-          console.log(`[팀채팅] 구독: /sub/chat/${r.roomId}`);
           stompClient.subscribe(`/sub/chat/${r.roomId}`, (frame) => {
             try {
               const msg: MessagingMessage = JSON.parse(frame.body);
@@ -115,7 +114,6 @@ export function useWorkspaceMessaging(
           .filter((r) => r.type === 'WORKSPACE' && Number(r.workspaceId) === Number(workspaceId))
           .sort((a, b) => a.roomId - b.roomId);
 
-        console.log(`[팀채팅] workspace=${workspaceId} 방 목록:`, wsRooms.map(r => r.roomId));
 
         let targetRooms = wsRooms;
 
@@ -126,7 +124,6 @@ export function useWorkspaceMessaging(
             memberIds: memberIdsRef.current,
           });
           targetRooms = [created];
-          console.log('[팀채팅] 새 방 생성 roomId=', created.roomId);
         }
 
         if (cancelled) return;
