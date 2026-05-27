@@ -7,6 +7,7 @@ import type { SnsPost } from "@/types/snsType";
 import {
   addLike, removeLike,
   fetchComments, postComment, deleteComment,
+  followUser, unfollowUser,
   type CommentResponse,
 } from "@/api/snsApi";
 
@@ -39,6 +40,10 @@ export default function SnsPostDetailPopup({
 
   const [mediaIndex, setMediaIndex] = useState(0);
   const [captionExpanded, setCaptionExpanded] = useState(false);
+
+  // 팔로우
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   // 좋아요
   const [isLiked, setIsLiked] = useState<boolean | null>(post?.isLiked ?? null);
@@ -138,6 +143,22 @@ export default function SnsPostDetailPopup({
     }
   };
 
+  const handleFollow = async () => {
+    const authorIdNum = Number(post?.author.id);
+    if (!authorIdNum || followLoading || !user) return;
+    setFollowLoading(true);
+    const next = !isFollowing;
+    setIsFollowing(next);
+    try {
+      if (next) await followUser(authorIdNum);
+      else await unfollowUser(authorIdNum);
+    } catch {
+      setIsFollowing(!next);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   const handleDeleteComment = async (commentId: number) => {
     if (!workspaceIdNum) return;
     try {
@@ -182,6 +203,22 @@ export default function SnsPostDetailPopup({
             <span className="font-pretendard text-body1 font-semibold text-gray-900 truncate">
               {post.author.username}
             </span>
+            {isLoggedIn && user && String(user.id) !== post.author.id && (
+              <button
+                type="button"
+                onClick={handleFollow}
+                disabled={followLoading}
+                className={[
+                  "shrink-0 px-3 py-1 rounded-full text-body4 font-medium font-pretendard border transition-colors cursor-pointer",
+                  followLoading ? "opacity-50" : "",
+                  isFollowing
+                    ? "border-gray-300 text-gray-600 bg-white hover:bg-gray-50"
+                    : "border-gray-900 text-gray-900 bg-white hover:bg-gray-100",
+                ].join(" ")}
+              >
+                {isFollowing ? '팔로잉' : '팔로우'}
+              </button>
+            )}
           </div>
           <button
             type="button" onClick={onClose} aria-label="닫기"

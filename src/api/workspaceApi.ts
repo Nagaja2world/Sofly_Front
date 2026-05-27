@@ -1,5 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
+export type WorkspaceVisibility = 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE';
+
 export interface Workspace {
   id: number;
   title: string;
@@ -11,6 +13,7 @@ export interface Workspace {
   coverImageUrl: string;
   ownerId: number;
   memberCount: number;
+  visibility?: WorkspaceVisibility;
 }
 
 export interface CreateWorkspacePayload {
@@ -97,12 +100,22 @@ export async function uploadCoverImage(workspaceId: number, file: File): Promise
 /** 워크스페이스 수정 */
 export async function updateWorkspace(
   id: number,
-  payload: CreateWorkspacePayload,
+  payload: Partial<CreateWorkspacePayload> & { visibility?: WorkspaceVisibility },
 ): Promise<Workspace> {
   const res = await fetch(`${API_BASE}/api/workspaces/${id}`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(payload),
+  });
+  return unwrap<Workspace>(res);
+}
+
+/** 워크스페이스 공개 범위만 변경 */
+export async function updateVisibility(id: number, visibility: WorkspaceVisibility): Promise<Workspace> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ visibility }),
   });
   return unwrap<Workspace>(res);
 }

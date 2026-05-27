@@ -3,11 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchWorkspaceById,
   updateWorkspace,
+  updateVisibility,
   uploadCoverImage,
   deleteWorkspace,
   saveFlightToWorkspace,
   type Workspace,
   type SaveFlightPayload,
+  type WorkspaceVisibility,
 } from "@/api/workspaceApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
@@ -350,9 +352,19 @@ export default function WorkspacePage() {
   };
   const handleSaveSnsLog = (data: SnsLogData) => setSnsLog(data);
   const handleDeleteSnsLog = () => setSnsLog(null);
-  const handleUploadSnsLog = (data: SnsLogData) => {
-    console.log("[Workspace] upload to SNS:", data);
-    alert("SNS 페이지에 업로드되었습니다. (TODO: 실제 게시 로직 구현)");
+  const handleVisibilityChange = async (v: WorkspaceVisibility) => {
+    const updated = await updateVisibility(workspaceId, v);
+    setWorkspaceDetail(updated);
+  };
+
+  const handleUploadSnsLog = async (_data: SnsLogData) => {
+    try {
+      const updated = await updateVisibility(workspaceId, 'PUBLIC');
+      setWorkspaceDetail(updated);
+      alert("이 워크스페이스가 SNS에 공개됐어요!");
+    } catch {
+      alert("공개 설정에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
   };
 
   const [sharedAlbumPhotos, setSharedAlbumPhotos] = useState<AlbumPhoto[]>([]);
@@ -539,6 +551,8 @@ export default function WorkspacePage() {
                         onRenameWorkspace={handleRenameWorkspace}
                         onChangeCountry={handleChangeCountry}
                         onChangeCoverImage={handleCoverImageUpload}
+                        visibility={workspaceDetail?.visibility}
+                        onVisibilityChange={myRole === 'OWNER' ? handleVisibilityChange : undefined}
                       />
                     </div>
                   </div>

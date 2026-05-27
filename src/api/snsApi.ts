@@ -143,6 +143,23 @@ export async function unfollowUser(targetUserId: number): Promise<void> {
   if (!res.ok && res.status !== 204) throw new Error(`언팔로우 실패: ${res.status}`);
 }
 
+// ── 워크스페이스 가져오기 ──────────────────────────
+
+export async function importWorkspace(workspaceId: number): Promise<{ id: number }> {
+  const res = await fetch(`${API_BASE}/api/sns/workspaces/${workspaceId}/import`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('LOGIN_REQUIRED');
+    if (res.status === 403) throw new Error('NOT_PUBLIC');
+    if (res.status === 404) throw new Error('NOT_FOUND');
+    throw new Error(`가져오기 실패: ${res.status}`);
+  }
+  const json = await res.json();
+  return json.data ?? json;
+}
+
 // ── 유틸 ──────────────────────────────────────────
 
 /** API 응답 → 기존 SnsPost 포맷 변환 */

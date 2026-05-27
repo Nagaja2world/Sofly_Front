@@ -9,6 +9,7 @@ import {
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
+import type { WorkspaceVisibility } from "@/api/workspaceApi";
 
 /* ══════════════════════════════════════════
    타입
@@ -66,6 +67,10 @@ interface MemberSidebarProps {
    * 미지정이면 커버 이미지 영역이 렌더되지 않음.
    */
   onChangeCoverImage?: (file: File) => void | Promise<void>;
+  /** 현재 공개 범위 (미지정이면 섹션 렌더 안 함) */
+  visibility?: WorkspaceVisibility;
+  /** 공개 범위 변경 콜백 (OWNER에게만 prop 전달) */
+  onVisibilityChange?: (v: WorkspaceVisibility) => void | Promise<void>;
   /** 추가 클래스 */
   className?: string;
 }
@@ -497,6 +502,12 @@ function InlineEditableText({
  *
  * 폭은 부모에서 제어 (보통 200~240px). 단, 자체적으로 최소/최대 폭 가드.
  */
+const VISIBILITY_OPTIONS: { value: WorkspaceVisibility; label: string; desc: string }[] = [
+  { value: 'PUBLIC', label: '전체 공개', desc: '누구나 SNS에서 볼 수 있어요' },
+  { value: 'FOLLOWERS_ONLY', label: '팔로워만', desc: '팔로워에게만 공개돼요' },
+  { value: 'PRIVATE', label: '나만 보기', desc: '나만 볼 수 있어요' },
+];
+
 export default function MemberSidebar({
   workspaceName,
   members,
@@ -507,8 +518,21 @@ export default function MemberSidebar({
   onRenameWorkspace,
   onChangeCountry,
   onChangeCoverImage,
+  visibility,
+  onVisibilityChange,
   className = "",
 }: MemberSidebarProps) {
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
+
+  const handleVisibilityChange = async (v: WorkspaceVisibility) => {
+    if (!onVisibilityChange || visibilityLoading) return;
+    setVisibilityLoading(true);
+    try {
+      await onVisibilityChange(v);
+    } finally {
+      setVisibilityLoading(false);
+    }
+  };
   return (
     <aside
       className={[
@@ -573,6 +597,38 @@ export default function MemberSidebar({
             allowEmpty
             prefix={<span className="mr-1">📍</span>}
           />
+        </div>
+      )}
+
+      {/* ── 공개 범위 (OWNER에게만 보임) ── */}
+      {onVisibilityChange && visibility !== undefined && (
+        <div className="flex flex-col gap-2">
+          <span className="font-pretendard text-body4 text-gray-600">공개 범위</span>
+          <div className="flex flex-col gap-1">
+            {VISIBILITY_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={visibilityLoading}
+                onClick={() => handleVisibilityChange(opt.value)}
+                className={[
+                  "flex flex-col items-start px-3 py-2 rounded-lg border text-left transition-colors cursor-pointer",
+                  visibilityLoading ? "opacity-50 cursor-not-allowed" : "",
+                  visibility === opt.value
+                    ? "border-gray-700 bg-gray-50"
+                    : "border-gray-200 bg-white hover:border-gray-400",
+                ].join(" ")}
+              >
+                <span className={[
+                  "font-pretendard text-body4 font-medium",
+                  visibility === opt.value ? "text-gray-900" : "text-gray-600",
+                ].join(" ")}>
+                  {opt.label}
+                </span>
+                <span className="font-pretendard text-[10px] text-gray-400">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
