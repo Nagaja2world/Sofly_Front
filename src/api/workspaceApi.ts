@@ -112,8 +112,8 @@ export async function updateWorkspace(
 
 /** 워크스페이스 공개 범위만 변경 */
 export async function updateVisibility(id: number, visibility: WorkspaceVisibility): Promise<Workspace> {
-  const res = await fetch(`${API_BASE}/api/workspaces/${id}`, {
-    method: 'PUT',
+  const res = await fetch(`${API_BASE}/api/workspaces/${id}/visibility`, {
+    method: 'PATCH',
     headers: authHeaders(),
     body: JSON.stringify({ visibility }),
   });
