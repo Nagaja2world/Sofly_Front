@@ -70,7 +70,7 @@ export default function ProfilePage() {
     setWsError(null);
     try {
       const data = await fetchWorkspaces();
-      setWorkspaces(data);
+      setWorkspaces([...data].reverse());
     } catch (err) {
       setWsError(err instanceof Error ? err.message : "불러오기 실패");
     } finally {
@@ -117,7 +117,7 @@ export default function ProfilePage() {
         workspaceId: created.id,
         memberIds: user ? [user.id] : [],
       }).catch(() => {});
-      setWorkspaces((prev) => [...prev, created]);
+      setWorkspaces((prev) => [created, ...prev]);
       navigate(`/workspace/${created.id}`);
     } catch (err) {
       console.error("워크스페이스 생성 실패:", err);
