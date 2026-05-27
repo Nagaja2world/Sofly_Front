@@ -359,8 +359,8 @@ export default function WorkspacePage() {
   const handleVisibilityChange = async (v: WorkspaceVisibility) => {
     if (!workspaceDetail) return;
     try {
-      const updated = await updateVisibility(workspaceId, v);
-      setWorkspaceDetail(updated);
+      await updateVisibility(workspaceId, v);
+      setWorkspaceDetail({ ...workspaceDetail, visibility: v });
     } catch {
       alert("공개 범위 변경에 실패했어요. 잠시 후 다시 시도해주세요.");
     }

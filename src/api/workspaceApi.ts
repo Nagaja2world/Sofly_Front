@@ -111,13 +111,13 @@ export async function updateWorkspace(
 }
 
 /** 워크스페이스 공개 범위만 변경 */
-export async function updateVisibility(id: number, visibility: WorkspaceVisibility): Promise<Workspace> {
+export async function updateVisibility(id: number, visibility: WorkspaceVisibility): Promise<void> {
   const res = await fetch(`${API_BASE}/api/workspaces/${id}/visibility`, {
     method: 'PATCH',
     headers: authHeaders(),
     body: JSON.stringify({ visibility }),
   });
-  return unwrap<Workspace>(res);
+  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
 }
 
 /* ── coverImageUrl이 실제 URL이 아닐 때 대체할 Mock 이미지 목록 ── */
