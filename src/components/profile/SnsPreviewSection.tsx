@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "@/components/common/Button";
 import SnsPostGrid from "@/components/sns/SnsPostGrid";
@@ -42,21 +42,34 @@ export default function SnsPreviewSection({
 }: SnsPreviewSectionProps) {
   const navigate = useNavigate();
 
-  /** 미리보기 슬라이스 */
-  const previewPosts = posts.slice(0, previewCount);
+  /** 좋아요 변경을 로컬에서 추적하기 위한 posts 복사본 */
+  const [localPosts, setLocalPosts] = useState<SnsPost[]>(posts);
+  useEffect(() => { setLocalPosts(posts); }, [posts]);
 
-  /** 상세 팝업 상태 — SNS 페이지와 동일한 패턴 */
+  const previewPosts = localPosts.slice(0, previewCount);
+
   const [selectedPost, setSelectedPost] = useState<SnsPost | null>(null);
 
   /** 워크스페이스 가져오기 — 공통 훅 */
   const importer = useImportWorkspace();
 
   const handlePostClick = (post: SnsPost) => {
-    setSelectedPost(post);
+    // 최신 로컬 상태(좋아요 반영)로 팝업 열기
+    const latest = localPosts.find((p) => p.id === post.id) ?? post;
+    setSelectedPost(latest);
   };
 
   const handleClosePopup = () => {
     setSelectedPost(null);
+  };
+
+  const handleLikeChange = (postId: string, liked: boolean, count: number) => {
+    setLocalPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, isLiked: liked, likeCount: count } : p))
+    );
+    setSelectedPost((prev) =>
+      prev?.id === postId ? { ...prev, isLiked: liked, likeCount: count } : prev
+    );
   };
 
   const handleSeeMore = () => {
@@ -90,6 +103,7 @@ export default function SnsPreviewSection({
         post={selectedPost}
         onClose={handleClosePopup}
         onImportWorkspaceRequest={importer.request}
+        onLikeChange={handleLikeChange}
       />
 
       {/* ── 워크스페이스 가져오기 확인 팝업 ── */}

@@ -54,6 +54,7 @@ export default function SnsPostDetailPopup({
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentResponse[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [localCommentCount, setLocalCommentCount] = useState(post?.commentCount ?? 0);
   const [commentInput, setCommentInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +96,7 @@ export default function SnsPostDetailPopup({
     try {
       const data = await fetchComments(workspaceIdNum);
       setComments(data.content);
+      setLocalCommentCount(data.content.length);
     } catch {
       // 조용히 실패
     } finally {
@@ -135,6 +137,7 @@ export default function SnsPostDetailPopup({
     try {
       const created = await postComment(workspaceIdNum, content);
       setComments((prev) => [...prev, created]);
+      setLocalCommentCount((c) => c + 1);
       setCommentInput('');
     } catch {
       // 실패 시 입력 유지
@@ -164,6 +167,7 @@ export default function SnsPostDetailPopup({
     try {
       await deleteComment(workspaceIdNum, commentId);
       setComments((prev) => prev.filter((c) => c.id !== commentId));
+      setLocalCommentCount((c) => Math.max(0, c - 1));
     } catch {
       // 실패 조용히
     }
@@ -288,7 +292,7 @@ export default function SnsPostDetailPopup({
                   <path d="M15 2H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h4l2 3 2-3h4a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"
                     stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span className="font-pretendard text-body4">{post.commentCount ?? comments.length}</span>
+                <span className="font-pretendard text-body4">{localCommentCount}</span>
               </button>
             </div>
 
