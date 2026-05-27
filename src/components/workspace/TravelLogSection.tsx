@@ -122,7 +122,17 @@ export default function TravelLogSection({
             "[&::-webkit-scrollbar-thumb]:rounded",
           ].join(" ")}
         >
-          {/* SNS 카드: 항상 맨 왼쪽 */}
+          {/* 추가 카드: 맨 왼쪽에 표시 */}
+          {showAddCard && (
+            <AddTravelLogCard
+              onAddDailyCard={onAddDailyCard}
+              onAddSnsCard={onAddSnsCard}
+              onCancel={onCancelAddCard}
+              disableSnsCard={snsLog !== null || travelLogs.length === 0}
+            />
+          )}
+
+          {/* SNS 카드 */}
           {snsLog && (
             <div className="shrink-0">
               <SnsLogCard
@@ -174,16 +184,6 @@ export default function TravelLogSection({
               />
             </div>
           ))}
-
-          {/* 추가 카드 */}
-          {showAddCard && (
-            <AddTravelLogCard
-              onAddDailyCard={onAddDailyCard}
-              onAddSnsCard={onAddSnsCard}
-              onCancel={onCancelAddCard}
-              disableSnsCard={snsLog !== null || travelLogs.length === 0}
-            />
-          )}
         </div>
       )}
     </section>

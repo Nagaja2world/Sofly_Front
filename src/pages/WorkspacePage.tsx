@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchWorkspaceById,
   updateWorkspace,
-  updateVisibility,
   uploadCoverImage,
   deleteWorkspace,
   saveFlightToWorkspace,
@@ -353,13 +352,33 @@ export default function WorkspacePage() {
   const handleSaveSnsLog = (data: SnsLogData) => setSnsLog(data);
   const handleDeleteSnsLog = () => setSnsLog(null);
   const handleVisibilityChange = async (v: WorkspaceVisibility) => {
-    const updated = await updateVisibility(workspaceId, v);
+    if (!workspaceDetail) return;
+    const updated = await updateWorkspace(workspaceId, {
+      title: workspaceDetail.title,
+      destination: workspaceDetail.destination,
+      countryCode: workspaceDetail.countryCode,
+      startDate: workspaceDetail.startDate,
+      endDate: workspaceDetail.endDate,
+      headcount: workspaceDetail.headcount,
+      coverImageUrl: workspaceDetail.coverImageUrl,
+      visibility: v,
+    });
     setWorkspaceDetail(updated);
   };
 
   const handleUploadSnsLog = async (_data: SnsLogData) => {
+    if (!workspaceDetail) return;
     try {
-      const updated = await updateVisibility(workspaceId, 'PUBLIC');
+      const updated = await updateWorkspace(workspaceId, {
+        title: workspaceDetail.title,
+        destination: workspaceDetail.destination,
+        countryCode: workspaceDetail.countryCode,
+        startDate: workspaceDetail.startDate,
+        endDate: workspaceDetail.endDate,
+        headcount: workspaceDetail.headcount,
+        coverImageUrl: workspaceDetail.coverImageUrl,
+        visibility: 'PUBLIC',
+      });
       setWorkspaceDetail(updated);
       alert("이 워크스페이스가 SNS에 공개됐어요!");
     } catch {
