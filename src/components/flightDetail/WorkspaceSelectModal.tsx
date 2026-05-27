@@ -32,7 +32,7 @@ export default function WorkspaceSelectModal({
 
   useEffect(() => {
     fetchWorkspaces()
-      .then(setWorkspaces)
+      .then((list) => setWorkspaces([...list].reverse()))
       .catch(() => setError("워크스페이스 목록을 불러오지 못했어요"))
       .finally(() => setIsLoading(false));
   }, []);
