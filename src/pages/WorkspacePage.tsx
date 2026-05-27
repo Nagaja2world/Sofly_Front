@@ -566,7 +566,7 @@ export default function WorkspacePage() {
                         onRenameWorkspace={handleRenameWorkspace}
                         onChangeCountry={handleChangeCountry}
                         onChangeCoverImage={handleCoverImageUpload}
-                        visibility={workspaceDetail?.visibility}
+                        visibility={workspaceDetail ? (workspaceDetail.visibility ?? 'PRIVATE') : undefined}
                         onVisibilityChange={myRole === 'OWNER' ? handleVisibilityChange : undefined}
                       />
                     </div>
