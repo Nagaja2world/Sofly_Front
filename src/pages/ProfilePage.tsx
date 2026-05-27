@@ -21,9 +21,6 @@ import { createMessagingRoom } from "@/api/messagingApi";
 import { fetchFeed, toSnsPost } from "@/api/snsApi";
 import type { SnsPost } from "@/types/snsType";
 
-import WorkspaceCreateModal, {
-  type WorkspaceCreatePayload,
-} from "@/components/workspace/WorkspaceCreateModal";
 import profileHeroSvg from "@/assets/profile_hero.svg";
 import GroupIcon from "@/assets/group.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
@@ -37,7 +34,6 @@ export default function ProfilePage() {
   const [wsLoading, setWsLoading] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const [snsPosts, setSnsPosts] = useState<SnsPost[]>([]);
 
@@ -99,11 +95,19 @@ export default function ProfilePage() {
     navigate(`/workspace/${id}`);
   };
 
-  const handleCreateWorkspace = async (payload: WorkspaceCreatePayload) => {
+  const today = new Date().toISOString().split('T')[0];
+  const nextWeek = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })();
+
+  const handleCreateWorkspace = async () => {
+    if (isCreating) return;
     setIsCreating(true);
     try {
       const created = await createWorkspace({
-        ...payload,
+        title: '새 워크스페이스',
+        destination: '',
+        countryCode: '',
+        startDate: today,
+        endDate: nextWeek,
         headcount: 1,
         coverImageUrl: 'string',
       });
@@ -114,7 +118,6 @@ export default function ProfilePage() {
         memberIds: user ? [user.id] : [],
       }).catch(() => {});
       setWorkspaces((prev) => [...prev, created]);
-      setShowCreateModal(false);
       navigate(`/workspace/${created.id}`);
     } catch (err) {
       console.error("워크스페이스 생성 실패:", err);
@@ -214,7 +217,7 @@ export default function ProfilePage() {
               <Button
                 btnType="text"
                 icon={<PlusIcon />}
-                onClick={() => setShowCreateModal(true)}
+                onClick={handleCreateWorkspace}
                 disabled={isCreating}
               >
                 New Workspace
@@ -293,7 +296,7 @@ export default function ProfilePage() {
                 </p>
                 <Button
                   btnType="solid"
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={handleCreateWorkspace}
                   disabled={isCreating}
                 >
                   첫 워크스페이스 만들기
@@ -313,12 +316,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <WorkspaceCreateModal
-        isOpen={showCreateModal}
-        isCreating={isCreating}
-        onClose={() => setShowCreateModal(false)}
-        onCreate={handleCreateWorkspace}
-      />
     </>
   );
 }
