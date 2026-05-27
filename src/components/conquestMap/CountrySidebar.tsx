@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import type { ConquestMapData, WorkspaceConquest } from "@/api/conquestApi";
 import { C } from "./constants";
 import { A3_A2 } from "./constants";
@@ -31,6 +32,7 @@ export function CountrySidebar({
   onOpenModal,
   onAddCity,
 }: Props) {
+  const navigate = useNavigate();
   const countryInfo = selCountry
     ? (mapData?.countries.find((c) => c.countryCode === A3_A2[selCountry]) ?? null)
     : null;
@@ -143,7 +145,19 @@ export function CountrySidebar({
                 cursor: "pointer", transition: "all .15s",
               }}
             >
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>{w.title}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>{w.title}</div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); navigate(`/workspace/${w.id}`); }}
+                  style={{
+                    background: "none", border: `1px solid ${C.border}`, borderRadius: 6,
+                    padding: "2px 8px", fontSize: 11, color: C.muted,
+                    cursor: "pointer", flexShrink: 0, marginLeft: 8,
+                  }}
+                >
+                  열기 →
+                </button>
+              </div>
               <div style={{ fontSize: 12, color: C.subtle }}>📍 {w.destination}</div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                 <div style={{ fontSize: 11, color: C.muted }}>{w.startDate} – {w.endDate}</div>
