@@ -17,13 +17,13 @@ export interface Workspace {
 }
 
 export interface CreateWorkspacePayload {
-  title: string;
-  destination: string;
-  countryCode: string;
-  startDate: string;
-  endDate: string;
-  headcount: number;
-  coverImageUrl: string;
+  title: string | null;
+  destination: string | null;
+  countryCode: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  headcount: number | null;
+  coverImageUrl: string | null;
 }
 
 function authHeaders(): HeadersInit {

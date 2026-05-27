@@ -104,12 +104,12 @@ export default function ProfilePage() {
     try {
       const created = await createWorkspace({
         title: '새 워크스페이스',
-        destination: '',
-        countryCode: '',
+        destination: null,
+        countryCode: null,
         startDate: today,
         endDate: nextWeek,
         headcount: 1,
-        coverImageUrl: 'string',
+        coverImageUrl: null,
       });
       await createChatRoom(created.id).catch(() => {});
       await createMessagingRoom({

@@ -231,7 +231,7 @@ export default function SnsPostDetailPopup({
         </header>
 
         {/* 미디어 캐러셀 */}
-        <div className="relative w-full bg-black flex items-center justify-center min-h-0 flex-1">
+        <div className="relative w-full bg-black flex items-center justify-center min-h-0 flex-1 max-h-[60vh] overflow-hidden">
           {currentMedia ? (
             currentMedia.type === 'image' ? (
               <img src={currentMedia.url} alt={post.caption ?? ''} className="max-w-full max-h-full object-contain" />
