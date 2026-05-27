@@ -81,7 +81,11 @@ export default function WorkspacePage() {
   const navigate = useNavigate();
   const { id: workspaceIdParam } = useParams<{ id: string }>();
   const workspaceId = Number(workspaceIdParam);
-  const { logout, user } = useAuthStore();
+  const { logout, user, fetchUserProfile } = useAuthStore();
+
+  useEffect(() => {
+    if (!user) fetchUserProfile().catch(() => {});
+  }, []);
 
   const handleLogout = () => {
     logout();
