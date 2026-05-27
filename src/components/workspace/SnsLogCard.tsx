@@ -112,6 +112,14 @@ export default function SnsLogCard({
   const safeCarouselIndex =
     mediaLength === 0 ? 0 : Math.min(carouselIndex, mediaLength - 1);
 
+  /* ── 보기 모드에서 이미지 영역 클릭 → 편집 모드로 전환 + 파일 피커 오픈 ── */
+  const handleViewAreaClick = () => {
+    setDraft({ caption, media: media ?? [] });
+    setIsEditing(true);
+    /* 편집 모드 렌더 후 파일 피커 오픈 (setTimeout으로 렌더 완료 대기) */
+    setTimeout(() => fileInputRef.current?.click(), 0);
+  };
+
   /* ── 모드 전환 ── */
   const enterEditMode = () => {
     setDraft({ caption, media: media ?? [] });
@@ -379,9 +387,14 @@ export default function SnsLogCard({
                 />
               )
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400 font-pretendard text-body3">
-                사진/영상을 추가하세요
-              </div>
+              <button
+                type="button"
+                onClick={handleViewAreaClick}
+                className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer border-none bg-transparent"
+              >
+                <PlusIcon className="w-8 h-8" />
+                <span className="font-pretendard text-body3">사진/영상을 추가하세요</span>
+              </button>
             )}
 
             {/* 좌우 페이지네이션 (미디어 2개 이상일 때만) */}

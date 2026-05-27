@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchWorkspaceById,
   updateWorkspace,
+  updateVisibility,
   uploadCoverImage,
   deleteWorkspace,
   saveFlightToWorkspace,
@@ -353,17 +354,12 @@ export default function WorkspacePage() {
   const handleDeleteSnsLog = () => setSnsLog(null);
   const handleVisibilityChange = async (v: WorkspaceVisibility) => {
     if (!workspaceDetail) return;
-    const updated = await updateWorkspace(workspaceId, {
-      title: workspaceDetail.title,
-      destination: workspaceDetail.destination,
-      countryCode: workspaceDetail.countryCode,
-      startDate: workspaceDetail.startDate,
-      endDate: workspaceDetail.endDate,
-      headcount: workspaceDetail.headcount,
-      coverImageUrl: workspaceDetail.coverImageUrl,
-      visibility: v,
-    });
-    setWorkspaceDetail(updated);
+    try {
+      const updated = await updateVisibility(workspaceId, v);
+      setWorkspaceDetail(updated);
+    } catch {
+      alert("공개 범위 변경에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
   };
 
   const handleUploadSnsLog = async (_data: SnsLogData) => {
