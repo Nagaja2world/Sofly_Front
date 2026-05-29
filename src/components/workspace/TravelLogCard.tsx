@@ -65,6 +65,8 @@ interface TravelLogCardProps {
   content?: JSONContent;
   /** 앨범 사진들 */
   albumPhotos?: string[];
+  /** 앨범 사진 ID 목록 (albumPhotos와 동일 순서, 서버 ID) */
+  photoIds?: number[];
   /**
    * 워크스페이스 공유 앨범 사진 URL 배열.
    * 편집 모드 본문 툴바의 "사진" → "공유앨범에서 찾기" 클릭 시 열리는
@@ -81,6 +83,8 @@ interface TravelLogCardProps {
    * readOnly가 true이면 편집 모드 진입 불가이므로 무시됨.
    */
   onUploadPhotos?: (files: File[]) => void;
+  /** 앨범 사진 개별 삭제 콜백 (photoId → API detach 호출) */
+  onDeletePhoto?: (photoId: number) => void;
   onSave?: (data: TravelLogData) => void;
   /**
    * 카드 삭제 콜백.
@@ -217,12 +221,16 @@ function WeatherIconGroupEdit({
 /** 보기 모드 앨범 — 사진 있으면 그리드 + "+" 버튼, 없으면 클릭 가능한 빈 상태 */
 function ViewModeAlbum({
   photos,
+  photoIds,
   readOnly,
   onUploadPhotos,
+  onDeletePhoto,
 }: {
   photos: string[];
+  photoIds?: number[];
   readOnly: boolean;
   onUploadPhotos?: (files: File[]) => void;
+  onDeletePhoto?: (photoId: number) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -234,6 +242,7 @@ function ViewModeAlbum({
   };
 
   const canUpload = !readOnly && !!onUploadPhotos;
+  const canDelete = !readOnly && !!onDeletePhoto;
 
   return (
     <>
@@ -243,7 +252,7 @@ function ViewModeAlbum({
             {photos.map((src, i) => (
               <div
                 key={i}
-                className="relative aspect-square rounded-lg overflow-hidden bg-gray-200"
+                className="relative aspect-square rounded-lg overflow-hidden bg-gray-200 group"
               >
                 <img
                   src={src}
@@ -251,6 +260,25 @@ function ViewModeAlbum({
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
+                {canDelete && photoIds?.[i] != null && (
+                  <button
+                    type="button"
+                    onClick={() => onDeletePhoto!(photoIds[i])}
+                    aria-label={`앨범 사진 ${i + 1} 삭제`}
+                    className={[
+                      "absolute top-1 right-1 w-6 h-6 rounded-full",
+                      "bg-gray-900/70 text-white",
+                      "inline-flex items-center justify-center",
+                      "border-none cursor-pointer",
+                      "opacity-0 group-hover:opacity-100 focus:opacity-100",
+                      "transition-opacity",
+                    ].join(" ")}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+                      <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                )}
               </div>
             ))}
             {canUpload && (
@@ -1060,8 +1088,10 @@ export default function TravelLogCard({
   weather,
   content,
   albumPhotos,
+  photoIds,
   sharedAlbumPhotos,
   onUploadPhotos,
+  onDeletePhoto,
   onSave,
   onDelete,
   readOnly = false,
@@ -1385,8 +1415,10 @@ export default function TravelLogCard({
         ) : (
           <ViewModeAlbum
             photos={albumPhotos ?? []}
+            photoIds={photoIds}
             readOnly={readOnly}
             onUploadPhotos={onUploadPhotos}
+            onDeletePhoto={onDeletePhoto}
           />
         )}
       </div>

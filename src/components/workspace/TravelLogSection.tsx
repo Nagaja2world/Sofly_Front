@@ -30,6 +30,7 @@ interface TravelLogSectionProps {
   onAddSnsCard: () => void;
   onSaveTravelLog: (id: number, data: TravelLogData) => void;
   onUploadTravellogPhotos: (id: number, files: File[]) => void;
+  onDetachPhoto: (logId: number, photoId: number) => void;
   onDeleteTravelLog: (id: number) => void;
   onUpdateMainTitle: (id: number, title: string) => void;
   onReorderLogs: (fromIdx: number, toIdx: number) => void;
@@ -49,6 +50,7 @@ export default function TravelLogSection({
   onAddSnsCard,
   onSaveTravelLog,
   onUploadTravellogPhotos,
+  onDetachPhoto,
   onDeleteTravelLog,
   onUpdateMainTitle,
   onReorderLogs,
@@ -173,12 +175,16 @@ export default function TravelLogSection({
                 weather={log.weather}
                 content={log.content}
                 albumPhotos={log.albumPhotos}
+                photoIds={log._photoIds}
                 sharedAlbumPhotos={sharedAlbumPhotos}
                 onSaveMainTitle={(title) =>
                   log.id != null && onUpdateMainTitle(log.id, title)
                 }
                 onUploadPhotos={(files) =>
                   log.id != null && onUploadTravellogPhotos(log.id, files)
+                }
+                onDeletePhoto={(photoId) =>
+                  log.id != null && onDetachPhoto(log.id, photoId)
                 }
                 onSave={(data) =>
                   log.id != null && onSaveTravelLog(log.id, data)

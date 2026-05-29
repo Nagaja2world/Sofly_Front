@@ -346,6 +346,7 @@ export default function WorkspacePage() {
     handleAddDailyCard: addDailyCard,
     handleSaveTravelLog,
     handleUploadTravellogPhotos,
+    handleDetachTravellogPhoto,
     handleDeleteTravelLog,
     handleUpdateMainTitle,
     handleReorderLogs,
@@ -660,6 +661,7 @@ export default function WorkspacePage() {
                   onAddSnsCard={handleAddSnsCard}
                   onSaveTravelLog={handleSaveTravelLog}
                   onUploadTravellogPhotos={handleUploadTravellogPhotos}
+                  onDetachPhoto={handleDetachTravellogPhoto}
                   onDeleteTravelLog={handleDeleteTravelLog}
                   onUpdateMainTitle={handleUpdateMainTitle}
                   onReorderLogs={handleReorderLogs}

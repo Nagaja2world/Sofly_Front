@@ -11,6 +11,7 @@ import {
   updateTravellog,
   deleteTravellog,
   uploadTravellogPhotos,
+  detachPhotos,
   type WeatherApi,
   type TravellogResponse,
 } from "@/api/travellogApi";
@@ -179,6 +180,21 @@ export function useTravelLogs(workspaceId: number) {
     [workspaceId],
   );
 
+  /** 앨범 사진 첨부 해제 */
+  const handleDetachTravellogPhoto = useCallback(
+    async (logId: number, photoId: number) => {
+      try {
+        const res = await detachPhotos(workspaceId, logId, [photoId]);
+        setTravelLogs((prev) =>
+          prev.map((log) => (log.id === logId ? apiToTravelLog(res) : log)),
+        );
+      } catch (err) {
+        console.warn("[useTravelLogs] 사진 첨부 해제 실패:", err);
+      }
+    },
+    [workspaceId],
+  );
+
   /** 카드 순서 변경 (로컬) */
   const handleReorderLogs = useCallback((fromIdx: number, toIdx: number) => {
     setTravelLogs((prev) => {
@@ -198,6 +214,7 @@ export function useTravelLogs(workspaceId: number) {
     handleUpdateMainTitle,
     handleSaveTravelLog,
     handleUploadTravellogPhotos,
+    handleDetachTravellogPhoto,
     handleDeleteTravelLog,
     handleReorderLogs,
   };
