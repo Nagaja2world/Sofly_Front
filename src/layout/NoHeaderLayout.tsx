@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import Footer from "@/components/common/Footer";
-import NavBar from "@/components/common/NavBar";
+import NavBar from "@/components/mobile/common/NavBar";
 import MobileFooter from "@/components/common/MobileFooter";
 import useAuthStore from "@/store/useAuthStore";
 

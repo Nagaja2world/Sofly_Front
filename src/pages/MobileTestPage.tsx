@@ -1,7 +1,7 @@
 // @ts-nocheck
 // TODO: update NavBarProps interface to include missing props
 import { useState } from "react";
-import NavBar from "../components/common/NavBar";
+import NavBar from "../components/mobile/common/NavBar";
 import MobileFooter from "../components/common/MobileFooter";
 
 import MyIcon from "@/assets/my.svg?react";

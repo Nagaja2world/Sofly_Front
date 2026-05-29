@@ -2,14 +2,11 @@ import { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/common/Header";
 import SearchModeBar from "@/components/SearchModeBar";
+import MobileHomeView from "@/components/mobile/pages/MobileHomeView";
 import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 import { buildHotelSearchParams } from "@/pages/HotelSearchPage";
 import FeatureCard from "@/components/homepage/FeatureCard";
 import useAuthStore, { OAUTH_URLS } from "@/store/useAuthStore";
-//import type { Airport } from "@/components/searchbar/AirportSearchDropdown";
-//import type { DateRange } from "@/components/searchbar/CalendarDropdown";
-//import type { PassengerSeatData } from "@/components/searchbar/PassengerSeatDropdown";
-//🌟
 import {
   buildFlightSearchQuery,
   type FlightSearchParams,
@@ -91,13 +88,12 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           모바일 (md 미만): 별도 모바일 컴포넌트 렌더링
           ══════════════════════════════════════════ */}
-      <div className="md:hidden px-4 py-6">
-        {/* TODO: 모바일 전용 컴포넌트로 교체 예정 */}
-        {/* <MobileSearchBar /> */}
-        {/* <MobileFeatureCards /> */}
-        <p className="text-gray-500 text-center text-body3">
-          모바일 화면은 준비 중입니다.
-        </p>
+      <div className="md:hidden">
+        <MobileHomeView
+          featureCards={featureCards}
+          onFlightSearch={handleSearch}
+          onHotelSearch={handleHotelSearch}
+        />
       </div>
 
       {/* ══════════════════════════════════════════

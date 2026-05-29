@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import NavBar from "@/components/common/NavBar";
+import NavBar from "@/components/mobile/common/NavBar";
 import MobileFooter from "@/components/common/MobileFooter";
 import MemberBar from "@/components/workspace/compact/MemberBar";
 import MemberListPopup from "@/components/workspace/compact/MemberListPopup";
