@@ -1,5 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
+export type WorkspaceVisibility = 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE';
+
 export interface Workspace {
   id: number;
   title: string;
@@ -11,16 +13,17 @@ export interface Workspace {
   coverImageUrl: string;
   ownerId: number;
   memberCount: number;
+  visibility?: WorkspaceVisibility;
 }
 
 export interface CreateWorkspacePayload {
-  title: string;
-  destination: string;
-  countryCode: string;
-  startDate: string;
-  endDate: string;
-  headcount: number;
-  coverImageUrl: string;
+  title: string | null;
+  destination: string | null;
+  countryCode: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  headcount: number | null;
+  coverImageUrl: string | null;
 }
 
 function authHeaders(): HeadersInit {
@@ -97,7 +100,7 @@ export async function uploadCoverImage(workspaceId: number, file: File): Promise
 /** 워크스페이스 수정 */
 export async function updateWorkspace(
   id: number,
-  payload: CreateWorkspacePayload,
+  payload: Partial<CreateWorkspacePayload> & { visibility?: WorkspaceVisibility },
 ): Promise<Workspace> {
   const res = await fetch(`${API_BASE}/api/workspaces/${id}`, {
     method: 'PUT',
@@ -105,6 +108,16 @@ export async function updateWorkspace(
     body: JSON.stringify(payload),
   });
   return unwrap<Workspace>(res);
+}
+
+/** 워크스페이스 공개 범위만 변경 */
+export async function updateVisibility(id: number, visibility: WorkspaceVisibility): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${id}/visibility`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ visibility }),
+  });
+  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
 }
 
 /* ── coverImageUrl이 실제 URL이 아닐 때 대체할 Mock 이미지 목록 ── */
@@ -127,13 +140,15 @@ export function resolveCoverImage(url: string, id: number): string {
 
 /* ── 워크스페이스 멤버 ── */
 
+export type MemberRole = 'OWNER' | 'EDITOR' | 'VIEWER';
+
 export interface WorkspaceMemberApi {
   memberId: number;
   userId: number;
   nickname: string;
   userEmail: string;
   profileImageUrl: string | null;
-  role: 'OWNER' | 'VIEWER';
+  role: MemberRole;
 }
 
 /** 워크스페이스 멤버 목록 조회 */
@@ -142,6 +157,23 @@ export async function fetchWorkspaceMembers(workspaceId: number): Promise<Worksp
     headers: authHeaders(),
   });
   return unwrap<WorkspaceMemberApi[]>(res);
+}
+
+/** 멤버 역할 변경 (OWNER만 호출 가능) */
+export async function updateMemberRole(
+  workspaceId: number,
+  memberId: number,
+  role: 'EDITOR' | 'VIEWER',
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/api/workspaces/${workspaceId}/members/${memberId}/role`,
+    {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ role }),
+    },
+  );
+  if (!res.ok) throw new Error(`역할 변경 실패: ${res.status}`);
 }
 
 /** 워크스페이스 나가기 (탈퇴) */
@@ -259,6 +291,20 @@ export async function deleteFlightFromWorkspace(
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+}
+
+/** 워크스페이스 항공편 수정 */
+export async function updateFlightInWorkspace(
+  workspaceId: number,
+  flightId: number,
+  payload: SaveFlightPayload,
+): Promise<WorkspaceFlight> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/flights/${flightId}`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return unwrap<WorkspaceFlight>(res);
 }
 
 /** 새 워크스페이스 생성 시 사용할 더미 데이터 */

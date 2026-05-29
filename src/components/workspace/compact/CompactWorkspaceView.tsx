@@ -83,6 +83,7 @@ export interface CompactFlightProps {
   flights: FlightInfo[];
   rawFlights: WorkspaceFlight[];
   onFlightClick: (flight: WorkspaceFlight) => void;
+  onFlightEdit: (flight: WorkspaceFlight) => void;
   onFlightDelete: (id: number, label: string) => void;
   /** 항공편 추가 — WorkspacePage의 setShowAddFlightModal(true) */
   onAdd?: () => void;
@@ -265,6 +266,7 @@ export default function CompactWorkspaceView({
           flights={flight.flights}
           rawFlights={flight.rawFlights}
           onFlightClick={flight.onFlightClick}
+          onFlightEdit={flight.onFlightEdit}
           onFlightDelete={flight.onFlightDelete}
           onAdd={flight.onAdd}
         />

@@ -30,6 +30,7 @@ interface TravelLogSectionProps {
   onAddSnsCard: () => void;
   onSaveTravelLog: (id: number, data: TravelLogData) => void;
   onUploadTravellogPhotos: (id: number, files: File[]) => void;
+  onDetachPhoto: (logId: number, photoId: number) => void;
   onDeleteTravelLog: (id: number) => void;
   onUpdateMainTitle: (id: number, title: string) => void;
   onReorderLogs: (fromIdx: number, toIdx: number) => void;
@@ -49,6 +50,7 @@ export default function TravelLogSection({
   onAddSnsCard,
   onSaveTravelLog,
   onUploadTravellogPhotos,
+  onDetachPhoto,
   onDeleteTravelLog,
   onUpdateMainTitle,
   onReorderLogs,
@@ -59,14 +61,19 @@ export default function TravelLogSection({
   const [dragFromIdx, setDragFromIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
-  const handleDragStart = (idx: number) => setDragFromIdx(idx);
-  const handleDragOver = (e: React.DragEvent, idx: number) => {
+  // 최신 카드가 왼쪽에 오도록 역순 렌더링
+  const reversedLogs = [...travelLogs].reverse();
+  const lastIdx = travelLogs.length - 1;
+
+  const handleDragStart = (visualIdx: number) => setDragFromIdx(visualIdx);
+  const handleDragOver = (e: React.DragEvent, visualIdx: number) => {
     e.preventDefault();
-    setDragOverIdx(idx);
+    setDragOverIdx(visualIdx);
   };
-  const handleDrop = (idx: number) => {
-    if (dragFromIdx !== null && dragFromIdx !== idx) {
-      onReorderLogs(dragFromIdx, idx);
+  const handleDrop = (visualIdx: number) => {
+    if (dragFromIdx !== null && dragFromIdx !== visualIdx) {
+      // 시각적 인덱스(역순) → 원래 배열 인덱스로 변환
+      onReorderLogs(lastIdx - dragFromIdx, lastIdx - visualIdx);
     }
     setDragFromIdx(null);
     setDragOverIdx(null);
@@ -122,7 +129,17 @@ export default function TravelLogSection({
             "[&::-webkit-scrollbar-thumb]:rounded",
           ].join(" ")}
         >
-          {/* SNS 카드: 항상 맨 왼쪽 */}
+          {/* 추가 카드: 맨 왼쪽에 표시 */}
+          {showAddCard && (
+            <AddTravelLogCard
+              onAddDailyCard={onAddDailyCard}
+              onAddSnsCard={onAddSnsCard}
+              onCancel={onCancelAddCard}
+              disableSnsCard={snsLog !== null || travelLogs.length === 0}
+            />
+          )}
+
+          {/* SNS 카드 */}
           {snsLog && (
             <div className="shrink-0">
               <SnsLogCard
@@ -135,21 +152,21 @@ export default function TravelLogSection({
             </div>
           )}
 
-          {/* 일자별 카드들 — 드래그 앤 드롭 */}
-          {travelLogs.map((log, idx) => (
+          {/* 일자별 카드들 — 드래그 앤 드롭 (최신순: 왼쪽부터) */}
+          {reversedLogs.map((log, visualIdx) => (
             <div
-              key={log.id ?? idx}
+              key={log.id ?? visualIdx}
               className={[
                 "shrink-0 transition-opacity duration-150",
-                dragFromIdx === idx ? "opacity-40" : "",
-                dragOverIdx === idx && dragFromIdx !== idx
+                dragFromIdx === visualIdx ? "opacity-40" : "",
+                dragOverIdx === visualIdx && dragFromIdx !== visualIdx
                   ? "ring-2 ring-primary ring-offset-1 rounded-xl"
                   : "",
               ].join(" ")}
               draggable
-              onDragStart={() => handleDragStart(idx)}
-              onDragOver={(e) => handleDragOver(e, idx)}
-              onDrop={() => handleDrop(idx)}
+              onDragStart={() => handleDragStart(visualIdx)}
+              onDragOver={(e) => handleDragOver(e, visualIdx)}
+              onDrop={() => handleDrop(visualIdx)}
               onDragEnd={handleDragEnd}
             >
               <TravelLogCard
@@ -158,12 +175,16 @@ export default function TravelLogSection({
                 weather={log.weather}
                 content={log.content}
                 albumPhotos={log.albumPhotos}
+                photoIds={log._photoIds}
                 sharedAlbumPhotos={sharedAlbumPhotos}
                 onSaveMainTitle={(title) =>
                   log.id != null && onUpdateMainTitle(log.id, title)
                 }
                 onUploadPhotos={(files) =>
                   log.id != null && onUploadTravellogPhotos(log.id, files)
+                }
+                onDeletePhoto={(photoId) =>
+                  log.id != null && onDetachPhoto(log.id, photoId)
                 }
                 onSave={(data) =>
                   log.id != null && onSaveTravelLog(log.id, data)
@@ -174,16 +195,6 @@ export default function TravelLogSection({
               />
             </div>
           ))}
-
-          {/* 추가 카드 */}
-          {showAddCard && (
-            <AddTravelLogCard
-              onAddDailyCard={onAddDailyCard}
-              onAddSnsCard={onAddSnsCard}
-              onCancel={onCancelAddCard}
-              disableSnsCard={snsLog !== null || travelLogs.length === 0}
-            />
-          )}
         </div>
       )}
     </section>

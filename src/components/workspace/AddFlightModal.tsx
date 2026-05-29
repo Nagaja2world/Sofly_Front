@@ -1,12 +1,21 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import type { SaveFlightPayload } from "@/api/workspaceApi";
+import type { SaveFlightPayload, WorkspaceFlight } from "@/api/workspaceApi";
 
 interface AddFlightModalProps {
   isOpen: boolean;
   isSaving: boolean;
   onClose: () => void;
   onSave: (payload: SaveFlightPayload) => Promise<void>;
+  /** 수정 모드일 때 기존 항공편 데이터 */
+  initialData?: WorkspaceFlight;
+}
+
+function isoToDatetimeLocal(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 const EMPTY = {
@@ -37,7 +46,9 @@ export default function AddFlightModal({
   isSaving,
   onClose,
   onSave,
+  initialData,
 }: AddFlightModalProps) {
+  const isEditMode = !!initialData;
   const [form, setForm] = useState(EMPTY);
 
   const set = (field: keyof typeof EMPTY) =>
@@ -45,7 +56,33 @@ export default function AddFlightModal({
       setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
   useEffect(() => {
-    if (isOpen) setForm(EMPTY);
+    if (!isOpen) return;
+    if (initialData) {
+      setForm({
+        flightType: initialData.flightType,
+        flightNumber: initialData.flightNumber ?? '',
+        airline: initialData.airline ?? '',
+        departureAirport: initialData.departureAirport ?? '',
+        departureCity: initialData.departureCity ?? '',
+        departureTerminal: initialData.departureTerminal ?? '',
+        arrivalAirport: initialData.arrivalAirport ?? '',
+        arrivalCity: initialData.arrivalCity ?? '',
+        arrivalTerminal: initialData.arrivalTerminal ?? '',
+        departureTime: isoToDatetimeLocal(initialData.departureTime),
+        arrivalTime: isoToDatetimeLocal(initialData.arrivalTime),
+        cabinClass: initialData.cabinClass ?? '',
+        planeType: initialData.planeType ?? '',
+        cabinBaggageKg: initialData.cabinBaggageKg != null ? String(initialData.cabinBaggageKg) : '',
+        checkedBaggageKg: initialData.checkedBaggageKg != null ? String(initialData.checkedBaggageKg) : '',
+        checkedBaggagePiece: initialData.checkedBaggagePiece != null ? String(initialData.checkedBaggagePiece) : '',
+        baseFare: initialData.baseFare != null ? String(initialData.baseFare) : '',
+        tax: initialData.tax != null ? String(initialData.tax) : '',
+        platformFee: initialData.platformFee != null ? String(initialData.platformFee) : '',
+        totalPrice: initialData.totalPrice != null ? String(initialData.totalPrice) : '',
+      });
+    } else {
+      setForm(EMPTY);
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -128,7 +165,7 @@ export default function AddFlightModal({
           id="add-flight-title"
           className="font-pretendard text-title3 font-semibold text-gray-900 m-0"
         >
-          항공편 추가
+          {isEditMode ? "항공편 수정" : "항공편 추가"}
         </h2>
 
         {/* 가는편 / 오는편 */}
@@ -286,7 +323,7 @@ export default function AddFlightModal({
             disabled={!canSave || isSaving}
             className="font-pretendard text-body4 px-4 py-2 rounded-lg bg-primary text-gray-900 font-semibold cursor-pointer hover:brightness-95 transition-all border-none disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {isSaving ? "저장 중..." : "저장"}
+            {isSaving ? (isEditMode ? "수정 중..." : "저장 중...") : (isEditMode ? "수정" : "저장")}
           </button>
         </div>
       </div>

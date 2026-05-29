@@ -54,6 +54,12 @@ export interface SnsPost {
   workspaceId?: string;
   /** 게시물이 속한 워크스페이스 이름 (표시용) */
   workspaceName?: string;
+  /** 좋아요 수 (API 연동 시 채워짐) */
+  likeCount?: number;
+  /** 댓글 수 (API 연동 시 채워짐) */
+  commentCount?: number;
+  /** 내가 좋아요를 눌렀는지 (비로그인 시 null) */
+  isLiked?: boolean | null;
 }
 
 /**

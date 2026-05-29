@@ -6,9 +6,11 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
+import type { WorkspaceVisibility, MemberRole } from "@/api/workspaceApi";
 
 /* ══════════════════════════════════════════
    타입
@@ -27,6 +29,8 @@ export interface WorkspaceMember {
   avatarUrl?: string;
   /** 호스트 여부 */
   isHost?: boolean;
+  /** 멤버 역할 */
+  role?: MemberRole;
 }
 
 interface MemberSidebarProps {
@@ -66,6 +70,12 @@ interface MemberSidebarProps {
    * 미지정이면 커버 이미지 영역이 렌더되지 않음.
    */
   onChangeCoverImage?: (file: File) => void | Promise<void>;
+  /** 현재 공개 범위 (미지정이면 섹션 렌더 안 함) */
+  visibility?: WorkspaceVisibility;
+  /** 공개 범위 변경 콜백 (OWNER에게만 prop 전달) */
+  onVisibilityChange?: (v: WorkspaceVisibility) => void | Promise<void>;
+  /** 멤버 역할 변경 콜백 (OWNER에게만 prop 전달) */
+  onRoleChange?: (memberId: number, role: 'EDITOR' | 'VIEWER') => Promise<void>;
   /** 추가 클래스 */
   className?: string;
 }
@@ -90,6 +100,135 @@ function HostBadge() {
   );
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: '호스트',
+  EDITOR: '편집자',
+  VIEWER: '뷰어',
+};
+
+/** 역할 변경 드롭다운 배지 (OWNER만 조작 가능) */
+function RoleBadge({
+  memberId,
+  role,
+  onRoleChange,
+}: {
+  memberId: number;
+  role: MemberRole;
+  onRoleChange?: (memberId: number, role: 'EDITOR' | 'VIEWER') => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || dropdownRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const getDropdownStyle = (): React.CSSProperties => {
+    if (!btnRef.current) return {};
+    const rect = btnRef.current.getBoundingClientRect();
+    return {
+      position: "fixed",
+      top: rect.bottom + 4,
+      left: rect.left,
+      zIndex: 9999,
+    };
+  };
+
+  const handleSelect = async (newRole: 'EDITOR' | 'VIEWER') => {
+    if (!onRoleChange || loading) return;
+    setLoading(true);
+    setOpen(false);
+    try {
+      await onRoleChange(memberId, newRole);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (role === 'OWNER') return <HostBadge />;
+
+  /* OWNER가 아닌 멤버 → 역할 표시 */
+  const badgeColor =
+    role === 'EDITOR'
+      ? "bg-blue-100 text-blue-700"
+      : "bg-gray-100 text-gray-600";
+
+  const badge = (
+    <span
+      className={[
+        "px-1.5 py-0.5 rounded",
+        badgeColor,
+        "font-pretendard text-body5 font-medium",
+        "shrink-0",
+      ].join(" ")}
+    >
+      {ROLE_LABEL[role] ?? role}
+    </span>
+  );
+
+  if (!onRoleChange) return badge;
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => !loading && setOpen((v) => !v)}
+        title="역할 변경"
+        disabled={loading}
+        className={[
+          "bg-transparent border-none p-0 cursor-pointer shrink-0",
+          loading ? "opacity-50 cursor-wait" : "",
+        ].join(" ")}
+      >
+        {badge}
+      </button>
+      {open &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={getDropdownStyle()}
+            className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[100px]"
+          >
+            {(['EDITOR', 'VIEWER'] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => handleSelect(r)}
+                className={[
+                  "flex items-center gap-2 w-full px-3 py-1.5",
+                  "bg-transparent border-none cursor-pointer text-left",
+                  "hover:bg-gray-50 transition-colors",
+                  role === r ? "bg-gray-50" : "",
+                ].join(" ")}
+              >
+                <span
+                  className={[
+                    "inline-block w-2 h-2 rounded-full shrink-0",
+                    r === 'EDITOR' ? "bg-blue-400" : "bg-gray-300",
+                  ].join(" ")}
+                />
+                <span className="font-pretendard text-[12px] text-gray-700">
+                  {ROLE_LABEL[r]}
+                </span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 /** 이니셜 추출 (이름의 첫 글자) */
 function getInitial(name: string): string {
   if (!name) return "?";
@@ -97,7 +236,13 @@ function getInitial(name: string): string {
 }
 
 /** 단일 멤버 row */
-function MemberRow({ member }: { member: WorkspaceMember }) {
+function MemberRow({
+  member,
+  onRoleChange,
+}: {
+  member: WorkspaceMember;
+  onRoleChange?: (memberId: number, role: 'EDITOR' | 'VIEWER') => Promise<void>;
+}) {
   return (
     <li className="flex items-center gap-2.5 py-1">
       {/* 아바타 */}
@@ -121,13 +266,19 @@ function MemberRow({ member }: { member: WorkspaceMember }) {
         )}
       </div>
 
-      {/* 이름 + 호스트 칩 */}
+      {/* 이름 + 역할 배지 */}
       <div className="flex flex-col min-w-0">
         <span className="flex items-center gap-1.5 min-w-0">
           <span className="font-pretendard text-body3 text-gray-900 truncate">
             {member.name}
           </span>
-          {member.isHost && <HostBadge />}
+          {member.role && (
+            <RoleBadge
+              memberId={member.id}
+              role={member.role}
+              onRoleChange={onRoleChange}
+            />
+          )}
         </span>
         {member.email && (
           <span className="font-pretendard text-body5 text-gray-400 truncate">
@@ -497,6 +648,12 @@ function InlineEditableText({
  *
  * 폭은 부모에서 제어 (보통 200~240px). 단, 자체적으로 최소/최대 폭 가드.
  */
+const VISIBILITY_OPTIONS: { value: WorkspaceVisibility; label: string; desc: string }[] = [
+  { value: 'PUBLIC', label: '전체 공개', desc: '누구나 SNS에서 볼 수 있어요' },
+  { value: 'FOLLOWERS_ONLY', label: '팔로워만', desc: '팔로워에게만 공개돼요' },
+  { value: 'PRIVATE', label: '나만 보기', desc: '나만 볼 수 있어요' },
+];
+
 export default function MemberSidebar({
   workspaceName,
   members,
@@ -507,8 +664,22 @@ export default function MemberSidebar({
   onRenameWorkspace,
   onChangeCountry,
   onChangeCoverImage,
+  visibility,
+  onVisibilityChange,
+  onRoleChange,
   className = "",
 }: MemberSidebarProps) {
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
+
+  const handleVisibilityChange = async (v: WorkspaceVisibility) => {
+    if (!onVisibilityChange || visibilityLoading) return;
+    setVisibilityLoading(true);
+    try {
+      await onVisibilityChange(v);
+    } finally {
+      setVisibilityLoading(false);
+    }
+  };
   return (
     <aside
       className={[
@@ -576,6 +747,38 @@ export default function MemberSidebar({
         </div>
       )}
 
+      {/* ── 공개 범위 (OWNER에게만 보임) ── */}
+      {onVisibilityChange && visibility !== undefined && (
+        <div className="flex flex-col gap-2">
+          <span className="font-pretendard text-body4 text-gray-600">공개 범위</span>
+          <div className="flex flex-col gap-1">
+            {VISIBILITY_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={visibilityLoading}
+                onClick={() => handleVisibilityChange(opt.value)}
+                className={[
+                  "flex flex-col items-start px-3 py-2 rounded-lg border text-left transition-colors cursor-pointer",
+                  visibilityLoading ? "opacity-50 cursor-not-allowed" : "",
+                  visibility === opt.value
+                    ? "border-gray-700 bg-gray-50"
+                    : "border-gray-200 bg-white hover:border-gray-400",
+                ].join(" ")}
+              >
+                <span className={[
+                  "font-pretendard text-body4 font-medium",
+                  visibility === opt.value ? "text-gray-900" : "text-gray-600",
+                ].join(" ")}>
+                  {opt.label}
+                </span>
+                <span className="font-pretendard text-[10px] text-gray-400">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── 함께하는 사람 라벨 ── */}
       <span className="font-pretendard text-body4 text-gray-600">
         함께하는 사람
@@ -584,7 +787,7 @@ export default function MemberSidebar({
       {/* ── 멤버 목록 ── */}
       <ul className="list-none p-0 m-0 flex flex-col">
         {members.map((m) => (
-          <MemberRow key={m.id} member={m} />
+          <MemberRow key={m.id} member={m} onRoleChange={onRoleChange} />
         ))}
       </ul>
 

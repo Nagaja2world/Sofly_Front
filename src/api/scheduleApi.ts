@@ -1,3 +1,5 @@
+import { usePermissionToast } from '@/store/usePermissionToast';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
 function authHeaders(): HeadersInit {
@@ -12,6 +14,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T;
   const json = await res.json();
   if (!res.ok) {
+    if (res.status === 403 || json?.code === 'WORKSPACE_002') {
+      usePermissionToast.getState().show();
+    }
     throw new Error(json?.message ?? `API 오류: ${res.status}`);
   }
   // 일부 엔드포인트는 { success, data } 래퍼 사용

@@ -1,7 +1,216 @@
+import ReactMarkdown from "react-markdown";
 import EditIcon from "@/assets/edit.svg?react";
 import CopyIcon from "@/assets/copy.svg?react";
 import LeftIcon from "@/assets/left.svg?react";
 import RightIcon from "@/assets/right.svg?react";
+
+/* ══════════════════════════════════════════
+   일정 JSON 파싱 & 렌더링
+   ══════════════════════════════════════════ */
+
+interface ItineraryItem {
+  orderIndex: number;
+  name: string;
+  category: string;
+  visitTime?: string;
+  estimatedCost?: number;
+  memo?: string;
+}
+
+interface ItineraryDay {
+  day: number;
+  items: ItineraryItem[];
+}
+
+interface ItineraryData {
+  days: ItineraryDay[];
+}
+
+const CATEGORY_LABEL: Record<string, string> = {
+  TRANSPORT: "이동",
+  MEAL: "식사",
+  ACCOMMODATION: "숙박",
+  ATTRACTION: "관광",
+  SHOPPING: "쇼핑",
+  ACTIVITY: "활동",
+  OTHER: "기타",
+};
+
+const CATEGORY_COLOR: Record<string, string> = {
+  TRANSPORT: "bg-blue-100 text-blue-700",
+  MEAL: "bg-orange-100 text-orange-700",
+  ACCOMMODATION: "bg-indigo-100 text-indigo-700",
+  ATTRACTION: "bg-green-100 text-green-700",
+  SHOPPING: "bg-pink-100 text-pink-700",
+  ACTIVITY: "bg-cyan-100 text-cyan-700",
+  OTHER: "bg-gray-100 text-gray-600",
+};
+
+function formatCost(cost: number): string {
+  if (cost === 0) return "무료";
+  return cost.toLocaleString("ko-KR") + "원";
+}
+
+function ItineraryPreview({ jsonStr }: { jsonStr: string }) {
+  let data: ItineraryData;
+  try {
+    data = JSON.parse(jsonStr);
+  } catch {
+    return (
+      <pre className="text-xs text-gray-500 whitespace-pre-wrap break-all bg-gray-50 rounded-lg p-3 font-mono">
+        {jsonStr}
+      </pre>
+    );
+  }
+
+  if (!Array.isArray(data?.days)) {
+    return (
+      <pre className="text-xs text-gray-500 whitespace-pre-wrap break-all bg-gray-50 rounded-lg p-3 font-mono">
+        {jsonStr}
+      </pre>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 w-full">
+      {data.days.map((day) => (
+        <div
+          key={day.day}
+          className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+        >
+          {/* 일차 헤더 */}
+          <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+            <span className="font-pretendard text-body4 font-semibold text-gray-800">
+              {day.day}일차
+            </span>
+          </div>
+
+          {/* 일정 아이템들 */}
+          <div className="divide-y divide-gray-100">
+            {(day.items ?? []).map((item, i) => {
+              const catLabel = CATEGORY_LABEL[item.category] ?? item.category;
+              const catColor = CATEGORY_COLOR[item.category] ?? "bg-gray-100 text-gray-600";
+              return (
+                <div key={i} className="px-3 py-2.5 flex flex-col gap-1">
+                  <div className="flex items-start gap-2 min-w-0">
+                    {item.visitTime && (
+                      <span className="font-pretendard text-body5 text-gray-500 shrink-0 mt-0.5 w-10">
+                        {item.visitTime}
+                      </span>
+                    )}
+                    <span
+                      className={[
+                        "font-pretendard text-body5 font-medium px-1.5 py-0.5 rounded shrink-0",
+                        catColor,
+                      ].join(" ")}
+                    >
+                      {catLabel}
+                    </span>
+                    <span className="font-pretendard text-body4 text-gray-900 min-w-0 leading-snug">
+                      {item.name}
+                    </span>
+                  </div>
+
+                  {item.memo && (
+                    <p className="font-pretendard text-body5 text-gray-500 m-0 ml-12 leading-snug">
+                      {item.memo}
+                    </p>
+                  )}
+
+                  {item.estimatedCost != null && item.estimatedCost > 0 && (
+                    <p className="font-pretendard text-body5 text-gray-400 m-0 ml-12 text-right">
+                      {formatCost(item.estimatedCost)}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** AI 메시지 마크다운 렌더러 */
+function AiMarkdown({ text }: { text: string }) {
+  return (
+    <ReactMarkdown
+      components={{
+        p: ({ children }) => (
+          <p className="font-pretendard text-body3 leading-relaxed text-gray-900 m-0 mb-1 last:mb-0">
+            {children}
+          </p>
+        ),
+        strong: ({ children }) => (
+          <strong className="font-semibold text-gray-900">{children}</strong>
+        ),
+        em: ({ children }) => (
+          <em className="italic text-gray-700">{children}</em>
+        ),
+        ul: ({ children }) => (
+          <ul className="pl-4 my-1 flex flex-col gap-0.5 list-disc">{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="pl-4 my-1 flex flex-col gap-0.5 list-decimal">{children}</ol>
+        ),
+        li: ({ children }) => (
+          <li className="font-pretendard text-body3 leading-relaxed text-gray-900">
+            {children}
+          </li>
+        ),
+        h1: ({ children }) => (
+          <h1 className="font-pretendard text-body2 font-bold text-gray-900 mt-2 mb-1 first:mt-0">
+            {children}
+          </h1>
+        ),
+        h2: ({ children }) => (
+          <h2 className="font-pretendard text-body2 font-semibold text-gray-900 mt-2 mb-1 first:mt-0">
+            {children}
+          </h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="font-pretendard text-body3 font-semibold text-gray-800 mt-1.5 mb-0.5 first:mt-0">
+            {children}
+          </h3>
+        ),
+        hr: () => <hr className="border-gray-300 my-2" />,
+        code: ({ children }) => (
+          <code className="bg-gray-200 rounded px-1 py-0.5 text-xs font-mono text-gray-800">
+            {children}
+          </code>
+        ),
+      }}
+    >
+      {text}
+    </ReactMarkdown>
+  );
+}
+
+type MessagePart =
+  | { type: "text"; content: string }
+  | { type: "json"; content: string };
+
+function parseMessageParts(text: string): MessagePart[] {
+  const parts: MessagePart[] = [];
+  const re = /```json\s*([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: "text", content: text.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: "json", content: match[1].trim() });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({ type: "text", content: text.slice(lastIndex) });
+  }
+
+  return parts.length > 0 ? parts : [{ type: "text", content: text }];
+}
 
 /* ══════════════════════════════════════════
    타입
@@ -148,6 +357,8 @@ export default function ChatMessage({
   className = "",
 }: ChatMessageProps) {
   const isUser = role === "user";
+  const parts = isUser ? null : parseMessageParts(text);
+  const hasJsonBlock = parts?.some((p) => p.type === "json") ?? false;
 
   return (
     <div
@@ -157,19 +368,40 @@ export default function ChatMessage({
         className,
       ].join(" ")}
     >
-      {/* 메시지 버블 */}
-      <div
-        className={[
-          "max-w-[85%] rounded-2xl px-4 py-2.5",
-          "font-pretendard text-body3 leading-relaxed",
-          "whitespace-pre-line break-words",
-          isUser
-            ? "bg-primary text-gray-900 rounded-tr-sm"
-            : "bg-gray-100 text-gray-900 rounded-tl-sm",
-        ].join(" ")}
-      >
-        {text}
-      </div>
+      {isUser ? (
+        /* ── 유저 메시지: 단순 버블 ── */
+        <div
+          className={[
+            "max-w-[85%] rounded-2xl px-4 py-2.5",
+            "font-pretendard text-body3 leading-relaxed",
+            "whitespace-pre-line break-words",
+            "bg-primary text-gray-900 rounded-tr-sm",
+          ].join(" ")}
+        >
+          {text}
+        </div>
+      ) : hasJsonBlock ? (
+        /* ── AI 메시지: JSON 블록 포함 → 파트별 렌더링 ── */
+        <div className="flex flex-col gap-2 max-w-[95%]">
+          {parts!.map((part, i) =>
+            part.type === "json" ? (
+              <ItineraryPreview key={i} jsonStr={part.content} />
+            ) : part.content.trim() ? (
+              <div
+                key={i}
+                className="rounded-2xl px-4 py-2.5 bg-gray-100 text-gray-900 rounded-tl-sm"
+              >
+                <AiMarkdown text={part.content.trim()} />
+              </div>
+            ) : null,
+          )}
+        </div>
+      ) : (
+        /* ── AI 메시지: 일반 텍스트 (마크다운 렌더링) ── */
+        <div className="max-w-[85%] rounded-2xl px-4 py-2.5 bg-gray-100 text-gray-900 rounded-tl-sm">
+          <AiMarkdown text={text} />
+        </div>
+      )}
 
       {/* user 메시지 하단 액션 (편집/복사/페이지네이션) */}
       {isUser && (

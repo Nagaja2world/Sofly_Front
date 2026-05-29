@@ -32,6 +32,8 @@ interface CompactFlightCardProps {
   bookingUrl?: string;
   /** 예약 번호 */
   bookingNumber?: string;
+  /** 수정 콜백 (있으면 수정 버튼 표시) */
+  onEdit?: () => void;
   /** 삭제 콜백 (있으면 삭제 버튼 표시) */
   onDelete?: () => void;
   /** 카드 클릭 콜백 (있으면 클릭 가능한 카드로 표시) */
@@ -223,6 +225,7 @@ export default function CompactFlightCard({
   legs,
   bookingUrl,
   bookingNumber,
+  onEdit,
   onDelete,
   onClick,
   defaultExpanded = false,
@@ -272,31 +275,52 @@ export default function CompactFlightCard({
         <span className="font-pretendard text-body4 text-gray-500 ml-auto">
           {date}
         </span>
-        {onDelete && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            aria-label="항공편 삭제"
-            className={[
-              "p-1.5 rounded-lg border-none bg-transparent shrink-0",
-              "text-gray-400 hover:text-red-500 hover:bg-red-50",
-              "cursor-pointer transition-colors",
-            ].join(" ")}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M2 4h12M5.333 4V2.667A1.333 1.333 0 0 1 6.667 1.333h2.666A1.333 1.333 0 0 1 10.667 2.667V4m2 0v9.333A1.333 1.333 0 0 1 11.333 14.667H4.667A1.333 1.333 0 0 1 3.333 13.333V4h9.334Z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              aria-label="항공편 수정"
+              className={[
+                "p-1.5 rounded-lg border-none bg-transparent",
+                "text-gray-400 hover:text-blue-500 hover:bg-blue-50",
+                "cursor-pointer transition-colors",
+              ].join(" ")}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M11.333 2a1.886 1.886 0 0 1 2.667 2.667L4.667 14H2v-2.667L11.333 2Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              aria-label="항공편 삭제"
+              className={[
+                "p-1.5 rounded-lg border-none bg-transparent",
+                "text-gray-400 hover:text-red-500 hover:bg-red-50",
+                "cursor-pointer transition-colors",
+              ].join(" ")}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M2 4h12M5.333 4V2.667A1.333 1.333 0 0 1 6.667 1.333h2.666A1.333 1.333 0 0 1 10.667 2.667V4m2 0v9.333A1.333 1.333 0 0 1 11.333 14.667H4.667A1.333 1.333 0 0 1 3.333 13.333V4h9.334Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="border-t border-gray-200" />

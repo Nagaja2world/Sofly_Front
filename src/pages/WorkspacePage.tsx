@@ -3,11 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   fetchWorkspaceById,
   updateWorkspace,
+  updateVisibility,
   uploadCoverImage,
   deleteWorkspace,
   saveFlightToWorkspace,
+  updateFlightInWorkspace,
   type Workspace,
   type SaveFlightPayload,
+  type WorkspaceVisibility,
 } from "@/api/workspaceApi";
 import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import Header from "@/components/common/Header";
@@ -20,6 +23,7 @@ import FlightDetailModal from "@/components/workspace/FlightDetailModal";
 import AddFlightModal from "@/components/workspace/AddFlightModal";
 import InviteMemberModal from "@/components/workspace/InviteMemberModal";
 import AIChatSidebar from "@/components/workspace/AIChatSidebar";
+import WorkspaceChatSidebar from "@/components/workspace/WorkspaceChatSidebar";
 import FlightSection from "@/components/workspace/FlightSection";
 import ItinerarySection from "@/components/workspace/ItinerarySection";
 import TravelLogSection from "@/components/workspace/TravelLogSection";
@@ -78,7 +82,11 @@ export default function WorkspacePage() {
   const navigate = useNavigate();
   const { id: workspaceIdParam } = useParams<{ id: string }>();
   const workspaceId = Number(workspaceIdParam);
-  const { logout, user } = useAuthStore();
+  const { logout, user, fetchUserProfile } = useAuthStore();
+
+  useEffect(() => {
+    if (!user) fetchUserProfile().catch(() => {});
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -155,6 +163,7 @@ export default function WorkspacePage() {
     members,
     myRole,
     loadMembers,
+    handleRoleChange,
     showLeaveConfirm,
     setShowLeaveConfirm,
     isLeaving,
@@ -238,6 +247,7 @@ export default function WorkspacePage() {
   }, [rawFlights]);
 
   const [showAddFlightModal, setShowAddFlightModal] = useState(false);
+  const [editFlight, setEditFlight] = useState<WorkspaceFlight | null>(null);
   const [isSavingFlight, setIsSavingFlight] = useState(false);
 
   const handleSaveFlight = async (payload: SaveFlightPayload) => {
@@ -248,6 +258,20 @@ export default function WorkspacePage() {
       await loadFlights();
     } catch (err) {
       console.warn("[WorkspacePage] 항공편 저장 실패:", err);
+    } finally {
+      setIsSavingFlight(false);
+    }
+  };
+
+  const handleUpdateFlight = async (payload: SaveFlightPayload) => {
+    if (!editFlight) return;
+    setIsSavingFlight(true);
+    try {
+      await updateFlightInWorkspace(workspaceId, editFlight.id, payload);
+      setEditFlight(null);
+      await loadFlights();
+    } catch (err) {
+      console.warn("[WorkspacePage] 항공편 수정 실패:", err);
     } finally {
       setIsSavingFlight(false);
     }
@@ -270,6 +294,8 @@ export default function WorkspacePage() {
   const [isMemberOpen, setIsMemberOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [chatRoomCount, setChatRoomCount] = useState(0);
+  const [isTeamChatOpen, setIsTeamChatOpen] = useState(false);
+  const memberUserIds = members.map((m) => m.userId);
 
   /* ── 워크스페이스 공유 ──
      NavBar(variant="back")의 공유 버튼에서 호출. 공유 동작 스펙이
@@ -321,6 +347,7 @@ export default function WorkspacePage() {
     handleAddDailyCard: addDailyCard,
     handleSaveTravelLog,
     handleUploadTravellogPhotos,
+    handleDetachTravellogPhoto,
     handleDeleteTravelLog,
     handleUpdateMainTitle,
     handleReorderLogs,
@@ -347,9 +374,34 @@ export default function WorkspacePage() {
   };
   const handleSaveSnsLog = (data: SnsLogData) => setSnsLog(data);
   const handleDeleteSnsLog = () => setSnsLog(null);
-  const handleUploadSnsLog = (data: SnsLogData) => {
-    console.log("[Workspace] upload to SNS:", data);
-    alert("SNS 페이지에 업로드되었습니다. (TODO: 실제 게시 로직 구현)");
+  const handleVisibilityChange = async (v: WorkspaceVisibility) => {
+    if (!workspaceDetail) return;
+    try {
+      await updateVisibility(workspaceId, v);
+      setWorkspaceDetail({ ...workspaceDetail, visibility: v });
+    } catch {
+      alert("공개 범위 변경에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
+  };
+
+  const handleUploadSnsLog = async (_data: SnsLogData) => {
+    if (!workspaceDetail) return;
+    try {
+      const updated = await updateWorkspace(workspaceId, {
+        title: workspaceDetail.title,
+        destination: workspaceDetail.destination,
+        countryCode: workspaceDetail.countryCode,
+        startDate: workspaceDetail.startDate,
+        endDate: workspaceDetail.endDate,
+        headcount: workspaceDetail.headcount,
+        coverImageUrl: workspaceDetail.coverImageUrl,
+        visibility: 'PUBLIC',
+      });
+      setWorkspaceDetail(updated);
+      alert("이 워크스페이스가 SNS에 공개됐어요!");
+    } catch {
+      alert("공개 설정에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
   };
 
   const [sharedAlbumPhotos, setSharedAlbumPhotos] = useState<AlbumPhoto[]>([]);
@@ -395,7 +447,7 @@ export default function WorkspacePage() {
         Number(workspaceId),
         Array.from(files),
       );
-      setSharedAlbumPhotos((prev) => [...prev, ...uploaded]);
+      setSharedAlbumPhotos((prev) => [...uploaded, ...prev]);
     } catch {
       alert("사진 업로드에 실패했습니다.");
     } finally {
@@ -449,6 +501,7 @@ export default function WorkspacePage() {
             flights,
             rawFlights,
             onFlightClick: setSelectedFlight,
+            onFlightEdit: setEditFlight,
             onFlightDelete: (id, label) => setDeleteFlightTarget({ id, label }),
             onAdd: () => setShowAddFlightModal(true),
           }}
@@ -536,6 +589,9 @@ export default function WorkspacePage() {
                         onRenameWorkspace={handleRenameWorkspace}
                         onChangeCountry={handleChangeCountry}
                         onChangeCoverImage={handleCoverImageUpload}
+                        visibility={workspaceDetail ? (workspaceDetail.visibility ?? 'PRIVATE') : undefined}
+                        onVisibilityChange={myRole === 'OWNER' ? handleVisibilityChange : undefined}
+                        onRoleChange={myRole === 'OWNER' ? handleRoleChange : undefined}
                       />
                     </div>
                   </div>
@@ -576,6 +632,7 @@ export default function WorkspacePage() {
                   flights={flights}
                   rawFlights={rawFlights}
                   onFlightClick={setSelectedFlight}
+                  onFlightEdit={setEditFlight}
                   onFlightDelete={(id, label) =>
                     setDeleteFlightTarget({ id, label })
                   }
@@ -606,6 +663,7 @@ export default function WorkspacePage() {
                   onAddSnsCard={handleAddSnsCard}
                   onSaveTravelLog={handleSaveTravelLog}
                   onUploadTravellogPhotos={handleUploadTravellogPhotos}
+                  onDetachPhoto={handleDetachTravellogPhoto}
                   onDeleteTravelLog={handleDeleteTravelLog}
                   onUpdateMainTitle={handleUpdateMainTitle}
                   onReorderLogs={handleReorderLogs}
@@ -650,6 +708,15 @@ export default function WorkspacePage() {
             onExpand={() => setIsChatOpen(true)}
             onScheduleSaved={loadSchedule}
             onRoomCountChange={setChatRoomCount}
+          />
+
+          <WorkspaceChatSidebar
+            isOpen={isTeamChatOpen}
+            workspaceId={workspaceId}
+            memberUserIds={memberUserIds}
+            members={members}
+            onOpen={() => setIsTeamChatOpen(true)}
+            onClose={() => setIsTeamChatOpen(false)}
           />
         </div>
       )}
@@ -734,10 +801,11 @@ export default function WorkspacePage() {
       )}
 
       <AddFlightModal
-        isOpen={showAddFlightModal}
+        isOpen={showAddFlightModal || editFlight !== null}
         isSaving={isSavingFlight}
-        onClose={() => setShowAddFlightModal(false)}
-        onSave={handleSaveFlight}
+        initialData={editFlight ?? undefined}
+        onClose={() => { setShowAddFlightModal(false); setEditFlight(null); }}
+        onSave={editFlight ? handleUpdateFlight : handleSaveFlight}
       />
     </>
   );

@@ -252,9 +252,13 @@ export default function CompactTravelLogSection({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
 
+  // 최신 카드가 왼쪽에 오도록 역순 렌더링
+  const reversedLogs = [...travelLogs].reverse();
+  const lastLogIdx = travelLogs.length - 1;
+
   /* 각 여행 기록 카드 래퍼의 DOM 참조 (pointermove에서 위치 판정용).
      ref 콜백은 카드가 삭제돼도 배열을 줄여주지 않아 stale한 슬롯이
-     남을 수 있으나, 아래 findCardIndexAtX가 travelLogs.length 범위
+     남을 수 있으나, 아래 findCardIndexAtX가 reversedLogs.length 범위
      안에서만 순회하므로 stale 슬롯에는 접근하지 않는다. (ref는 렌더
      중 접근이 금지되므로 배열 길이를 렌더 본문에서 자르지 않는다.) */
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -266,7 +270,7 @@ export default function CompactTravelLogSection({
          삭제된 카드의 stale 슬롯을 포함할 수 있으므로, 실제 데이터
          개수를 기준으로 돌아 stale 슬롯 접근을 원천 차단한다.
          (Gemini 리뷰 반영) */
-      for (let i = 0; i < travelLogs.length; i++) {
+      for (let i = 0; i < reversedLogs.length; i++) {
         const el = cardRefs.current[i];
         if (!el) continue;
         const rect = el.getBoundingClientRect();
@@ -300,11 +304,12 @@ export default function CompactTravelLogSection({
 
   const handleReorderPointerUp = useCallback(() => {
     if (dragIdx != null && overIdx != null && dragIdx !== overIdx) {
-      onReorderLogs?.(dragIdx, overIdx);
+      // 시각적 인덱스(역순) → 원래 배열 인덱스로 변환
+      onReorderLogs?.(lastLogIdx - dragIdx, lastLogIdx - overIdx);
     }
     setDragIdx(null);
     setOverIdx(null);
-  }, [dragIdx, overIdx, onReorderLogs]);
+  }, [dragIdx, overIdx, onReorderLogs, lastLogIdx]);
 
   return (
     <section className="flex flex-col gap-3">
@@ -355,19 +360,19 @@ export default function CompactTravelLogSection({
               </div>
             )}
 
-            {/* 여행 기록 카드 */}
-            {travelLogs.map((log, idx) => (
+            {/* 여행 기록 카드 (최신순: 왼쪽부터) */}
+            {reversedLogs.map((log, visualIdx) => (
               <div
-                key={log.id ?? idx}
+                key={log.id ?? visualIdx}
                 ref={(el) => {
-                  cardRefs.current[idx] = el;
+                  cardRefs.current[visualIdx] = el;
                 }}
                 className={[
                   "snap-start shrink-0 transition-all duration-150",
                   /* 드래그 중인 카드: 반투명 */
-                  dragIdx === idx ? "opacity-40" : "",
+                  dragIdx === visualIdx ? "opacity-40" : "",
                   /* 드롭 대상 카드: 강조 링 */
-                  overIdx === idx && dragIdx !== idx && dragIdx != null
+                  overIdx === visualIdx && dragIdx !== visualIdx && dragIdx != null
                     ? "ring-2 ring-primary ring-offset-1 rounded-xl"
                     : "",
                 ].join(" ")}
@@ -405,7 +410,7 @@ export default function CompactTravelLogSection({
                     onReorderLogs
                       ? {
                           onPointerDown: (e) =>
-                            handleReorderPointerDown(idx, e),
+                            handleReorderPointerDown(visualIdx, e),
                           onPointerMove: handleReorderPointerMove,
                           onPointerUp: handleReorderPointerUp,
                           onPointerCancel: handleReorderPointerUp,

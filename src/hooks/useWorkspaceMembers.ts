@@ -4,7 +4,9 @@ import {
   fetchWorkspaceMembers,
   inviteMember,
   leaveWorkspace,
+  updateMemberRole,
   type WorkspaceMemberApi,
+  type MemberRole,
 } from "@/api/workspaceApi";
 import { type UserSearchResult } from "@/api/userApi";
 
@@ -32,6 +34,7 @@ export function useWorkspaceMembers(workspaceId: number, userId: number | undefi
     email: m.userEmail,
     avatarUrl: m.profileImageUrl ?? undefined,
     isHost: m.role === "OWNER",
+    role: m.role as MemberRole,
   }));
 
   /* ── 나가기 ── */
@@ -47,6 +50,18 @@ export function useWorkspaceMembers(workspaceId: number, userId: number | undefi
     } catch (err) {
       console.warn("[useWorkspaceMembers] 나가기 실패:", err);
       setIsLeaving(false);
+    }
+  };
+
+  /* ── 역할 변경 ── */
+  const handleRoleChange = async (memberId: number, role: 'EDITOR' | 'VIEWER') => {
+    try {
+      await updateMemberRole(workspaceId, memberId, role);
+      setApiMembers((prev) =>
+        prev.map((m) => (m.memberId === memberId ? { ...m, role } : m)),
+      );
+    } catch (err) {
+      console.warn("[useWorkspaceMembers] 역할 변경 실패:", err);
     }
   };
 
@@ -88,6 +103,7 @@ export function useWorkspaceMembers(workspaceId: number, userId: number | undefi
     setShowLeaveConfirm,
     isLeaving,
     handleLeaveWorkspace,
+    handleRoleChange,
     showInviteModal,
     setShowInviteModal,
     inviteTarget,
