@@ -4,21 +4,8 @@ import SnsPostGrid from "@/components/sns/SnsPostGrid";
 import SnsPostDetailPopup from "@/components/sns/SnsPostDetailPopup";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import { useImportWorkspace } from "@/hooks/useImportWorkspace";
-import { fetchFeed, searchWorkspaces, toSnsPost } from "@/api/snsApi";
+import { fetchFeed, searchWorkspaces, fetchTrendingDestinations, toSnsPost } from "@/api/snsApi";
 import type { SnsPost, TrendingDestination } from "@/types/snsType";
-
-const MOCK_TRENDING: TrendingDestination[] = [
-  { rank: 1, city: "도쿄", country: "일본" },
-  { rank: 2, city: "파리", country: "프랑스" },
-  { rank: 3, city: "오사카", country: "일본" },
-  { rank: 4, city: "방콕", country: "태국" },
-  { rank: 5, city: "다낭", country: "베트남" },
-  { rank: 6, city: "타이베이", country: "대만" },
-  { rank: 7, city: "발리", country: "인도네시아" },
-  { rank: 8, city: "싱가포르", country: "싱가포르" },
-  { rank: 9, city: "로마", country: "이탈리아" },
-  { rank: 10, city: "바르셀로나", country: "스페인" },
-];
 
 export default function SnsPage() {
   const [posts, setPosts] = useState<SnsPost[]>([]);
@@ -28,6 +15,7 @@ export default function SnsPage() {
 
   const [filterKeyword, setFilterKeyword] = useState("");
   const [selectedPost, setSelectedPost] = useState<SnsPost | null>(null);
+  const [trending, setTrending] = useState<TrendingDestination[]>([]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const importer = useImportWorkspace();
@@ -50,6 +38,16 @@ export default function SnsPage() {
   useEffect(() => {
     loadFeed(0);
   }, [loadFeed]);
+
+  useEffect(() => {
+    fetchTrendingDestinations()
+      .then((data) =>
+        setTrending(
+          data.map((d) => ({ rank: d.rank, city: d.destination, country: d.countryCode })),
+        ),
+      )
+      .catch(() => {});
+  }, []);
 
   const handleSearch = useCallback((keyword: string) => {
     setFilterKeyword(keyword);
@@ -110,7 +108,7 @@ export default function SnsPage() {
 
           <div className="flex gap-10 items-start">
             <SnsSidebar
-              trending={MOCK_TRENDING}
+              trending={trending}
               onSearch={handleSearch}
               onSelectTrending={handleSelectTrending}
             />

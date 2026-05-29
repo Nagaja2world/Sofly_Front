@@ -67,6 +67,20 @@ export interface FollowStatsResponse {
   isFollowing: boolean;
 }
 
+// ── 트렌딩 여행지 ─────────────────────────────────
+
+export interface TrendingDestinationApi {
+  rank: number;
+  destination: string;
+  countryCode: string;
+  workspaceCount: number;
+}
+
+export async function fetchTrendingDestinations(): Promise<TrendingDestinationApi[]> {
+  const res = await fetch(`${API_BASE}/api/sns/workspaces/trending-destinations`);
+  return unwrap(res);
+}
+
 // ── 피드 ──────────────────────────────────────────
 
 export async function fetchFeed(page = 0, size = 20): Promise<PageResponse<PublicWorkspacePost>> {
