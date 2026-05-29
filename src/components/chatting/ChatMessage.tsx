@@ -1,3 +1,4 @@
+import ReactMarkdown from "react-markdown";
 import EditIcon from "@/assets/edit.svg?react";
 import CopyIcon from "@/assets/copy.svg?react";
 import LeftIcon from "@/assets/left.svg?react";
@@ -128,6 +129,61 @@ function ItineraryPreview({ jsonStr }: { jsonStr: string }) {
         </div>
       ))}
     </div>
+  );
+}
+
+/** AI 메시지 마크다운 렌더러 */
+function AiMarkdown({ text }: { text: string }) {
+  return (
+    <ReactMarkdown
+      components={{
+        p: ({ children }) => (
+          <p className="font-pretendard text-body3 leading-relaxed text-gray-900 m-0 mb-1 last:mb-0">
+            {children}
+          </p>
+        ),
+        strong: ({ children }) => (
+          <strong className="font-semibold text-gray-900">{children}</strong>
+        ),
+        em: ({ children }) => (
+          <em className="italic text-gray-700">{children}</em>
+        ),
+        ul: ({ children }) => (
+          <ul className="pl-4 my-1 flex flex-col gap-0.5 list-disc">{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="pl-4 my-1 flex flex-col gap-0.5 list-decimal">{children}</ol>
+        ),
+        li: ({ children }) => (
+          <li className="font-pretendard text-body3 leading-relaxed text-gray-900">
+            {children}
+          </li>
+        ),
+        h1: ({ children }) => (
+          <h1 className="font-pretendard text-body2 font-bold text-gray-900 mt-2 mb-1 first:mt-0">
+            {children}
+          </h1>
+        ),
+        h2: ({ children }) => (
+          <h2 className="font-pretendard text-body2 font-semibold text-gray-900 mt-2 mb-1 first:mt-0">
+            {children}
+          </h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="font-pretendard text-body3 font-semibold text-gray-800 mt-1.5 mb-0.5 first:mt-0">
+            {children}
+          </h3>
+        ),
+        hr: () => <hr className="border-gray-300 my-2" />,
+        code: ({ children }) => (
+          <code className="bg-gray-200 rounded px-1 py-0.5 text-xs font-mono text-gray-800">
+            {children}
+          </code>
+        ),
+      }}
+    >
+      {text}
+    </ReactMarkdown>
   );
 }
 
@@ -333,29 +389,17 @@ export default function ChatMessage({
             ) : part.content.trim() ? (
               <div
                 key={i}
-                className={[
-                  "rounded-2xl px-4 py-2.5",
-                  "font-pretendard text-body3 leading-relaxed",
-                  "whitespace-pre-line break-words",
-                  "bg-gray-100 text-gray-900 rounded-tl-sm",
-                ].join(" ")}
+                className="rounded-2xl px-4 py-2.5 bg-gray-100 text-gray-900 rounded-tl-sm"
               >
-                {part.content.trim()}
+                <AiMarkdown text={part.content.trim()} />
               </div>
             ) : null,
           )}
         </div>
       ) : (
-        /* ── AI 메시지: 일반 텍스트 ── */
-        <div
-          className={[
-            "max-w-[85%] rounded-2xl px-4 py-2.5",
-            "font-pretendard text-body3 leading-relaxed",
-            "whitespace-pre-line break-words",
-            "bg-gray-100 text-gray-900 rounded-tl-sm",
-          ].join(" ")}
-        >
-          {text}
+        /* ── AI 메시지: 일반 텍스트 (마크다운 렌더링) ── */
+        <div className="max-w-[85%] rounded-2xl px-4 py-2.5 bg-gray-100 text-gray-900 rounded-tl-sm">
+          <AiMarkdown text={text} />
         </div>
       )}
 
