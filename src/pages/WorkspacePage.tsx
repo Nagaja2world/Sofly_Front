@@ -163,6 +163,7 @@ export default function WorkspacePage() {
     members,
     myRole,
     loadMembers,
+    handleRoleChange,
     showLeaveConfirm,
     setShowLeaveConfirm,
     isLeaving,
@@ -590,6 +591,7 @@ export default function WorkspacePage() {
                         onChangeCoverImage={handleCoverImageUpload}
                         visibility={workspaceDetail ? (workspaceDetail.visibility ?? 'PRIVATE') : undefined}
                         onVisibilityChange={myRole === 'OWNER' ? handleVisibilityChange : undefined}
+                        onRoleChange={myRole === 'OWNER' ? handleRoleChange : undefined}
                       />
                     </div>
                   </div>

@@ -140,13 +140,15 @@ export function resolveCoverImage(url: string, id: number): string {
 
 /* ── 워크스페이스 멤버 ── */
 
+export type MemberRole = 'OWNER' | 'EDITOR' | 'VIEWER';
+
 export interface WorkspaceMemberApi {
   memberId: number;
   userId: number;
   nickname: string;
   userEmail: string;
   profileImageUrl: string | null;
-  role: 'OWNER' | 'VIEWER';
+  role: MemberRole;
 }
 
 /** 워크스페이스 멤버 목록 조회 */
@@ -155,6 +157,23 @@ export async function fetchWorkspaceMembers(workspaceId: number): Promise<Worksp
     headers: authHeaders(),
   });
   return unwrap<WorkspaceMemberApi[]>(res);
+}
+
+/** 멤버 역할 변경 (OWNER만 호출 가능) */
+export async function updateMemberRole(
+  workspaceId: number,
+  memberId: number,
+  role: 'EDITOR' | 'VIEWER',
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/api/workspaces/${workspaceId}/members/${memberId}/role`,
+    {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ role }),
+    },
+  );
+  if (!res.ok) throw new Error(`역할 변경 실패: ${res.status}`);
 }
 
 /** 워크스페이스 나가기 (탈퇴) */
