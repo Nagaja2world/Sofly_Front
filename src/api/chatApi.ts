@@ -1,4 +1,12 @@
+import { usePermissionToast } from '@/store/usePermissionToast';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+
+function checkPermission(res: Response) {
+  if (res.status === 403) {
+    usePermissionToast.getState().show();
+  }
+}
 
 function getToken(): string | null {
   return localStorage.getItem('accessToken');
@@ -51,7 +59,7 @@ export async function fetchChatRooms(workspaceId: number): Promise<ChatRoom[]> {
     `${API_BASE}/api/v1/chat/workspaces/${workspaceId}/rooms`,
     { headers: authHeaders() },
   );
-  if (!res.ok) throw new Error(`채팅방 목록 조회 실패: ${res.status}`);
+  if (!res.ok) { checkPermission(res); throw new Error(`채팅방 목록 조회 실패: ${res.status}`); }
   return res.json();
 }
 
@@ -65,7 +73,7 @@ export async function createChatRoom(
     headers: authHeaders(),
     body: JSON.stringify({ workspaceId, title }),
   });
-  if (!res.ok) throw new Error(`채팅방 생성 실패: ${res.status}`);
+  if (!res.ok) { checkPermission(res); throw new Error(`채팅방 생성 실패: ${res.status}`); }
   return res.json();
 }
 

@@ -1,4 +1,29 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { usePermissionToast } from "@/store/usePermissionToast";
+
+function PermissionToast() {
+  const { message, hide } = usePermissionToast();
+  if (!message) return null;
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] pointer-events-none">
+      <div
+        onClick={hide}
+        className={[
+          "pointer-events-auto",
+          "flex items-center gap-2 px-5 py-3 rounded-xl shadow-lg",
+          "bg-red-50 border border-red-200 text-red-700",
+          "font-pretendard text-body4",
+        ].join(" ")}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M8 5v3.5M8 11h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        {message}
+      </div>
+    </div>
+  );
+}
 import NoHeaderLayout from "./layout/NoHeaderLayout";
 import HomePage from "@/pages/HomePage";
 import ProfilePage from "@/pages/ProfilePage";
@@ -52,5 +77,10 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <PermissionToast />
+    </>
+  );
 }
