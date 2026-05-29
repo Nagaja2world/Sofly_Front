@@ -23,6 +23,7 @@ interface CompactFlightSectionProps {
   flights: FlightInfo[];
   rawFlights: WorkspaceFlight[];
   onFlightClick: (flight: WorkspaceFlight) => void;
+  onFlightEdit: (flight: WorkspaceFlight) => void;
   onFlightDelete: (id: number, label: string) => void;
   /**
    * 항공편 추가 버튼 클릭 콜백.
@@ -35,6 +36,7 @@ export default function CompactFlightSection({
   flights,
   rawFlights,
   onFlightClick,
+  onFlightEdit,
   onFlightDelete,
   onAdd,
 }: CompactFlightSectionProps) {
@@ -91,6 +93,10 @@ export default function CompactFlightSection({
               onClick={() => {
                 const raw = rawFlights.find((r) => r.id === f.id);
                 if (raw) onFlightClick(raw);
+              }}
+              onEdit={() => {
+                const raw = rawFlights.find((r) => r.id === f.id);
+                if (raw) onFlightEdit(raw);
               }}
               onDelete={() => onFlightDelete(f.id, `${f.direction} ${f.date}`)}
             />

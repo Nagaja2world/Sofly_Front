@@ -7,6 +7,7 @@ import {
   uploadCoverImage,
   deleteWorkspace,
   saveFlightToWorkspace,
+  updateFlightInWorkspace,
   type Workspace,
   type SaveFlightPayload,
   type WorkspaceVisibility,
@@ -245,6 +246,7 @@ export default function WorkspacePage() {
   }, [rawFlights]);
 
   const [showAddFlightModal, setShowAddFlightModal] = useState(false);
+  const [editFlight, setEditFlight] = useState<WorkspaceFlight | null>(null);
   const [isSavingFlight, setIsSavingFlight] = useState(false);
 
   const handleSaveFlight = async (payload: SaveFlightPayload) => {
@@ -255,6 +257,20 @@ export default function WorkspacePage() {
       await loadFlights();
     } catch (err) {
       console.warn("[WorkspacePage] 항공편 저장 실패:", err);
+    } finally {
+      setIsSavingFlight(false);
+    }
+  };
+
+  const handleUpdateFlight = async (payload: SaveFlightPayload) => {
+    if (!editFlight) return;
+    setIsSavingFlight(true);
+    try {
+      await updateFlightInWorkspace(workspaceId, editFlight.id, payload);
+      setEditFlight(null);
+      await loadFlights();
+    } catch (err) {
+      console.warn("[WorkspacePage] 항공편 수정 실패:", err);
     } finally {
       setIsSavingFlight(false);
     }
@@ -483,6 +499,7 @@ export default function WorkspacePage() {
             flights,
             rawFlights,
             onFlightClick: setSelectedFlight,
+            onFlightEdit: setEditFlight,
             onFlightDelete: (id, label) => setDeleteFlightTarget({ id, label }),
             onAdd: () => setShowAddFlightModal(true),
           }}
@@ -612,6 +629,7 @@ export default function WorkspacePage() {
                   flights={flights}
                   rawFlights={rawFlights}
                   onFlightClick={setSelectedFlight}
+                  onFlightEdit={setEditFlight}
                   onFlightDelete={(id, label) =>
                     setDeleteFlightTarget({ id, label })
                   }
@@ -779,10 +797,11 @@ export default function WorkspacePage() {
       )}
 
       <AddFlightModal
-        isOpen={showAddFlightModal}
+        isOpen={showAddFlightModal || editFlight !== null}
         isSaving={isSavingFlight}
-        onClose={() => setShowAddFlightModal(false)}
-        onSave={handleSaveFlight}
+        initialData={editFlight ?? undefined}
+        onClose={() => { setShowAddFlightModal(false); setEditFlight(null); }}
+        onSave={editFlight ? handleUpdateFlight : handleSaveFlight}
       />
     </>
   );

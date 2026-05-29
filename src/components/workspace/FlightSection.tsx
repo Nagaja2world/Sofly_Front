@@ -16,6 +16,7 @@ interface FlightSectionProps {
   flights: FlightInfo[];
   rawFlights: WorkspaceFlight[];
   onFlightClick: (flight: WorkspaceFlight) => void;
+  onFlightEdit: (flight: WorkspaceFlight) => void;
   onFlightDelete: (id: number, label: string) => void;
   onAdd: () => void;
 }
@@ -24,6 +25,7 @@ export default function FlightSection({
   flights,
   rawFlights,
   onFlightClick,
+  onFlightEdit,
   onFlightDelete,
   onAdd,
 }: FlightSectionProps) {
@@ -69,6 +71,10 @@ export default function FlightSection({
                     const raw = rawFlights.find((r) => r.id === f.id);
                     if (raw) onFlightClick(raw);
                   }}
+                  onEdit={() => {
+                    const raw = rawFlights.find((r) => r.id === f.id);
+                    if (raw) onFlightEdit(raw);
+                  }}
                   onDelete={() =>
                     onFlightDelete(f.id, `${f.direction} ${f.date}`)
                   }
@@ -89,6 +95,10 @@ export default function FlightSection({
                   onClick={() => {
                     const raw = rawFlights.find((r) => r.id === f.id);
                     if (raw) onFlightClick(raw);
+                  }}
+                  onEdit={() => {
+                    const raw = rawFlights.find((r) => r.id === f.id);
+                    if (raw) onFlightEdit(raw);
                   }}
                   onDelete={() =>
                     onFlightDelete(f.id, `${f.direction} ${f.date}`)

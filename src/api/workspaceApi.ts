@@ -274,6 +274,20 @@ export async function deleteFlightFromWorkspace(
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
 }
 
+/** 워크스페이스 항공편 수정 */
+export async function updateFlightInWorkspace(
+  workspaceId: number,
+  flightId: number,
+  payload: SaveFlightPayload,
+): Promise<WorkspaceFlight> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/flights/${flightId}`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return unwrap<WorkspaceFlight>(res);
+}
+
 /** 새 워크스페이스 생성 시 사용할 더미 데이터 */
 export function buildDummyWorkspacePayload(): CreateWorkspacePayload {
   const today = new Date();
