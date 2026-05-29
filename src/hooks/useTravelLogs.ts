@@ -32,10 +32,19 @@ const WEATHER_UI_TO_API: Record<WeatherType, WeatherApi> = {
   snowy: "SNOWY",
 };
 
-/** 마크다운 문자열 → Tiptap JSONContent (단순 paragraph 분리) */
-function markdownToTiptap(markdown: string | null | undefined): JSONContent | undefined {
-  if (!markdown?.trim()) return undefined;
-  const paragraphs = markdown.split(/\n\n+/).filter(Boolean);
+/** 백엔드 content 문자열 → Tiptap JSONContent
+ *  - JSON.stringify된 Tiptap JSON이면 파싱해서 반환 (볼드/이탤릭 등 서식 완전 복원)
+ *  - 레거시 plain-text면 paragraph 단위로 분리해서 JSONContent 생성
+ */
+function contentToTiptap(raw: string | null | undefined): JSONContent | undefined {
+  if (!raw?.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.type === "doc") return parsed as JSONContent;
+  } catch {
+    // plain text fallback
+  }
+  const paragraphs = raw.split(/\n\n+/).filter(Boolean);
   return {
     type: "doc",
     content: paragraphs.map((text) => ({
@@ -45,25 +54,10 @@ function markdownToTiptap(markdown: string | null | undefined): JSONContent | un
   };
 }
 
-/** Tiptap JSONContent → 마크다운 문자열 (텍스트 노드만 추출) */
-function tiptapToMarkdown(json: JSONContent | undefined): string {
+/** Tiptap JSONContent → 백엔드 content 문자열 (JSON.stringify로 서식 보존) */
+function tiptapToContent(json: JSONContent | undefined): string {
   if (!json) return "";
-  const lines: string[] = [];
-  const walk = (node: JSONContent) => {
-    if (node.type === "text" && typeof node.text === "string") {
-      lines.push(node.text);
-    } else if (node.type === "paragraph") {
-      const texts: string[] = [];
-      (node.content ?? []).forEach((child) => {
-        if (child.type === "text" && child.text) texts.push(child.text);
-      });
-      lines.push(texts.join(""));
-    } else {
-      (node.content ?? []).forEach(walk);
-    }
-  };
-  (json.content ?? []).forEach(walk);
-  return lines.join("\n\n");
+  return JSON.stringify(json);
 }
 
 /** API 응답 → UI TravelLog */
@@ -73,7 +67,7 @@ function apiToTravelLog(res: TravellogResponse): TravelLog {
     mainTitle: res.mainTitle ?? null,
     oneLineSummary: res.title ?? undefined,
     weather: res.weather ? WEATHER_API_TO_UI[res.weather] : undefined,
-    content: markdownToTiptap(res.content),
+    content: contentToTiptap(res.content),
     albumPhotos: res.photos.map((p) => p.url),
     _photoIds: res.photos.map((p) => p.id),
   };
@@ -133,7 +127,7 @@ export function useTravelLogs(workspaceId: number) {
       try {
         const payload = {
           title: data.oneLineSummary ?? null,
-          content: tiptapToMarkdown(data.content) || null,
+          content: tiptapToContent(data.content) || null,
           weather: data.weather ? WEATHER_UI_TO_API[data.weather] : null,
         };
         let res = await updateTravellog(workspaceId, logId, payload);
