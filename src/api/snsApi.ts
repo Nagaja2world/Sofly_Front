@@ -157,6 +157,13 @@ export async function unfollowUser(targetUserId: number): Promise<void> {
   if (!res.ok && res.status !== 204) throw new Error(`언팔로우 실패: ${res.status}`);
 }
 
+export async function fetchFollowStats(targetUserId: number): Promise<FollowStatsResponse> {
+  return unwrap(await fetch(
+    `${API_BASE}/api/sns/users/${targetUserId}/follow-stats`,
+    { headers: authHeaders() },
+  ));
+}
+
 // ── 워크스페이스 가져오기 ──────────────────────────
 
 export async function importWorkspace(workspaceId: number): Promise<{ id: number }> {
@@ -172,6 +179,29 @@ export async function importWorkspace(workspaceId: number): Promise<{ id: number
   }
   const json = await res.json();
   return json.data ?? json;
+}
+
+// ── 공개 프로필 ────────────────────────────────────
+
+export interface PublicProfileResponse {
+  userId: number;
+  nickname: string;
+  profileImageUrl: string | null;
+  followerCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  publicWorkspaces: PageResponse<PublicWorkspacePost>;
+}
+
+export async function fetchPublicProfile(
+  targetUserId: number,
+  page = 0,
+  size = 12,
+): Promise<PublicProfileResponse> {
+  return unwrap(await fetch(
+    `${API_BASE}/api/sns/users/${targetUserId}/profile?page=${page}&size=${size}`,
+    { headers: authHeaders() },
+  ));
 }
 
 // ── 유틸 ──────────────────────────────────────────

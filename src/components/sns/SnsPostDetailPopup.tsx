@@ -10,6 +10,7 @@ import {
   followUser, unfollowUser,
   type CommentResponse,
 } from "@/api/snsApi";
+import UserPublicProfilePopup from "@/components/sns/UserPublicProfilePopup";
 
 const CAPTION_MAX = 80;
 
@@ -44,6 +45,9 @@ export default function SnsPostDetailPopup({
   // 팔로우
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+
+  // 공개 프로필 팝업
+  const [profileUserId, setProfileUserId] = useState<number | null>(null);
 
   // 좋아요
   const [isLiked, setIsLiked] = useState<boolean | null>(post?.isLiked ?? null);
@@ -180,7 +184,7 @@ export default function SnsPostDetailPopup({
   const hasWorkspace = !!post.workspaceId;
   const isLoggedIn = !!user;
 
-  return createPortal(
+  const portal = createPortal(
     <div
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out] p-4"
@@ -194,7 +198,11 @@ export default function SnsPostDetailPopup({
         {/* 헤더 */}
         <header className="shrink-0 flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-200">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full shrink-0 bg-gray-200 overflow-hidden flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setProfileUserId(Number(post.author.id))}
+              className="w-10 h-10 rounded-full shrink-0 bg-gray-200 overflow-hidden flex items-center justify-center cursor-pointer border-none p-0 hover:opacity-80 transition-opacity"
+            >
               {post.author.avatarUrl ? (
                 <img src={post.author.avatarUrl} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -203,10 +211,14 @@ export default function SnsPostDetailPopup({
                   <path d="M4 19c0-3.5 3-6 7-6s7 2.5 7 6" stroke="#9A9A9A" strokeWidth="1.8" strokeLinecap="round" />
                 </svg>
               )}
-            </div>
-            <span className="font-pretendard text-body1 font-semibold text-gray-900 truncate">
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfileUserId(Number(post.author.id))}
+              className="font-pretendard text-body1 font-semibold text-gray-900 truncate cursor-pointer bg-transparent border-none p-0 hover:underline"
+            >
               {post.author.username}
-            </span>
+            </button>
             {isLoggedIn && user && String(user.id) !== post.author.id && (
               <button
                 type="button"
@@ -387,4 +399,15 @@ export default function SnsPostDetailPopup({
     </div>,
     document.body,
   );
+
+  return (
+    <>
+      {portal}
+      <UserPublicProfilePopup
+        targetUserId={profileUserId}
+        onClose={() => setProfileUserId(null)}
+      />
+    </>
+  );
 }
+
