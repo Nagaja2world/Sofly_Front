@@ -59,11 +59,14 @@ function Gauge({ value }: { value: number }) {
       </svg>
       <div style={{
         position: 'absolute', inset: 0,
-        display: 'grid', placeItems: 'center',
-        fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 22,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {value}
-        <span style={{ fontSize: 11, fontWeight: 600, color: T.gray500 }}>%</span>
+        <span style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 22, lineHeight: 1 }}>
+          {value}
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: T.gray500, alignSelf: 'flex-end', marginBottom: 2 }}>
+          %
+        </span>
       </div>
     </div>
   );
