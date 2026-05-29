@@ -446,7 +446,7 @@ export default function WorkspacePage() {
         Number(workspaceId),
         Array.from(files),
       );
-      setSharedAlbumPhotos((prev) => [...prev, ...uploaded]);
+      setSharedAlbumPhotos((prev) => [...uploaded, ...prev]);
     } catch {
       alert("사진 업로드에 실패했습니다.");
     } finally {
