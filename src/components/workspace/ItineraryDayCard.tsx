@@ -175,18 +175,48 @@ function CategoryBadge({
   onSelect?: (cat: ScheduleCategory) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const style = getCategoryStyle(category);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
+      const target = e.target as Node;
+      if (
+        btnRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      )
+        return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
+
+  const getDropdownStyle = (): React.CSSProperties => {
+    if (!btnRef.current) return {};
+    const rect = btnRef.current.getBoundingClientRect();
+    const dropdownH = CATEGORY_KEYS.length * 36 + 8;
+    const spaceBelow = window.innerHeight - rect.bottom;
+
+    if (spaceBelow < dropdownH && rect.top > spaceBelow) {
+      return {
+        position: "fixed",
+        bottom: window.innerHeight - rect.top + 4,
+        left: rect.left + rect.width / 2,
+        transform: "translateX(-50%)",
+        zIndex: 9999,
+      };
+    }
+    return {
+      position: "fixed",
+      top: rect.bottom + 4,
+      left: rect.left + rect.width / 2,
+      transform: "translateX(-50%)",
+      zIndex: 9999,
+    };
+  };
 
   const badge = (
     <span
@@ -204,10 +234,11 @@ function CategoryBadge({
   /* 변경 불가 — 단순 표시 */
   if (!onSelect) return badge;
 
-  /* 변경 가능 — 클릭 드롭다운 */
+  /* 변경 가능 — 클릭 드롭다운 (portal로 overflow clip 탈출) */
   return (
-    <div ref={ref} className="relative inline-block">
+    <>
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="분류 변경"
@@ -215,41 +246,47 @@ function CategoryBadge({
       >
         {badge}
       </button>
-      {open && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[100px]">
-          {CATEGORY_KEYS.map((key) => {
-            const s = getCategoryStyle(key);
-            const isSelected = (category ?? "ATTRACTION") === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => {
-                  onSelect(key);
-                  setOpen(false);
-                }}
-                className={[
-                  "flex items-center gap-2 w-full px-3 py-1.5",
-                  "bg-transparent border-none cursor-pointer text-left",
-                  "hover:bg-gray-50 transition-colors",
-                  isSelected ? "bg-gray-50" : "",
-                ].join(" ")}
-              >
-                <span
+      {open &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={getDropdownStyle()}
+            className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[100px]"
+          >
+            {CATEGORY_KEYS.map((key) => {
+              const s = getCategoryStyle(key);
+              const isSelected = (category ?? "ATTRACTION") === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    onSelect(key);
+                    setOpen(false);
+                  }}
                   className={[
-                    "inline-block w-2 h-2 rounded-full",
-                    s.badgeBg,
+                    "flex items-center gap-2 w-full px-3 py-1.5",
+                    "bg-transparent border-none cursor-pointer text-left",
+                    "hover:bg-gray-50 transition-colors",
+                    isSelected ? "bg-gray-50" : "",
                   ].join(" ")}
-                />
-                <span className="font-pretendard text-[12px] text-gray-700">
-                  {s.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+                >
+                  <span
+                    className={[
+                      "inline-block w-2 h-2 rounded-full",
+                      s.badgeBg,
+                    ].join(" ")}
+                  />
+                  <span className="font-pretendard text-[12px] text-gray-700">
+                    {s.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
