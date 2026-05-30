@@ -125,20 +125,36 @@ export default function HowToSection() {
   );
 }
 
-/* ── 텍스트 요소 등장 variants (배지→제목→설명 순차) ── */
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.12, delayChildren: 0.05 },
-  },
-};
+/* ── 모션 variants ──
+   좌우 교차 레이아웃에 맞춰, 행 전체가 한 방향에서 "슉" 들어온다.
+   - 홀수 행(항공검색·AI채팅·SNS): 왼쪽 → 오른쪽
+   - 짝수 행(워크스페이스·정복도): 오른쪽 → 왼쪽
+   스크롤로 화면을 벗어났다 다시 들어오면 모션이 재생된다(once 미사용). */
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 16 },
+/* 행 전체 슬라이드 (dir: -1 = 왼쪽에서, 1 = 오른쪽에서) + 내부 stagger */
+function rowVariants(dir: number) {
+  return {
+    hidden: { opacity: 0, x: 90 * dir },
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: {
+        duration: 0.6,
+        ease: "easeOut" as const,
+        when: "beforeChildren" as const,
+        staggerChildren: 0.1,
+      },
+    },
+  };
+}
+
+/* 텍스트 컬럼 내부 요소(배지·제목·설명) 순차 등장 */
+const textItemVariants = {
+  hidden: { opacity: 0, y: 14 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, ease: "easeOut" as const },
+    transition: { duration: 0.45, ease: "easeOut" as const },
   },
 };
 
@@ -146,6 +162,9 @@ const itemVariants = {
    데스크톱: md:flex-row / md:flex-row-reverse 로 좌우 교차
    모바일: flex-col 로 이미지 위, 텍스트 아래 세로 스택 */
 function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
+  /* 홀수 행(reverse=false): 왼쪽(-1)에서, 짝수 행(reverse=true): 오른쪽(+1)에서 */
+  const dir = reverse ? 1 : -1;
+
   return (
     <motion.div
       className={[
@@ -154,36 +173,36 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
       ].join(" ")}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={containerVariants}
+      viewport={{ margin: "-80px" }}
+      variants={rowVariants(dir)}
     >
-      {/* 텍스트 — 바깥쪽 끝 정렬, 요소별 순차 등장 */}
+      {/* 텍스트 — 행과 함께 슬라이드, 내부 요소 순차 등장 */}
       <div className="flex-1 w-full min-w-0">
         <motion.span
-          variants={itemVariants}
+          variants={textItemVariants}
           className="inline-block font-montserrat text-body5 md:text-body4 font-semibold text-gray-700 bg-gray-200 rounded-full px-3 py-1"
         >
           {step.index} · {step.tag}
         </motion.span>
         <motion.h3
-          variants={itemVariants}
+          variants={textItemVariants}
           className="font-pretendard text-body1 md:text-title2 font-bold text-gray-900 mt-3 mb-2"
         >
           {step.title}
         </motion.h3>
         <motion.p
-          variants={itemVariants}
+          variants={textItemVariants}
           className="font-pretendard text-body3 md:text-body2 text-gray-600 leading-relaxed max-w-[460px]"
         >
           {step.description}
         </motion.p>
       </div>
 
-      {/* 미리보기 (브라우저 프레임) — 컬럼 폭 채움, hover 떠오름/확대 */}
+      {/* 미리보기 (브라우저 프레임) — hover 확대 */}
       <motion.div
-        variants={itemVariants}
         className="flex-1 w-full min-w-0"
-        whileHover={{ y: -6, scale: 1.02 }}
+        variants={textItemVariants}
+        whileHover={{ scale: 1.3 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
       >
         <PreviewFrame step={step} />
