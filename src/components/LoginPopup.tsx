@@ -113,7 +113,12 @@ export default function LoginPopup({
   const isCompact = useIsCompact();
   const ref = useRef<HTMLDivElement>(null);
   const POPUP_WIDTH = 380;
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  /* isOpen이 닫힐 때 pos 초기화 (다음 열릴 때 깜빡임 방지) */
+  useEffect(() => {
+    if (!isOpen) setPos(null);
+  }, [isOpen]);
 
   /* 트리거 버튼 기준 위치 계산 (데스크톱 드롭다운 전용) */
   useEffect(() => {
@@ -215,8 +220,9 @@ export default function LoginPopup({
       ref={ref}
       style={{
         position: "fixed",
-        top: pos.top,
-        left: pos.left,
+        top: pos?.top ?? 0,
+        left: pos?.left ?? 0,
+        visibility: pos ? "visible" : "hidden",
       }}
       className="z-50 animate-[popupFadeIn_0.2s_ease-out]"
       role="dialog"
