@@ -65,34 +65,44 @@ function OptionCheck({
   checked: boolean;
   onToggle: () => void;
 }) {
+  const id = `option-${label.replace(/\s+/g, "")}`;
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="inline-flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0"
-    >
-      <span
-        className={[
-          "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
-          checked ? "bg-primary border-primary" : "border-gray-400",
-        ].join(" ")}
+    <div className="inline-flex items-center gap-1.5">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        className="sr-only"
+      />
+      <label
+        htmlFor={id}
+        className="inline-flex items-center gap-1.5 cursor-pointer"
       >
-        {checked && (
-          <svg width="11" height="9" viewBox="0 0 12 10" fill="none">
-            <path
-              d="M1 5L4.5 8.5L11 1.5"
-              stroke="#2b2b2b"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
-      </span>
-      <span className="font-pretendard text-body3 text-gray-700 whitespace-nowrap">
-        {label}
-      </span>
-    </button>
+        <span
+          aria-hidden="true"
+          className={[
+            "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors shrink-0",
+            checked ? "bg-primary border-primary" : "border-gray-400",
+          ].join(" ")}
+        >
+          {checked && (
+            <svg width="11" height="9" viewBox="0 0 12 10" fill="none">
+              <path
+                d="M1 5L4.5 8.5L11 1.5"
+                stroke="#2b2b2b"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </span>
+        <span className="font-pretendard text-body3 text-gray-700 whitespace-nowrap">
+          {label}
+        </span>
+      </label>
+    </div>
   );
 }
 

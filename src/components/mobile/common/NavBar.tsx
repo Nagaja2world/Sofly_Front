@@ -26,6 +26,8 @@ interface NavBarProps {
   onKakaoLogin?: () => void;
   /** 구글 로그인 콜백 (default variant 로그인 팝업) */
   onGoogleLogin?: () => void;
+  /** 네이버 로그인 콜백 (default variant 로그인 팝업) */
+  onNaverLogin?: () => void;
   /** 추가 클래스 */
   className?: string;
 }
@@ -55,6 +57,7 @@ export default function NavBar({
   onUser,
   onKakaoLogin,
   onGoogleLogin,
+  onNaverLogin,
   className = "",
 }: NavBarProps) {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -132,6 +135,7 @@ export default function NavBar({
             triggerRef={loginBtnRef}
             onKakaoLogin={onKakaoLogin}
             onGoogleLogin={onGoogleLogin}
+            onNaverLogin={onNaverLogin}
           />
         </div>
       )}

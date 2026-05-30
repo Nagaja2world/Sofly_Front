@@ -1,5 +1,5 @@
 import MobileSearchModeBar from "@/components/mobile/searchbar/MobileSearchModeBar";
-import MobileAmbientEffects from "@/components/mobile/common/MobileAmbientEffects.tsx";
+import MobileAmbientEffects from "@/components/mobile/common/MobileAmbientEffects";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
 import SnsPreviewSection from "@/components/profile/SnsPreviewSection";
 import Button from "@/components/common/Button";

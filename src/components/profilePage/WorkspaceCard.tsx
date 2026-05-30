@@ -91,7 +91,7 @@ export default function WorkspaceCard({
         {/* 날짜 */}
         {hasDate && (
           <span className="font-pretendard text-body4 text-gray-600 whitespace-nowrap">
-            {formatDateRange(startDate, endDate)}
+            {formatDateRange(startDate!, endDate!)}
           </span>
         )}
 

@@ -99,21 +99,66 @@ const steps: HowToStep[] = [
   },
 ];
 
+/* ── 헤더 모션 variants ──
+   페이드 + 블러 풀림. 위치 이동 없이 제자리에서 흐릿→선명하게 등장.
+   라벨·제목·설명이 약간의 시차를 두고 차례로 나타난다.
+   스크롤로 재진입하면 다시 재생(once 미사용). */
+const headerContainerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.12 } },
+};
+const blurRevealVariants = {
+  hidden: { opacity: 0, filter: "blur(10px)" },
+  visible: {
+    opacity: 1,
+    filter: "blur(0px)",
+    transition: { duration: 0.7, ease: "easeOut" as const },
+  },
+};
+
 export default function HowToSection() {
   return (
+    // <section className="w-full">
+    //   {/* 섹션 헤더 */}
+    //   <div className="text-center mb-10 md:mb-14">
+    //     <p className="font-montserrat text-body4 md:text-body3 font-semibold tracking-wide text-gray-500 mb-2">
+    //       HOW IT WORKS
+    //     </p>
+    //     <h2 className="font-montserrat text-[24px] md:text-[32px] font-bold text-gray-900">
+    //       이렇게 사용하세요
+    //     </h2>
+    //     <p className="font-pretendard text-body3 md:text-body2 text-gray-600 mt-3">
+    //       항공 검색부터 정복도까지, 5가지 기능으로 여행의 시작과 기록을 완성해요
+    //     </p>
+    //   </div>
     <section className="w-full">
-      {/* 섹션 헤더 */}
-      <div className="text-center mb-10 md:mb-14">
-        <p className="font-montserrat text-body4 md:text-body3 font-semibold tracking-wide text-gray-500 mb-2">
+      {/* 섹션 헤더 — 페이드 + 블러 풀림 (이동 없음, 제자리 등장) */}
+      <motion.div
+        className="text-center mb-10 md:mb-14"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ margin: "-80px" }}
+        variants={headerContainerVariants}
+      >
+        <motion.p
+          variants={blurRevealVariants}
+          className="font-montserrat text-body4 md:text-body3 font-semibold tracking-wide text-gray-500 mb-2"
+        >
           HOW IT WORKS
-        </p>
-        <h2 className="font-montserrat text-[24px] md:text-[32px] font-bold text-gray-900">
+        </motion.p>
+        <motion.h2
+          variants={blurRevealVariants}
+          className="font-montserrat text-[24px] md:text-[32px] font-bold text-gray-900"
+        >
           이렇게 사용하세요
-        </h2>
-        <p className="font-pretendard text-body3 md:text-body2 text-gray-600 mt-3">
+        </motion.h2>
+        <motion.p
+          variants={blurRevealVariants}
+          className="font-pretendard text-body3 md:text-body2 text-gray-600 mt-3"
+        >
           항공 검색부터 정복도까지, 5가지 기능으로 여행의 시작과 기록을 완성해요
-        </p>
-      </div>
+        </motion.p>
+      </motion.div>
 
       {/* 단계 목록 */}
       <div className="flex flex-col gap-12 md:gap-20">
@@ -202,7 +247,7 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
       <motion.div
         className="flex-1 w-full min-w-0"
         variants={textItemVariants}
-        whileHover={{ scale: 1.3 }}
+        whileHover={{ scale: 1.1 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
       >
         <PreviewFrame step={step} />

@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import Footer from "@/components/common/Footer";
 import NavBar from "@/components/mobile/common/NavBar";
 import MobileFooter from "@/components/common/MobileFooter";
-import useAuthStore from "@/store/useAuthStore";
+import useAuthStore, { OAUTH_URLS } from "@/store/useAuthStore";
 
 /**
  * ProfileLayout
@@ -19,6 +19,16 @@ export default function NoHeaderLayout() {
     navigate("/");
   };
 
+  const handleKakaoLogin = () => {
+    window.location.href = OAUTH_URLS.kakao;
+  };
+  const handleGoogleLogin = () => {
+    window.location.href = OAUTH_URLS.google;
+  };
+  const handleNaverLogin = () => {
+    window.location.href = OAUTH_URLS.naver;
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* ══ 모바일 Header (md 미만) ══ */}
@@ -27,6 +37,9 @@ export default function NoHeaderLayout() {
         <NavBar
           variant={isLoggedIn ? "login" : "default"}
           onLogout={handleLogout}
+          onKakaoLogin={handleKakaoLogin}
+          onGoogleLogin={handleGoogleLogin}
+          onNaverLogin={handleNaverLogin}
         />
       </div>
 

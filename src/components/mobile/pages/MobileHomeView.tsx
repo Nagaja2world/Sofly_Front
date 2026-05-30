@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import MobileSearchModeBar from "@/components/mobile/searchbar/MobileSearchModeBar";
-import MobileAmbientEffects from "@/components/mobile/common/MobileAmbientEffects.tsx";
+import MobileAmbientEffects from "@/components/mobile/common/MobileAmbientEffects";
 import HowToSection from "@/components/homepage/HowToSection";
 import { type FlightSearchParams } from "@/utils/flightSearchQuery";
 import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
@@ -59,7 +59,7 @@ export default function MobileHomeView({
       {/* ── 본문(검색바·카드)은 좌우 패딩 적용 ── */}
       <div className="px-4">
         {/* 검색바 — Hero 하단에 살짝 끌어올려 데스크톱의 겹침 느낌을 약하게 재현 */}
-        <div className="-mt-35 relative z-10">
+        <div className="-mt-36 relative z-10">
           <MobileSearchModeBar
             onFlightSearch={onFlightSearch}
             onHotelSearch={onHotelSearch}
