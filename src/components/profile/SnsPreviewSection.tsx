@@ -18,6 +18,10 @@ interface SnsPreviewSectionProps {
   previewCount?: number;
   /** "더보기" 클릭 시 이동할 라우트 (기본 "/sns") */
   moreHref?: string;
+  /** 그리드 컬럼 수 (기본 3 — 데스크톱. 모바일은 2로 호출) */
+  gridColumns?: number;
+  /** 그리드 간격 px (기본 4) */
+  gridGap?: number;
 }
 
 /* ══════════════════════════════════════════
@@ -33,18 +37,25 @@ interface SnsPreviewSectionProps {
  * - 미리보기에서 게시물 클릭 시 상세 팝업 (SNS 페이지와 동일 컴포넌트 재사용)
  * - "워크스페이스 가져오기" 흐름은 useImportWorkspace 훅으로 공통화
  *
+ * 데스크톱은 기본값(3열) 그대로, 모바일은 gridColumns={2}로 호출해
+ * 동일 컴포넌트를 공용으로 사용한다.
+ *
  * 게시물이 0개일 때는 SnsPostGrid 자체에서 빈 상태 안내 처리.
  */
 export default function SnsPreviewSection({
   posts,
   previewCount = 6,
   moreHref = "/sns",
+  gridColumns = 3,
+  gridGap = 4,
 }: SnsPreviewSectionProps) {
   const navigate = useNavigate();
 
   /** 좋아요 변경을 로컬에서 추적하기 위한 posts 복사본 */
   const [localPosts, setLocalPosts] = useState<SnsPost[]>(posts);
-  useEffect(() => { setLocalPosts(posts); }, [posts]);
+  useEffect(() => {
+    setLocalPosts(posts);
+  }, [posts]);
 
   const previewPosts = localPosts.slice(0, previewCount);
 
@@ -65,10 +76,14 @@ export default function SnsPreviewSection({
 
   const handleLikeChange = (postId: string, liked: boolean, count: number) => {
     setLocalPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, isLiked: liked, likeCount: count } : p))
+      prev.map((p) =>
+        p.id === postId ? { ...p, isLiked: liked, likeCount: count } : p,
+      ),
     );
     setSelectedPost((prev) =>
-      prev?.id === postId ? { ...prev, isLiked: liked, likeCount: count } : prev
+      prev?.id === postId
+        ? { ...prev, isLiked: liked, likeCount: count }
+        : prev,
     );
   };
 
@@ -93,7 +108,12 @@ export default function SnsPreviewSection({
       </div>
 
       {/* ── 그리드 (미리보기) ── */}
-      <SnsPostGrid posts={previewPosts} onPostClick={handlePostClick} />
+      <SnsPostGrid
+        posts={previewPosts}
+        onPostClick={handlePostClick}
+        columns={gridColumns}
+        gap={gridGap}
+      />
 
       {/* ── 상세 팝업 ──
           key prop으로 게시물이 바뀔 때마다 컴포넌트를 새로 마운트시켜

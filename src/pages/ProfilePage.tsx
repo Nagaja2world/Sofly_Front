@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
+import MobileProfileView from "@/components/mobile/pages/MobileProfileView";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
 import SnsPreviewSection from "@/components/profile/SnsPreviewSection";
 import Button from "@/components/common/Button";
@@ -95,15 +96,19 @@ export default function ProfilePage() {
     navigate(`/workspace/${id}`);
   };
 
-  const today = new Date().toISOString().split('T')[0];
-  const nextWeek = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })();
+  const today = new Date().toISOString().split("T")[0];
+  const nextWeek = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split("T")[0];
+  })();
 
   const handleCreateWorkspace = async () => {
     if (isCreating) return;
     setIsCreating(true);
     try {
       const created = await createWorkspace({
-        title: '새 워크스페이스',
+        title: "새 워크스페이스",
         destination: null,
         countryCode: null,
         startDate: today,
@@ -113,7 +118,7 @@ export default function ProfilePage() {
       });
       await createChatRoom(created.id).catch(() => {});
       await createMessagingRoom({
-        type: 'WORKSPACE',
+        type: "WORKSPACE",
         workspaceId: created.id,
         memberIds: user ? [user.id] : [],
       }).catch(() => {});
@@ -140,11 +145,25 @@ export default function ProfilePage() {
       {/* ══════════════════════════════════════════
           모바일 (md 미만)
           ══════════════════════════════════════════ */}
-      <div className="md:hidden px-4 py-6">
+      <div className="md:hidden">
         {/* TODO: 모바일 프로필 컴포넌트 */}
-        <p className="text-gray-500 text-center text-body3">
+        {/* <p className="text-gray-500 text-center text-body3">
           모바일 화면은 준비 중입니다.
-        </p>
+        </p> */}
+        <MobileProfileView
+          userName={userName}
+          profileImageUrl={user?.profileImageUrl}
+          workspaces={workspaces}
+          wsLoading={wsLoading}
+          wsError={wsError}
+          isCreating={isCreating}
+          snsPosts={snsPosts}
+          onFlightSearch={handleSearch}
+          onCardClick={handleCardClick}
+          onCreateWorkspace={handleCreateWorkspace}
+          onRetryWorkspaces={loadWorkspaces}
+          onConquestMap={handleConquestMap}
+        />
       </div>
 
       {/* ══════════════════════════════════════════
@@ -315,7 +334,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-
     </>
   );
 }

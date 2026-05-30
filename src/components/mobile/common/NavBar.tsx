@@ -86,10 +86,10 @@ export default function NavBar({
     <nav
       className={[
         "flex items-center justify-between px-5 py-4",
-        "bg-background min-h-12",
+        "min-h-12",
         variant === "login"
-          ? "border-b border-gray-300"
-          : "border-b border-white",
+          ? "bg-white border-b border-gray-300"
+          : "bg-background border-b border-white",
         className,
       ].join(" ")}
     >

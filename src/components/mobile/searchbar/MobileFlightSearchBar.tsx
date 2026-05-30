@@ -21,9 +21,9 @@ import UsersIcon from "@/assets/users.svg?react";
    - 상태/검증/onSearch 페이로드는 데스크톱과 동일하게 유지
      (tripType, directOnly, departure, arrival, dateRange, passenger).
    - 입력 UI는 절대위치 드롭다운 대신 세로 스택 필드 + BottomSheet.
-   - 피그마(Image5)대로 가는편 / 오는편 / 인원·좌석을 각각 한 줄씩 표시.
-     · 편도(0): 오는편 필드는 비활성(흐리게) — 데스크톱과 동일하게 의미 없음.
-     · 왕복(1): 오는편 필드 활성, 같은 캘린더 시트(range 모드)로 진입.
+   - 날짜는 한 칸으로 표시 (호텔 검색바와 동일):
+     · 편도(0): "가는날" 단일 날짜.
+     · 왕복(1): "가는날 ~ 오는날" 범위.
    - 편도/왕복/다구간 중 편도·왕복 동작. 다구간은 데스크톱과 동일하게
      탭만 제공(별도 다구간 UI는 범위 외).
 */
@@ -111,9 +111,13 @@ export default function MobileFlightSearchBar({
     });
   };
 
-  /* 가는편 / 오는편 필드 표시값 */
-  const departLabel = dateRange.start ? fmtDate(dateRange.start) : "";
-  const returnLabel = dateRange.end ? fmtDate(dateRange.end) : "";
+  /* 날짜 필드 표시값 (한 칸) */
+  const dateLabel = (() => {
+    if (!dateRange.start) return "";
+    if (!isRoundTrip) return fmtDate(dateRange.start);
+    if (!dateRange.end) return `${fmtDate(dateRange.start)} ~`;
+    return `${fmtDate(dateRange.start)} ~ ${fmtDate(dateRange.end)}`;
+  })();
 
   const paxLabel = `여행자 ${passenger.adults + passenger.children}명, ${passenger.seatClass}`;
 
@@ -217,7 +221,7 @@ export default function MobileFlightSearchBar({
         </button>
       </div>
 
-      {/* 가는편 */}
+      {/* 날짜 (한 칸 — 편도: 가는날 / 왕복: 가는날 ~ 오는날) */}
       <button
         type="button"
         onClick={() => openSheet("calendar")}
@@ -230,32 +234,10 @@ export default function MobileFlightSearchBar({
         <span
           className={[
             "flex-1 min-w-0 font-pretendard text-body2 truncate",
-            departLabel ? "text-gray-900" : "text-gray-500",
+            dateLabel ? "text-gray-900" : "text-gray-500",
           ].join(" ")}
         >
-          {departLabel || "가는편"}
-        </span>
-      </button>
-
-      {/* 오는편 — 왕복일 때만 활성. 편도면 비활성(흐리게) */}
-      <button
-        type="button"
-        disabled={!isRoundTrip}
-        onClick={() => openSheet("calendar")}
-        className={[
-          "flex items-center gap-2 w-full bg-gray-100 rounded-lg px-4 py-3.5 mb-2",
-          "border-none text-left transition-opacity",
-          isRoundTrip ? "cursor-pointer" : "cursor-not-allowed opacity-50",
-        ].join(" ")}
-      >
-        <CalendarIcon />
-        <span
-          className={[
-            "flex-1 min-w-0 font-pretendard text-body2 truncate",
-            returnLabel ? "text-gray-900" : "text-gray-500",
-          ].join(" ")}
-        >
-          {returnLabel || "오는편"}
+          {dateLabel || (isRoundTrip ? "가는날 ~ 오는날" : "가는날")}
         </span>
       </button>
 
