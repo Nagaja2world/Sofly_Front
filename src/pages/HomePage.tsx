@@ -3,16 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Header from "@/components/common/Header";
 import SearchModeBar from "@/components/SearchModeBar";
+import MobileHomeView from "@/components/mobile/pages/MobileHomeView";
 import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 import { buildHotelSearchParams } from "@/pages/HotelSearchPage";
-import FeatureCard from "@/components/homepage/FeatureCard";
 import AmbientBackground from "@/components/homepage/AmbientBackground";
 import HeroScene from "@/components/homepage/HeroScene";
+import HowToSection from "@/components/homepage/HowToSection";
 import useAuthStore, { OAUTH_URLS } from "@/store/useAuthStore";
-//import type { Airport } from "@/components/searchbar/AirportSearchDropdown";
-//import type { DateRange } from "@/components/searchbar/CalendarDropdown";
-//import type { PassengerSeatData } from "@/components/searchbar/PassengerSeatDropdown";
-//🌟
 import {
   buildFlightSearchQuery,
   type FlightSearchParams,
@@ -93,13 +90,12 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           모바일 (md 미만): 별도 모바일 컴포넌트 렌더링
           ══════════════════════════════════════════ */}
-      <div className="md:hidden px-4 py-6">
-        {/* TODO: 모바일 전용 컴포넌트로 교체 예정 */}
-        {/* <MobileSearchBar /> */}
-        {/* <MobileFeatureCards /> */}
-        <p className="text-gray-500 text-center text-body3">
-          모바일 화면은 준비 중입니다.
-        </p>
+      <div className="md:hidden">
+        <MobileHomeView
+          featureCards={featureCards}
+          onFlightSearch={handleSearch}
+          onHotelSearch={handleHotelSearch}
+        />
       </div>
 
       {/* ══════════════════════════════════════════
@@ -143,29 +139,10 @@ export default function HomePage() {
           </div>
         </motion.div>
 
-        {/* ── Feature Cards (스크롤 시 fade-in/slide-up)
-            상단의 SearchBar 드롭다운보다 낮은 stacking으로 ── */}
+        {/* ── How It Works 섹션 ── */}
         <div className="px-4 relative">
-          <div className="max-w-[1200px] w-full mx-auto pt-12.5 pb-44">
-            <div className="flex gap-6">
-              {featureCards.map((card, idx) => (
-                <motion.div
-                  key={card.title}
-                  className="flex-1"
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-80px" }}
-                  transition={{
-                    delay: idx * 0.12,
-                    duration: 0.6,
-                    ease: "easeOut",
-                  }}
-                  whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                >
-                  <FeatureCard {...card} />
-                </motion.div>
-              ))}
-            </div>
+          <div className="max-w-[1200px] w-full mx-auto mt-10 pt-15 pb-44">
+            <HowToSection />
           </div>
         </div>
       </div>

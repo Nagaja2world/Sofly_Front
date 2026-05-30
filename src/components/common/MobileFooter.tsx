@@ -35,13 +35,11 @@ export default function MobileFooter({
       {/* 회사 정보 */}
       <div className="mt-4 flex flex-col gap-4 font-pretendard text-body4 text-gray-600 leading-relaxed">
         <p>
-          대표 : 홍길동 <span className="text-gray-400">ㅣ</span> (12345)
-          서울특별시 OO구 OO로 00, 123
+          대표 : 김은솔 <span className="text-gray-400">ㅣ</span> (12345) 용인시
+          처인구 명지로 116, 5공학관
         </p>
-        <p>고객센터 : 1234-1234 (평일 10시~18시)</p>
-        <p>이메일 : hong1234@sofly.co.kr</p>
-        <p>사업자등록번호 : 123-45-67890</p>
-        <p>개인정보보호책임자 : 홍길동</p>
+        <p>이메일 : nagaja2world@gmail.com</p>
+        <p>개인정보보호책임자 : 나가자세계로</p>
       </div>
 
       {/* 저작권 */}

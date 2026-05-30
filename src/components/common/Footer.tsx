@@ -24,15 +24,14 @@ export default function Footer({ links = defaultLinks }: FooterProps) {
             Sofly
           </span>
           <p className="font-pretendard text-body3 text-gray-600 mt-3 leading-relaxed">
-            대표 : 홍길동 <span className="text-gray-400">ㅣ</span> (12345)
-            서울특별시 OO구 OO로 00, 123{" "}
-            <span className="text-gray-400">ㅣ</span> 고객센터 : 1234-1234 (평일
-            10시~18시)
+            대표 : 김은솔 <span className="text-gray-400">ㅣ</span> (12345)
+            용인시 처인구 명지로 116, 5공학관{" "}
+            <span className="text-gray-400"></span>
             <br />
-            이메일 : hong1234@sofly.co.kr{" "}
-            <span className="text-gray-400">ㅣ</span> 사업자등록번호 :
-            123-45-67890 <span className="text-gray-400">ㅣ</span>
-            개인정보보호책임자 : 홍길동
+            이메일 : nagaja2world@gmail.com{" "}
+            <span className="text-gray-400"></span>{" "}
+            <span className="text-gray-400">ㅣ</span>
+            개인정보보호책임자 : 나가자세계로
           </p>
           <p className="font-pretendard text-body3 text-gray-600 mt-3">
             COPYRIGHT © Sofly. ALL RIGHTS RESERVED.
