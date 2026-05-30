@@ -127,9 +127,10 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ── SearchModeBar: Hero 하단에 겹침, fade-in ── */}
+        {/* ── SearchModeBar: Hero 하단에 겹침, fade-in
+            드롭다운(공항/캘린더/탑승객)이 아래 Feature Cards 위로 떠야 하므로 z-40 ── */}
         <motion.div
-          className="mt-[220px] z-10 px-4 relative"
+          className="mt-[220px] z-40 px-4 relative"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
@@ -142,8 +143,9 @@ export default function HomePage() {
           </div>
         </motion.div>
 
-        {/* ── Feature Cards (스크롤 시 fade-in/slide-up) ── */}
-        <div className="px-4 relative z-10">
+        {/* ── Feature Cards (스크롤 시 fade-in/slide-up)
+            상단의 SearchBar 드롭다운보다 낮은 stacking으로 ── */}
+        <div className="px-4 relative">
           <div className="max-w-[1200px] w-full mx-auto pt-12.5 pb-44">
             <div className="flex gap-6">
               {featureCards.map((card, idx) => (
