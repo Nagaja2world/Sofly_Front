@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import MobileSearchModeBar from "@/components/mobile/searchbar/MobileSearchModeBar";
+import MobileAmbientEffects from "@/components/mobile/common/MobileAmbientEffects.tsx";
 import FeatureCard from "@/components/homepage/FeatureCard";
 import { type FlightSearchParams } from "@/utils/flightSearchQuery";
 import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
@@ -43,12 +44,18 @@ export default function MobileHomeView({
     <div className="pb-8">
       {/* ── Hero 일러스트 (풀블리드, 데스크톱과 동일하게 카피 포함 이미지) ── */}
       {/* 카피가 SVG 안에 있으므로 좌우 패딩 없이 화면 폭을 꽉 채움 */}
-      <div className="w-full overflow-hidden">
+      {/* 나비/꽃잎 효과를 위해 relative + overflow-hidden 컨테이너로 감쌈.
+          이미지가 레이아웃 높이를 만들고(z-0), 효과 레이어를 그 위에 절대배치(z-10).
+          데스크톱 HeroScene 과 동일하게 "베이스 이미지 → 그 위 효과" 순서. */}
+      <div className="relative w-full overflow-hidden min-h-[220px]">
         <img
           src={moHeroSvg}
           alt="Travel Like a Picnic"
-          className="w-full h-auto block object-cover object-center"
+          className="relative z-0 w-full h-auto block object-cover object-center"
         />
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          <MobileAmbientEffects particleCount={18} />
+        </div>
       </div>
 
       {/* ── 본문(검색바·카드)은 좌우 패딩 적용 ── */}

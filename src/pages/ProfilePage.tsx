@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
 import MobileProfileView from "@/components/mobile/pages/MobileProfileView";
@@ -25,7 +25,6 @@ import type { SnsPost } from "@/types/snsType";
 import profileHeroSvg from "@/assets/profile_hero.svg";
 import GroupIcon from "@/assets/group.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
-import HeroFxLayer from "@/components/homepage/HeroFxLayer";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -38,6 +37,14 @@ export default function ProfilePage() {
   const [isCreating, setIsCreating] = useState(false);
 
   const [snsPosts, setSnsPosts] = useState<SnsPost[]>([]);
+
+  const wsScrollRef = useRef<HTMLDivElement>(null);
+  const scrollWorkspaces = (dir: "left" | "right") => {
+    const el = wsScrollRef.current;
+    if (!el) return;
+    // 카드 너비(272) + gap(24)
+    el.scrollBy({ left: dir === "left" ? -296 : 296, behavior: "smooth" });
+  };
 
   const loadSnsPosts = useCallback(async () => {
     try {
@@ -171,15 +178,14 @@ export default function ProfilePage() {
           데스크톱 (md 이상)
           ══════════════════════════════════════════ */}
       <div className="hidden md:block">
-        {/* ── ① Hero 이미지 + 효과 레이어 (나비 + 떠다니는 잎) ── */}
+        {/* ── ① Hero 이미지: Header 아래로 끌어올려 겹침 ── */}
         {/* Header 높이(h-20 = 80px)만큼 올려서 Header 뒤에 깔리도록 */}
-        <div className="relative w-full h-[374px] overflow-hidden">
+        <div className="w-full h-[374px] overflow-hidden">
           <img
             src={profileHeroSvg}
             alt="Profile Hero"
             className="w-full h-full object-cover block"
           />
-          <HeroFxLayer particleCount={24} />
         </div>
 
         {/* ── ② Header (login 상태, 흰 배경) ── */}
@@ -261,23 +267,64 @@ export default function ProfilePage() {
               </div>
             ) : workspaces.length > 0 ? (
               /* 가로 스크롤 컨테이너: 4개 초과 시 스크롤 */
-              <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300">
-                {workspaces.map((ws) => (
-                  <div
-                    key={ws.id}
-                    className="min-w-[272px] w-[272px] flex-shrink-0"
-                  >
-                    <WorkspaceCard
-                      id={String(ws.id)}
-                      name={ws.title}
-                      startDate={ws.startDate}
-                      endDate={ws.endDate}
-                      memberCount={ws.memberCount}
-                      imageUrl={resolveCoverImage(ws.coverImageUrl, ws.id)}
-                      onClick={handleCardClick}
+              <div className="relative group/ws">
+                {/* 왼쪽 화살표 */}
+                <button
+                  type="button"
+                  aria-label="이전"
+                  onClick={() => scrollWorkspaces("left")}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 opacity-0 group-hover/ws:opacity-100 transition-opacity"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M15 18l-6-6 6-6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     />
-                  </div>
-                ))}
+                  </svg>
+                </button>
+
+                <div
+                  ref={wsScrollRef}
+                  className="flex gap-6 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                >
+                  {workspaces.map((ws) => (
+                    <div
+                      key={ws.id}
+                      className="min-w-[272px] w-[272px] flex-shrink-0"
+                    >
+                      <WorkspaceCard
+                        id={String(ws.id)}
+                        name={ws.title}
+                        startDate={ws.startDate}
+                        endDate={ws.endDate}
+                        memberCount={ws.memberCount}
+                        imageUrl={resolveCoverImage(ws.coverImageUrl, ws.id)}
+                        onClick={handleCardClick}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* 오른쪽 화살표 */}
+                <button
+                  type="button"
+                  aria-label="다음"
+                  onClick={() => scrollWorkspaces("right")}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 opacity-0 group-hover/ws:opacity-100 transition-opacity"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M9 6l6 6-6 6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
               </div>
             ) : (
               /* 빈 상태 */

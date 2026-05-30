@@ -115,11 +115,6 @@ export default function LoginPopup({
   const POPUP_WIDTH = 380;
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  /* isOpen이 닫힐 때 pos 초기화 (다음 열릴 때 깜빡임 방지) */
-  useEffect(() => {
-    if (!isOpen) setPos(null);
-  }, [isOpen]);
-
   /* 트리거 버튼 기준 위치 계산 (데스크톱 드롭다운 전용) */
   useEffect(() => {
     if (!isOpen || isCompact || !triggerRef.current) return;
@@ -143,6 +138,7 @@ export default function LoginPopup({
     return () => {
       window.removeEventListener("resize", updatePos);
       window.removeEventListener("scroll", updatePos, true);
+      setPos(null);
     };
   }, [isOpen, isCompact, triggerRef]);
 

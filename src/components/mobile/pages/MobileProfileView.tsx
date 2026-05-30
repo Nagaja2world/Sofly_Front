@@ -1,4 +1,5 @@
 import MobileSearchModeBar from "@/components/mobile/searchbar/MobileSearchModeBar";
+import MobileAmbientEffects from "@/components/mobile/common/MobileAmbientEffects.tsx";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
 import SnsPreviewSection from "@/components/profile/SnsPreviewSection";
 import Button from "@/components/common/Button";
@@ -7,7 +8,6 @@ import { type Workspace } from "@/api/workspaceApi";
 import { resolveCoverImage } from "@/api/workspaceApi";
 import type { SnsPost } from "@/types/snsType";
 
-import butterflySvg from "@/assets/bufferfly.svg";
 import GroupIcon from "@/assets/group.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 
@@ -60,18 +60,13 @@ export default function MobileProfileView({
 }: MobileProfileViewProps) {
   return (
     <div className="flex flex-col gap-8 pb-6">
-      {/* ── 인사말 + Conquest Map (크림 hero + 나비) ── */}
+      {/* ── 인사말 + Conquest Map (크림 hero + 나비/꽃잎) ── */}
       <div className="relative overflow-hidden bg-background">
-        {/* 나비: 인사말 위쪽에서 날아드는 구도 (데스크톱 hero 느낌) */}
-        <img
-          src={butterflySvg}
-          alt=""
-          aria-hidden="true"
-          className="absolute top-2 right-6 w-16 h-16 pointer-events-none select-none"
-        />
+        {/* 데스크톱 hero처럼 나비가 날고 꽃잎이 떨어지는 효과 */}
+        <MobileAmbientEffects particleCount={12} />
 
         {/* 콘텐츠 */}
-        <div className="relative px-4 pt-6 pb-5">
+        <div className="relative z-10 px-4 pt-6 pb-5">
           <div className="flex items-center gap-3">
             {profileImageUrl ? (
               <img
@@ -139,19 +134,23 @@ export default function MobileProfileView({
             </Button>
           </div>
         ) : workspaces.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {workspaces.map((ws) => (
-              <WorkspaceCard
-                key={ws.id}
-                id={String(ws.id)}
-                name={ws.title}
-                startDate={ws.startDate}
-                endDate={ws.endDate}
-                memberCount={ws.memberCount}
-                imageUrl={resolveCoverImage(ws.coverImageUrl, ws.id)}
-                onClick={onCardClick}
-              />
-            ))}
+          /* 2행 고정 + 가로 스크롤. 페이지 단위 스냅, 스크롤바 숨김 */
+          <div className="overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="grid grid-rows-2 grid-flow-col auto-cols-[calc(50%-6px)] gap-3">
+              {workspaces.map((ws) => (
+                <div key={ws.id} className="snap-start">
+                  <WorkspaceCard
+                    id={String(ws.id)}
+                    name={ws.title}
+                    startDate={ws.startDate}
+                    endDate={ws.endDate}
+                    memberCount={ws.memberCount}
+                    imageUrl={resolveCoverImage(ws.coverImageUrl, ws.id)}
+                    onClick={onCardClick}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div
