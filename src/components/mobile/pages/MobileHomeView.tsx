@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import MobileSearchModeBar from "@/components/mobile/searchbar/MobileSearchModeBar";
 import MobileAmbientEffects from "@/components/mobile/common/MobileAmbientEffects.tsx";
-import FeatureCard from "@/components/homepage/FeatureCard";
+import HowToSection from "@/components/homepage/HowToSection";
 import { type FlightSearchParams } from "@/utils/flightSearchQuery";
 import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 
@@ -35,10 +35,8 @@ interface MobileHomeViewProps {
 }
 
 export default function MobileHomeView({
-  featureCards,
   onFlightSearch,
   onHotelSearch,
-  onFeatureClick,
 }: MobileHomeViewProps) {
   return (
     <div className="pb-8">
@@ -69,7 +67,7 @@ export default function MobileHomeView({
         </div>
 
         {/* Feature 카드 세로 스택 */}
-        <div className="flex flex-col gap-4 mt-8">
+        {/* <div className="flex flex-col gap-4 mt-8">
           {featureCards.map((card) => (
             <FeatureCard
               key={card.title}
@@ -82,6 +80,11 @@ export default function MobileHomeView({
               }
             />
           ))}
+        </div> */}
+
+        {/* How It Works 섹션 */}
+        <div className="mt-14">
+          <HowToSection />
         </div>
       </div>
     </div>
