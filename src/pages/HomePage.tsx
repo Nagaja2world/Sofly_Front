@@ -1,10 +1,13 @@
 import { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import Header from "@/components/common/Header";
 import SearchModeBar from "@/components/SearchModeBar";
 import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 import { buildHotelSearchParams } from "@/pages/HotelSearchPage";
 import FeatureCard from "@/components/homepage/FeatureCard";
+import AmbientBackground from "@/components/homepage/AmbientBackground";
+import HeroScene from "@/components/homepage/HeroScene";
 import useAuthStore, { OAUTH_URLS } from "@/store/useAuthStore";
 //import type { Airport } from "@/components/searchbar/AirportSearchDropdown";
 //import type { DateRange } from "@/components/searchbar/CalendarDropdown";
@@ -15,7 +18,6 @@ import {
   type FlightSearchParams,
 } from "@/utils/flightSearchQuery";
 
-import heroSvg from "@/assets/home_hero.svg";
 import HomeCard1Img from "@/assets/home_card_1_img.svg?react";
 import HomeCard2Img from "@/assets/home_card_2_img.svg?react";
 import HomeCard3Img from "@/assets/home_card_3_img.svg?react";
@@ -103,20 +105,18 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════
           데스크톱 (md 이상): Hero + SearchBar 겹침 레이아웃
           ══════════════════════════════════════════ */}
-      <div className="hidden md:block">
-        {/* ── Hero 이미지 ── */}
-        <div className="w-full h-[374px] overflow-hidden">
-          <img
-            src={heroSvg}
-            alt="Travel Like a Picnic"
-            className="w-full h-full object-cover block"
-          />
+      <div className="hidden md:block relative">
+        {/* 전체 페이지를 감싸는 앰비언트 배경 (그라데이션 메쉬 + 노이즈) */}
+        <AmbientBackground />
+
+        {/* ── 인터랙티브 히어로 (원본 SVG + 파티클 + 나비 + 패럴랙스) ── */}
+        <div className="w-full h-[374px] overflow-hidden relative">
+          <HeroScene />
         </div>
 
-        {/* ── Header (login 상태, 흰 배경) ── */}
-        <div className="-mt-[374px] w-full bg-background relative z-20">
+        {/* ── Header (Hero 위에 오버레이) ── */}
+        <div className="-mt-[374px] w-full relative z-30">
           <div className="max-w-[1200px] w-full mx-auto px-4">
-            {/* <Header variant="default" /> */}
             <Header
               variant={isLoggedIn ? "login" : "default"}
               onKakaoLogin={handleKakaoLogin}
@@ -127,22 +127,41 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ── SearchModeBar: 고정 음수 마진으로 Hero 하단에 겹침 ── */}
-        <div className="mt-[220px] z-10 px-4 relative">
+        {/* ── SearchModeBar: Hero 하단에 겹침, fade-in ── */}
+        <motion.div
+          className="mt-[220px] z-10 px-4 relative"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
+        >
           <div className="max-w-[1200px] w-full mx-auto">
             <SearchModeBar
               onFlightSearch={handleSearch}
               onHotelSearch={handleHotelSearch}
             />
           </div>
-        </div>
+        </motion.div>
 
-        {/* ── Feature Cards ── */}
-        <div className="px-4">
+        {/* ── Feature Cards (스크롤 시 fade-in/slide-up) ── */}
+        <div className="px-4 relative z-10">
           <div className="max-w-[1200px] w-full mx-auto pt-12.5 pb-44">
             <div className="flex gap-6">
-              {featureCards.map((card) => (
-                <FeatureCard key={card.title} {...card} />
+              {featureCards.map((card, idx) => (
+                <motion.div
+                  key={card.title}
+                  className="flex-1"
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-80px" }}
+                  transition={{
+                    delay: idx * 0.12,
+                    duration: 0.6,
+                    ease: "easeOut",
+                  }}
+                  whileHover={{ y: -6, transition: { duration: 0.2 } }}
+                >
+                  <FeatureCard {...card} />
+                </motion.div>
               ))}
             </div>
           </div>
