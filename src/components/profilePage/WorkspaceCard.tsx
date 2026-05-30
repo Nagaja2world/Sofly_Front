@@ -5,9 +5,9 @@ interface WorkspaceCardProps {
   id: string;
   /** 워크스페이스 이름 */
   name: string;
-  /** 여행 시작일 (예: "26.3.11") */
+  /** 여행 시작일 (ISO "YYYY-MM-DD", 예: "2026-07-01") */
   startDate?: string;
-  /** 여행 종료일 (예: "26.3.14") */
+  /** 여행 종료일 (ISO "YYYY-MM-DD", 예: "2026-07-02") */
   endDate?: string;
   /** 인원 수 */
   memberCount?: number;
@@ -15,6 +15,29 @@ interface WorkspaceCardProps {
   imageUrl?: string;
   /** 카드 클릭 시 콜백 (워크스페이스 페이지로 이동) */
   onClick?: (id: string) => void;
+}
+
+/* ── 날짜 포맷 ──
+   API가 넘기는 ISO 문자열("2026-07-01")을 짧은 표기("26.07.01")로 변환.
+   좁은 2열 카드에서도 "26.07.01 – 26.07.02"가 한 줄에 들어가도록.
+   ISO 형식이 아니면(혹은 파싱 실패 시) 원본을 그대로 반환해 안전 처리. */
+function formatShortDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return iso;
+  const [, year, month, day] = m;
+  return `${year.slice(2)}.${month}.${day}`;
+}
+
+/* 시작일·종료일을 합쳐 표시.
+   같은 해면 종료일의 연도를 생략해 더 짧게: "26.07.01 – 07.02". */
+function formatDateRange(start: string, end: string): string {
+  const s = formatShortDate(start);
+  const e = formatShortDate(end);
+  // 같은 연도(앞 2자리 "YY.")면 종료일 연도 생략
+  if (s.slice(0, 3) === e.slice(0, 3)) {
+    return `${s} – ${e.slice(3)}`;
+  }
+  return `${s} – ${e}`;
 }
 
 export default function WorkspaceCard({
@@ -67,8 +90,8 @@ export default function WorkspaceCard({
 
         {/* 날짜 */}
         {hasDate && (
-          <span className="font-pretendard text-body4 text-gray-600">
-            {startDate}-{endDate}
+          <span className="font-pretendard text-body4 text-gray-600 whitespace-nowrap">
+            {formatDateRange(startDate, endDate)}
           </span>
         )}
 
