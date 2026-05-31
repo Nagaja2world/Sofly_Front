@@ -1,4 +1,4 @@
-import MobileSearchModeBar from "@/components/mobile/searchbar/MobileSearchModeBar";
+//import MobileSearchModeBar from "@/components/mobile/searchbar/MobileSearchModeBar";
 import MobileAmbientEffects from "@/components/mobile/common/MobileAmbientEffects";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
 import SnsPreviewSection from "@/components/profile/SnsPreviewSection";
@@ -52,14 +52,14 @@ export default function MobileProfileView({
   wsError,
   isCreating,
   snsPosts,
-  onFlightSearch,
+  //onFlightSearch,
   onCardClick,
   onCreateWorkspace,
   onRetryWorkspaces,
-  onConquestMap,
+  //onConquestMap,
 }: MobileProfileViewProps) {
   return (
-    <div className="flex flex-col gap-8 pb-6">
+    <div className="flex flex-col gap-8 pb-6 bg-background">
       {/* ── 인사말 + Conquest Map (크림 hero + 나비/꽃잎) ── */}
       <div className="relative overflow-hidden bg-background">
         {/* 데스크톱 hero처럼 나비가 날고 꽃잎이 떨어지는 효과 */}
@@ -86,23 +86,23 @@ export default function MobileProfileView({
               </p>
             </div>
           </div>
-          <Button
+          {/* <Button
             btnType="outlined"
             onClick={onConquestMap}
             className="w-full mt-4 justify-center bg-white/70 backdrop-blur-sm"
           >
             Conquest Map
-          </Button>
+          </Button> */}
         </div>
       </div>
 
       {/* ── 항공편 검색 ── */}
-      <div className="px-4">
+      {/* <div className="px-4">
         <h2 className="font-pretendard text-body1 font-semibold text-gray-900 mb-3">
           항공편 검색
         </h2>
         <MobileSearchModeBar onFlightSearch={onFlightSearch} />
-      </div>
+      </div> */}
 
       {/* ── 워크스페이스 ── */}
       <div className="px-4">

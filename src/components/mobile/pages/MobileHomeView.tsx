@@ -1,9 +1,9 @@
-import { type ReactNode } from "react";
-import MobileSearchModeBar from "@/components/mobile/searchbar/MobileSearchModeBar";
+//import { type ReactNode } from "react";
+// import MobileSearchModeBar from "@/components/mobile/searchbar/MobileSearchModeBar";
 import MobileAmbientEffects from "@/components/mobile/common/MobileAmbientEffects";
 import HowToSection from "@/components/homepage/HowToSection";
-import { type FlightSearchParams } from "@/utils/flightSearchQuery";
-import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
+// import { type FlightSearchParams } from "@/utils/flightSearchQuery";
+// import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 
 import moHeroSvg from "@/assets/mo_home_hero.svg";
 
@@ -20,24 +20,25 @@ import moHeroSvg from "@/assets/mo_home_hero.svg";
    - Feature 카드 3개 세로 스택
 */
 
-interface FeatureCardData {
-  title: string;
-  subtitle: string;
-  bg: string;
-  illustration: ReactNode;
-}
+// interface FeatureCardData {
+//   title: string;
+//   subtitle: string;
+//   bg: string;
+//   illustration: ReactNode;
+// }
 
-interface MobileHomeViewProps {
-  featureCards: FeatureCardData[];
-  onFlightSearch: (params: FlightSearchParams) => void;
-  onHotelSearch?: (params: HotelSearchBarParams) => void;
-  onFeatureClick?: (title: string) => void;
-}
+// interface MobileHomeViewProps {
+//   featureCards: FeatureCardData[];
+//   // onFlightSearch: (params: FlightSearchParams) => void;
+//   // onHotelSearch?: (params: HotelSearchBarParams) => void;
+//   onFeatureClick?: (title: string) => void;
+// }
 
-export default function MobileHomeView({
-  onFlightSearch,
-  onHotelSearch,
-}: MobileHomeViewProps) {
+// export default function MobileHomeView({
+//   onFlightSearch,
+//   onHotelSearch,
+// }: MobileHomeViewProps) {
+export default function MobileHomeView() {
   return (
     <div className="pb-8">
       {/* ── Hero 일러스트 (풀블리드, 데스크톱과 동일하게 카피 포함 이미지) ── */}
@@ -59,12 +60,12 @@ export default function MobileHomeView({
       {/* ── 본문(검색바·카드)은 좌우 패딩 적용 ── */}
       <div className="px-4">
         {/* 검색바 — Hero 하단에 살짝 끌어올려 데스크톱의 겹침 느낌을 약하게 재현 */}
-        <div className="-mt-36 relative z-10">
+        {/* <div className="-mt-36 relative z-10">
           <MobileSearchModeBar
             onFlightSearch={onFlightSearch}
             onHotelSearch={onHotelSearch}
           />
-        </div>
+        </div> */}
 
         {/* Feature 카드 세로 스택 */}
         {/* <div className="flex flex-col gap-4 mt-8">
@@ -83,7 +84,7 @@ export default function MobileHomeView({
         </div> */}
 
         {/* How It Works 섹션 */}
-        <div className="mt-14">
+        <div className="-mt-36 relative z-10">
           <HowToSection />
         </div>
       </div>
