@@ -99,40 +99,10 @@ const steps: HowToStep[] = [
   },
 ];
 
-/* ── 헤더 모션 variants ──
-   페이드 + 블러 풀림. 위치 이동 없이 제자리에서 흐릿→선명하게 등장.
-   라벨·제목·설명이 약간의 시차를 두고 차례로 나타난다.
-   스크롤로 재진입하면 다시 재생(once 미사용). */
-const headerContainerVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.12 } },
-};
-const blurRevealVariants = {
-  hidden: { opacity: 0, filter: "blur(10px)" },
-  visible: {
-    opacity: 1,
-    filter: "blur(0px)",
-    transition: { duration: 0.7, ease: "easeOut" as const },
-  },
-};
-
 export default function HowToSection() {
   return (
-    // <section className="w-full">
-    //   {/* 섹션 헤더 */}
-    //   <div className="text-center mb-10 md:mb-14">
-    //     <p className="font-montserrat text-body4 md:text-body3 font-semibold tracking-wide text-gray-500 mb-2">
-    //       HOW IT WORKS
-    //     </p>
-    //     <h2 className="font-montserrat text-[24px] md:text-[32px] font-bold text-gray-900">
-    //       이렇게 사용하세요
-    //     </h2>
-    //     <p className="font-pretendard text-body3 md:text-body2 text-gray-600 mt-3">
-    //       항공 검색부터 정복도까지, 5가지 기능으로 여행의 시작과 기록을 완성해요
-    //     </p>
-    //   </div>
     <section className="w-full">
-      {/* 섹션 헤더 — 페이드 + 블러 풀림 (이동 없음, 제자리 등장) */}
+      {/* 섹션 헤더 — 세 줄이 위에서 순차적으로 부드럽게 떠오름(fade-up stagger) */}
       <motion.div
         className="text-center mb-10 md:mb-14"
         initial="hidden"
@@ -141,19 +111,19 @@ export default function HowToSection() {
         variants={headerContainerVariants}
       >
         <motion.p
-          variants={blurRevealVariants}
+          variants={headerItemVariants}
           className="font-montserrat text-body4 md:text-body3 font-semibold tracking-wide text-gray-500 mb-2"
         >
           HOW IT WORKS
         </motion.p>
         <motion.h2
-          variants={blurRevealVariants}
+          variants={headerItemVariants}
           className="font-montserrat text-[24px] md:text-[32px] font-bold text-gray-900"
         >
           이렇게 사용하세요
         </motion.h2>
         <motion.p
-          variants={blurRevealVariants}
+          variants={headerItemVariants}
           className="font-pretendard text-body3 md:text-body2 text-gray-600 mt-3"
         >
           항공 검색부터 정복도까지, 5가지 기능으로 여행의 시작과 기록을 완성해요
@@ -169,6 +139,26 @@ export default function HowToSection() {
     </section>
   );
 }
+
+/* ── 섹션 헤더 모션 variants ──
+   세 줄(HOW IT WORKS · 제목 · 설명)이 위에서 아래로 0.12초 간격으로
+   부드럽게 떠오른다(fade-up stagger). 아래 항목들의 좌우 슬라이드와
+   방향을 달리해 "도입부 → 본문" 리듬을 만든다. */
+const headerContainerVariants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.12, delayChildren: 0.05 },
+  },
+};
+
+const headerItemVariants = {
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: "easeOut" as const },
+  },
+};
 
 /* ── 모션 variants ──
    좌우 교차 레이아웃에 맞춰, 행 전체가 한 방향에서 "슉" 들어온다.
@@ -193,15 +183,17 @@ function rowVariants(dir: number) {
   };
 }
 
-/* 텍스트 컬럼 내부 요소(배지·제목·설명) 순차 등장 */
-const textItemVariants = {
-  hidden: { opacity: 0, y: 14 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.45, ease: "easeOut" as const },
-  },
-};
+/* 텍스트 컬럼 내부 요소(배지·제목·설명) 순차 등장 — 행과 동일하게 좌우 슬라이드 */
+function textItemVariants(dir: number) {
+  return {
+    hidden: { opacity: 0, x: 40 * dir },
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: { duration: 0.45, ease: "easeOut" as const },
+    },
+  };
+}
 
 /* ── 한 단계 행 ──
    데스크톱: md:flex-row / md:flex-row-reverse 로 좌우 교차
@@ -224,19 +216,19 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
       {/* 텍스트 — 행과 함께 슬라이드, 내부 요소 순차 등장 */}
       <div className="flex-1 w-full min-w-0">
         <motion.span
-          variants={textItemVariants}
+          variants={textItemVariants(dir)}
           className="inline-block font-montserrat text-body5 md:text-body4 font-semibold text-gray-700 bg-gray-200 rounded-full px-3 py-1"
         >
           {step.index} · {step.tag}
         </motion.span>
         <motion.h3
-          variants={textItemVariants}
+          variants={textItemVariants(dir)}
           className="font-pretendard text-body1 md:text-title2 font-bold text-gray-900 mt-3 mb-2"
         >
           {step.title}
         </motion.h3>
         <motion.p
-          variants={textItemVariants}
+          variants={textItemVariants(dir)}
           className="font-pretendard text-body3 md:text-body2 text-gray-600 leading-relaxed max-w-[460px]"
         >
           {step.description}
@@ -246,8 +238,8 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
       {/* 미리보기 (브라우저 프레임) — hover 확대 */}
       <motion.div
         className="flex-1 w-full min-w-0"
-        variants={textItemVariants}
-        whileHover={{ scale: 1.1 }}
+        variants={textItemVariants(dir)}
+        whileHover={{ scale: 1.12 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
       >
         <PreviewFrame step={step} />
