@@ -52,11 +52,9 @@ export default function MobileProfileView({
   wsError,
   isCreating,
   snsPosts,
-  //onFlightSearch,
   onCardClick,
   onCreateWorkspace,
   onRetryWorkspaces,
-  //onConquestMap,
 }: MobileProfileViewProps) {
   return (
     <div className="flex flex-col gap-8 pb-6 bg-background">
@@ -86,23 +84,8 @@ export default function MobileProfileView({
               </p>
             </div>
           </div>
-          {/* <Button
-            btnType="outlined"
-            onClick={onConquestMap}
-            className="w-full mt-4 justify-center bg-white/70 backdrop-blur-sm"
-          >
-            Conquest Map
-          </Button> */}
         </div>
       </div>
-
-      {/* ── 항공편 검색 ── */}
-      {/* <div className="px-4">
-        <h2 className="font-pretendard text-body1 font-semibold text-gray-900 mb-3">
-          항공편 검색
-        </h2>
-        <MobileSearchModeBar onFlightSearch={onFlightSearch} />
-      </div> */}
 
       {/* ── 워크스페이스 ── */}
       <div className="px-4">

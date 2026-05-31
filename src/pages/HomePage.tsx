@@ -15,32 +15,6 @@ import {
   type FlightSearchParams,
 } from "@/utils/flightSearchQuery";
 
-// import HomeCard1Img from "@/assets/home_card_1_img.svg?react";
-// import HomeCard2Img from "@/assets/home_card_2_img.svg?react";
-// import HomeCard3Img from "@/assets/home_card_3_img.svg?react";
-
-/* ── 카드 데이터 ── */
-// const featureCards = [
-//   {
-//     title: "Search Flight",
-//     subtitle: "원하는 일정, 간편하게 찾기",
-//     bg: "#FFF6D6",
-//     illustration: <HomeCard1Img />,
-//   },
-//   {
-//     title: "Plan Itineraries",
-//     subtitle: "AI로 빠르게 여행 계획하기",
-//     bg: "#EEF5F9",
-//     illustration: <HomeCard2Img />,
-//   },
-//   {
-//     title: "Track Your Journey",
-//     subtitle: "나의 여행, 정복도를 확인해보세요",
-//     bg: "linear-gradient(180deg, rgba(233,245,244,0.5) 0%, #E9F5F4 100%)",
-//     illustration: <HomeCard3Img />,
-//   },
-// ];
-
 /* ── 홈 페이지 ── */
 export default function HomePage() {
   const navigate = useNavigate();
@@ -91,11 +65,7 @@ export default function HomePage() {
           모바일 (md 미만): 별도 모바일 컴포넌트 렌더링
           ══════════════════════════════════════════ */}
       <div className="md:hidden">
-        <MobileHomeView
-        //featureCards={featureCards}
-        // onFlightSearch={handleSearch}
-        // onHotelSearch={handleHotelSearch}
-        />
+        <MobileHomeView />
       </div>
 
       {/* ══════════════════════════════════════════
