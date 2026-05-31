@@ -263,53 +263,50 @@ export default function CompactTravelLogSection({
      중 접근이 금지되므로 배열 길이를 렌더 본문에서 자르지 않는다.) */
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  /* 포인터 X좌표 아래에 있는 카드 인덱스 찾기 */
-  const findCardIndexAtX = useCallback(
-    (clientX: number): number | null => {
-      /* travelLogs.length 기준으로 순회 — cardRefs.current.length는
-         삭제된 카드의 stale 슬롯을 포함할 수 있으므로, 실제 데이터
-         개수를 기준으로 돌아 stale 슬롯 접근을 원천 차단한다.
-         (Gemini 리뷰 반영) */
-      for (let i = 0; i < reversedLogs.length; i++) {
-        const el = cardRefs.current[i];
-        if (!el) continue;
-        const rect = el.getBoundingClientRect();
-        if (clientX >= rect.left && clientX <= rect.right) return i;
-      }
-      return null;
-    },
-    [travelLogs.length],
-  );
+  /* 포인터 X좌표 아래에 있는 카드 인덱스 찾기.
+     데스크톱 TravelLogSection처럼 useCallback 없이 일반 함수로 둔다 —
+     메모이제이션은 React Compiler가 처리한다. (수동 useCallback의
+     [travelLogs.length] 의존성이 컴파일러가 추론한 reversedLogs와
+     불일치해 "Compilation Skipped" 경고를 유발했음. 또한 함수가
+     reversedLogs를 클로저로 참조하므로, 길이가 같고 내용만 바뀐
+     경우 stale 참조 위험도 있었음.) */
+  const findCardIndexAtX = (clientX: number): number | null => {
+    /* reversedLogs.length 기준으로 순회 — cardRefs.current.length는
+       삭제된 카드의 stale 슬롯을 포함할 수 있으므로, 실제 렌더된
+       카드 개수를 기준으로 돌아 stale 슬롯 접근을 원천 차단한다.
+       (Gemini 리뷰 반영) */
+    for (let i = 0; i < reversedLogs.length; i++) {
+      const el = cardRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (clientX >= rect.left && clientX <= rect.right) return i;
+    }
+    return null;
+  };
 
   /* 드래그 핸들에서 포인터 누름 → 재정렬 시작 */
-  const handleReorderPointerDown = useCallback(
-    (idx: number, e: React.PointerEvent) => {
-      if (!onReorderLogs) return;
-      /* 핸들이 포인터를 캡처해 손가락이 카드를 벗어나도 move/up을 받음 */
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      setDragIdx(idx);
-      setOverIdx(idx);
-    },
-    [onReorderLogs],
-  );
+  const handleReorderPointerDown = (idx: number, e: React.PointerEvent) => {
+    if (!onReorderLogs) return;
+    /* 핸들이 포인터를 캡처해 손가락이 카드를 벗어나도 move/up을 받음 */
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setDragIdx(idx);
+    setOverIdx(idx);
+  };
 
-  const handleReorderPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (dragIdx == null) return;
-      const found = findCardIndexAtX(e.clientX);
-      if (found != null) setOverIdx(found);
-    },
-    [dragIdx, findCardIndexAtX],
-  );
+  const handleReorderPointerMove = (e: React.PointerEvent) => {
+    if (dragIdx == null) return;
+    const found = findCardIndexAtX(e.clientX);
+    if (found != null) setOverIdx(found);
+  };
 
-  const handleReorderPointerUp = useCallback(() => {
+  const handleReorderPointerUp = () => {
     if (dragIdx != null && overIdx != null && dragIdx !== overIdx) {
       // 시각적 인덱스(역순) → 원래 배열 인덱스로 변환
       onReorderLogs?.(lastLogIdx - dragIdx, lastLogIdx - overIdx);
     }
     setDragIdx(null);
     setOverIdx(null);
-  }, [dragIdx, overIdx, onReorderLogs, lastLogIdx]);
+  };
 
   return (
     <section className="flex flex-col gap-3">
@@ -337,7 +334,7 @@ export default function CompactTravelLogSection({
             onWheel={handleWheel}
             className={[
               "flex gap-3 overflow-x-auto items-stretch",
-              "px-4 pb-1",
+              "px-4 scroll-px-4 pb-1",
               "snap-x snap-mandatory",
               "[scrollbar-width:none] [-ms-overflow-style:none]",
               "[&::-webkit-scrollbar]:hidden",
@@ -372,7 +369,9 @@ export default function CompactTravelLogSection({
                   /* 드래그 중인 카드: 반투명 */
                   dragIdx === visualIdx ? "opacity-40" : "",
                   /* 드롭 대상 카드: 강조 링 */
-                  overIdx === visualIdx && dragIdx !== visualIdx && dragIdx != null
+                  overIdx === visualIdx &&
+                  dragIdx !== visualIdx &&
+                  dragIdx != null
                     ? "ring-2 ring-primary ring-offset-1 rounded-xl"
                     : "",
                 ].join(" ")}

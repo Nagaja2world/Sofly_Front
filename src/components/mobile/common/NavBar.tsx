@@ -92,7 +92,7 @@ export default function NavBar({
         "min-h-12",
         variant === "login"
           ? "bg-white border-b border-gray-300"
-          : "bg-background border-b border-white",
+          : "bg-background border-b border-background",
         className,
       ].join(" ")}
     >
