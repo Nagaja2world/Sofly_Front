@@ -199,7 +199,12 @@ export default function MobileProfileView({
 
       {/* ── SNS 미리보기 (2열) ── */}
       <div className="px-4">
-        <SnsPreviewSection posts={snsPosts} previewCount={4} gridColumns={2} />
+        <SnsPreviewSection
+          posts={snsPosts}
+          previewCount={4}
+          gridColumns={2}
+          showMore={false}
+        />
       </div>
     </div>
   );

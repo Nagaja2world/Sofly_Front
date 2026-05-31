@@ -165,7 +165,7 @@ export default function CompactItinerarySection({
             onWheel={handleWheel}
             className={[
               "flex gap-3 overflow-x-auto",
-              "px-4 pb-1",
+              "px-4 scroll-px-4 pb-1",
               "snap-x snap-mandatory",
               /* 스크롤바 최소화 — 모바일은 오버레이 스크롤바.
                  마우스 사용자는 아래 화살표/페이드로 보강됨. */

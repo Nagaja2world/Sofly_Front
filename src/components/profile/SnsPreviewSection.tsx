@@ -18,6 +18,11 @@ interface SnsPreviewSectionProps {
   previewCount?: number;
   /** "더보기" 클릭 시 이동할 라우트 (기본 "/sns") */
   moreHref?: string;
+  /**
+   * "더보기" 버튼 노출 여부 (기본 true).
+   * 모바일은 SNS 페이지가 아직 없어 showMore={false}로 버튼을 숨긴다.
+   */
+  showMore?: boolean;
   /** 그리드 컬럼 수 (기본 3 — 데스크톱. 모바일은 2로 호출) */
   gridColumns?: number;
   /** 그리드 간격 px (기본 4) */
@@ -46,6 +51,7 @@ export default function SnsPreviewSection({
   posts,
   previewCount = 6,
   moreHref = "/sns",
+  showMore = true,
   gridColumns = 3,
   gridGap = 4,
 }: SnsPreviewSectionProps) {
@@ -101,10 +107,12 @@ export default function SnsPreviewSection({
         >
           SNS
         </h2>
-        {/* 더보기 — 항상 노출 */}
-        <Button btnType="text" onClick={handleSeeMore}>
-          더보기
-        </Button>
+        {/* 더보기 — showMore일 때만 노출 (모바일은 SNS 페이지 미구현으로 숨김) */}
+        {showMore && (
+          <Button btnType="text" onClick={handleSeeMore}>
+            더보기
+          </Button>
+        )}
       </div>
 
       {/* ── 그리드 (미리보기) ── */}
