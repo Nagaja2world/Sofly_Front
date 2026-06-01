@@ -94,13 +94,13 @@ export default function HotelSearchPage() {
 
   const prevSearchKey = useRef<string>("");
 
-  /* sortOptions 중 "Our top picks"(추천순)에 해당하는 기본 옵션 ID */
+  /* sortOptions 중 "Our top picks" = popularity 옵션 ID */
   const defaultSortId = useMemo(() => {
     if (!sortOptions.length) return "";
+    // popularity가 "Our top picks"에 해당 — upsort_bh는 "Entire homes first"라 제외
     return (
-      sortOptions.find((opt) =>
-        /upsort|popular|recommend|추천|인기/i.test(opt.id + opt.title),
-      )?.id ?? sortOptions[0].id
+      sortOptions.find((opt) => /^popular/i.test(opt.id))?.id ??
+      sortOptions[0].id
     );
   }, [sortOptions]);
 
