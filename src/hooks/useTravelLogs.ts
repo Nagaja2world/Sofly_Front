@@ -161,6 +161,23 @@ export function useTravelLogs(workspaceId: number) {
     [workspaceId],
   );
 
+  /** 에디터 인라인 이미지 업로드 — 서버 URL 반환으로 blob URL 저장 방지 */
+  const handleUploadEditorImage = useCallback(
+    async (logId: number, file: File): Promise<string | null> => {
+      try {
+        const res = await uploadTravellogPhotos(workspaceId, logId, [file]);
+        setTravelLogs((prev) =>
+          prev.map((log) => (log.id === logId ? apiToTravelLog(res) : log)),
+        );
+        return res.photos[res.photos.length - 1]?.url ?? null;
+      } catch (err) {
+        console.warn("[useTravelLogs] 에디터 이미지 업로드 실패:", err);
+        return null;
+      }
+    },
+    [workspaceId],
+  );
+
   /** 카드 삭제 */
   const handleDeleteTravelLog = useCallback(
     async (logId: number) => {
@@ -208,6 +225,7 @@ export function useTravelLogs(workspaceId: number) {
     handleUpdateMainTitle,
     handleSaveTravelLog,
     handleUploadTravellogPhotos,
+    handleUploadEditorImage,
     handleDetachTravellogPhoto,
     handleDeleteTravelLog,
     handleReorderLogs,
