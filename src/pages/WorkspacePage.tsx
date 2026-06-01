@@ -512,6 +512,7 @@ export default function WorkspacePage() {
 
   const handleAddSharedPhotos = async (files: FileList) => {
     if (!workspaceId) return;
+
     setAlbumUploading(true);
     try {
       const uploaded = await uploadAlbumPhotos(
