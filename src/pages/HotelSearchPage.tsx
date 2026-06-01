@@ -1,9 +1,11 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
 import HotelCard from "@/components/hotel/HotelCard";
+import HotelDetailModal from "@/components/hotel/HotelDetailModal";
 import HotelFilterPanel from "@/components/hotel/HotelFilterPanel";
 import { useHotelSearch } from "@/hooks/useHotelSearch";
+import { type HotelOfferItem } from "@/api/hotelApi";
 import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 import {
   type FlightSearchParams,
@@ -43,6 +45,7 @@ export function buildHotelSearchParams(p: HotelSearchBarParams): URLSearchParams
 export default function HotelSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [selectedHotel, setSelectedHotel] = useState<HotelOfferItem | null>(null);
 
   const parsedParams = parseParams(searchParams);
   const sortBy = searchParams.get("sortBy") ?? "price";
@@ -237,11 +240,25 @@ export default function HotelSearchPage() {
             )}
 
             {hotels.map((hotel) => (
-              <HotelCard key={hotel.hotel_id} hotel={hotel} />
+              <HotelCard
+                key={hotel.hotel_id}
+                hotel={hotel}
+                onClick={() => setSelectedHotel(hotel)}
+              />
             ))}
           </div>
         </div>
       </div>
+
+      {selectedHotel && parsedParams && (
+        <HotelDetailModal
+          hotel={selectedHotel}
+          arrivalDate={parsedParams.arrivalDate}
+          departureDate={parsedParams.departureDate}
+          adults={parsedParams.adults}
+          onClose={() => setSelectedHotel(null)}
+        />
+      )}
     </div>
   );
 }

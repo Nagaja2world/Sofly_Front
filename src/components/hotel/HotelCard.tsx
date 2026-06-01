@@ -2,6 +2,7 @@ import { type HotelOfferItem } from "@/api/hotelApi";
 
 interface HotelCardProps {
   hotel: HotelOfferItem;
+  onClick?: () => void;
 }
 
 function Stars({ count }: { count: number | null }) {
@@ -17,17 +18,23 @@ function Stars({ count }: { count: number | null }) {
   );
 }
 
-export default function HotelCard({ hotel }: HotelCardProps) {
+export default function HotelCard({ hotel, onClick }: HotelCardProps) {
   const price =
     hotel.min_total_price ??
     hotel.composite_price_breakdown?.gross_amount?.value;
 
   return (
-    <a
-      href={hotel.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow no-underline"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      className="flex bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
     >
       {/* 썸네일 */}
       {hotel.main_photo_url ? (
@@ -120,6 +127,6 @@ export default function HotelCard({ hotel }: HotelCardProps) {
           )}
         </div>
       </div>
-    </a>
+    </div>
   );
 }

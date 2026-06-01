@@ -36,6 +36,59 @@ export interface HotelOfferItem {
   checkout: { until: string } | null;
   is_free_cancellable: boolean;
   badges?: Array<{ id: string; text: string }>;
+  /** 백엔드가 property 노드에 주입하는 Booking.com 딥링크 */
+  property?: { bookingUrl?: string; name?: string };
+}
+
+/* ── 호텔 상세 타입 ── */
+
+export interface HotelRoomPhoto {
+  url: string;
+  url_1440?: string;
+}
+
+export interface HotelRoom {
+  block_id?: string;
+  room_name?: string;
+  name_without_policy?: string;
+  min_price?: { price: number; currency: string };
+  max_occupancy?: number;
+  room_surface_in_m2?: number;
+  is_free_cancellable?: number | boolean;
+  photos?: HotelRoomPhoto[];
+  highlights?: Array<{ translated_name: string }>;
+}
+
+export interface HotelDetailsData {
+  hotel_id?: number;
+  hotel_name?: string;
+  address?: string;
+  city?: string;
+  url?: string;
+  review_score?: number;
+  review_score_word?: string;
+  review_nr?: number;
+  checkin?: { from: string; until?: string };
+  checkout?: { from?: string; until: string };
+  block?: HotelRoom[];
+  photos?: Array<{ url_original: string; url_max300?: string }>;
+  hotel_text?: { description?: string };
+}
+
+export interface HotelDetailsResponse {
+  status?: boolean;
+  data?: HotelDetailsData;
+}
+
+export interface HotelDetailsInput {
+  hotelId: string;
+  arrivalDate: string;
+  departureDate: string;
+  adults?: number;
+  childrenAge?: string;
+  roomQty?: number;
+  languageCode?: string;
+  currencyCode?: string;
 }
 
 export interface HotelOffersResponse {
@@ -139,6 +192,23 @@ export async function fetchHotelFilterOptions(
   const res = await fetch(
     `${API_BASE}/api/v1/hotels/filter-options?${buildQuery(params)}`,
   );
+  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchHotelDetails(
+  params: HotelDetailsInput,
+): Promise<HotelDetailsResponse> {
+  const p = new URLSearchParams();
+  p.set("hotelId", params.hotelId);
+  p.set("arrivalDate", params.arrivalDate);
+  p.set("departureDate", params.departureDate);
+  if (params.adults != null) p.set("adults", String(params.adults));
+  if (params.childrenAge) p.set("childrenAge", params.childrenAge);
+  if (params.roomQty != null) p.set("roomQty", String(params.roomQty));
+  if (params.languageCode) p.set("languageCode", params.languageCode);
+  if (params.currencyCode) p.set("currencyCode", params.currencyCode);
+  const res = await fetch(`${API_BASE}/api/v1/hotels/details?${p}`);
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
   return res.json();
 }
