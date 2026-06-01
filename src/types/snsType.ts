@@ -46,8 +46,12 @@ export interface SnsPost {
   author: SnsAuthor;
   /** 미디어 목록 (SnsLogCard와 동일 타입) */
   media: SnsMedia[];
-  /** 캡션 (옵션) */
+  /** 워크스페이스 제목 */
   caption?: string;
+  /** 여행지 (destination) */
+  destination?: string | null;
+  /** SNS 게시글 본문 (snsPostContent) */
+  snsContent?: string | null;
   /** 게시 시각 (ISO string, 정렬/표시용) */
   createdAt: string;
   /** 게시물이 속한 워크스페이스 id (있을 때만 — "워크스페이스 보러가기" 가능) */

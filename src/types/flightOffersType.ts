@@ -79,6 +79,8 @@ export interface FlightOffer {
   price: FlightOfferPrice;
   brandedFareInfo?: BrandedFareInfo;
   segments: FlightSegment[];
+  /** 백엔드가 주입하는 Booking.com 검색 딥링크 */
+  bookingUrl?: string;
 }
 
 /** searchFlights(offers) 응답의 data 필드 */

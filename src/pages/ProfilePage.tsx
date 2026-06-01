@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
+import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 import MobileProfileView from "@/components/mobile/pages/MobileProfileView";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
 import SnsPreviewSection from "@/components/profile/SnsPreviewSection";
 import Button from "@/components/common/Button";
 import Header from "@/components/common/Header";
+import { buildHotelSearchParams } from "@/pages/HotelSearchPage";
 import useAuthStore from "@/store/useAuthStore";
 import {
   buildFlightSearchQuery,
@@ -25,6 +27,7 @@ import type { SnsPost } from "@/types/snsType";
 import profileHeroSvg from "@/assets/profile_hero.svg";
 import GroupIcon from "@/assets/group.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
+import HeroFxLayer from "@/components/homepage/HeroFxLayer";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -79,7 +82,7 @@ export default function ProfilePage() {
     setWsError(null);
     try {
       const data = await fetchWorkspaces();
-      setWorkspaces([...data].reverse());
+      setWorkspaces(data);
     } catch (err) {
       setWsError(err instanceof Error ? err.message : "불러오기 실패");
     } finally {
@@ -99,6 +102,13 @@ export default function ProfilePage() {
     const qs = buildFlightSearchQuery(params);
     navigate(`/flight-search?${qs}`);
   };
+
+  const handleHotelSearch = useCallback(
+    (params: HotelSearchBarParams) => {
+      navigate(`/hotel-search?${buildHotelSearchParams(params).toString()}`);
+    },
+    [navigate],
+  );
 
   const handleCardClick = (id: string) => {
     navigate(`/workspace/${id}`);
@@ -177,7 +187,7 @@ export default function ProfilePage() {
       {/* ══════════════════════════════════════════
           데스크톱 (md 이상)
           ══════════════════════════════════════════ */}
-      <div className="hidden md:block">
+      <div className="hidden md:block relative">
         {/* ── ① Hero 이미지: Header 아래로 끌어올려 겹침 ── */}
         {/* Header 높이(h-20 = 80px)만큼 올려서 Header 뒤에 깔리도록 */}
         <div className="w-full h-[374px] overflow-hidden">
@@ -186,6 +196,11 @@ export default function ProfilePage() {
             alt="Profile Hero"
             className="w-full h-full object-cover block"
           />
+        </div>
+
+        {/* 나비 + 파티클: 상단 374px 전체에 오버레이 (컨텐츠 위, 헤더 아래) */}
+        <div className="absolute top-0 left-0 right-0 h-[374px] pointer-events-none z-[15]">
+          <HeroFxLayer particleCount={24} />
         </div>
 
         {/* ── ② Header (login 상태, 흰 배경) ── */}
@@ -231,7 +246,10 @@ export default function ProfilePage() {
         {/* ── 검색 ── */}
         <div className="mt-[40px] z-10 px-4 relative">
           <div className="max-w-[1200px] w-full mx-auto">
-            <SearchModeBar onFlightSearch={handleSearch} />
+            <SearchModeBar
+              onFlightSearch={handleSearch}
+              onHotelSearch={handleHotelSearch}
+            />
           </div>
         </div>
 

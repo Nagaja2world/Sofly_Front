@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 interface FareActionModalProps {
   fareName: string;
+  bookingUrl?: string;
   onReserve: () => void;
   onSaveToWorkspace: () => void;
   onClose: () => void;
@@ -13,6 +14,7 @@ interface FareActionModalProps {
  */
 export default function FareActionModal({
   fareName,
+  bookingUrl,
   onReserve,
   onSaveToWorkspace,
   onClose,
@@ -52,17 +54,38 @@ export default function FareActionModal({
         {/* 버튼 목록 */}
         <div className="flex flex-col gap-2 px-5 py-4">
           {/* 예약하기 */}
-          <button
-            type="button"
-            onClick={onReserve}
-            className={[
-              "w-full py-3 rounded-xl font-pretendard text-body2 font-semibold",
-              "bg-primary text-gray-900 border-none cursor-pointer",
-              "hover:brightness-95 transition-all",
-            ].join(" ")}
-          >
-            예약하기
-          </button>
+          {bookingUrl ? (
+            <a
+              href={bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onReserve}
+              className={[
+                "w-full py-3 rounded-xl font-pretendard text-body2 font-semibold",
+                "bg-primary text-gray-900 border-none cursor-pointer",
+                "hover:brightness-95 transition-all",
+                "flex items-center justify-center gap-1.5 no-underline",
+              ].join(" ")}
+            >
+              Booking.com에서 예약하기
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M5.5 3H3C2.448 3 2 3.448 2 4v7c0 .552.448 1 1 1h7c.552 0 1-.448 1-1V8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <path d="M8 2h4v4M12 2L6.5 7.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={onReserve}
+              className={[
+                "w-full py-3 rounded-xl font-pretendard text-body2 font-semibold",
+                "bg-primary text-gray-900 border-none cursor-pointer",
+                "hover:brightness-95 transition-all",
+              ].join(" ")}
+            >
+              예약하기
+            </button>
+          )}
 
           {/* 항공일정 저장하기 */}
           <button

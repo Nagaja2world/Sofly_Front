@@ -5,6 +5,7 @@ import Edit2Icon from "@/assets/edit2.svg?react";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import SharedAlbumPickerPopup from "@/components/workspace/SharedAlbumPickerPopup";
 import type { SnsMedia } from "@/types/snsType";
+import type { SnsPostVisibility } from "@/api/snsApi";
 
 /* ══════════════════════════════════════════
    타입
@@ -15,28 +16,28 @@ import type { SnsMedia } from "@/types/snsType";
  * - 보기 모드 props와 동일 형태
  */
 export interface SnsLogData {
-  /** 캡션 (인스타 게시물 텍스트) */
   caption?: string;
-  /** 미디어 목록 (사진/영상) */
   media: SnsMedia[];
+  /** 새로 추가된 파일: mediaId → File (업로드 시 사용) */
+  fileMap?: Record<string, File>;
+  visibility?: SnsPostVisibility;
 }
 
+const VISIBILITY_LABELS: Record<SnsPostVisibility, string> = {
+  PUBLIC: "전체 공개",
+  FOLLOWERS_ONLY: "팔로워만",
+  PRIVATE: "비공개",
+};
+
 interface SnsLogCardProps {
-  /** 캡션 */
   caption?: string;
-  /** 미디어 목록 */
   media?: SnsMedia[];
-  /** 카드 자체를 삭제할 때 호출 (헤더 우상단 삭제 버튼) */
+  fileMap?: Record<string, File>;
+  visibility?: SnsPostVisibility;
+  /** 서버에 업로드된 SNS 카드 ID (있으면 "수정" 모드) */
+  snsPostId?: number | null;
   onDelete?: () => void;
-  /**
-   * 편집 저장 콜백.
-   * 편집 모드에서 "저장"을 누르면 호출됨.
-   */
   onSave?: (data: SnsLogData) => void;
-  /**
-   * "업로드" 버튼 클릭 시 호출 (TODO: SNS 페이지에 게시).
-   * 현재는 부모에서 console.log + TODO 주석 처리.
-   */
   onUpload?: (data: SnsLogData) => void;
   /**
    * 워크스페이스 공유 앨범 사진 URL 배열.
@@ -84,18 +85,27 @@ interface SnsLogCardProps {
 export default function SnsLogCard({
   caption,
   media,
+  fileMap: fileMapProp,
+  visibility: visibilityProp = "PUBLIC",
+  snsPostId,
   onDelete,
-  onSave,
+  onSave: _onSave,
   onUpload,
   sharedAlbumPhotos,
   className = "",
 }: SnsLogCardProps) {
   const [isEditing, setIsEditing] = useState(false);
 
-  /** 편집 중 임시 데이터 */
-  const [draft, setDraft] = useState<SnsLogData>({
+  const [draft, setDraft] = useState<{
+    caption?: string;
+    media: SnsMedia[];
+    fileMap: Record<string, File>;
+    visibility: SnsPostVisibility;
+  }>({
     caption,
     media: media ?? [],
+    fileMap: {},
+    visibility: visibilityProp,
   });
 
   /** 미디어 캐러셀의 현재 인덱스 (보기 모드)
@@ -130,8 +140,8 @@ export default function SnsLogCard({
   const objectUrlsRef = useRef<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragMediaIdx, setDragMediaIdx] = useState<number | null>(null);
 
-  /* 컴포넌트 언마운트 시 ObjectURL 정리 */
   useEffect(() => {
     return () => {
       objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -191,31 +201,40 @@ export default function SnsLogCard({
 
   /* ── 보기 모드에서 이미지 영역 클릭 → 편집 모드로 전환 + 추가 드롭다운 오픈 ── */
   const handleViewAreaClick = () => {
-    setDraft({ caption, media: media ?? [] });
+    setDraft({
+      caption,
+      media: media ?? [],
+      fileMap: fileMapProp ?? {},
+      visibility: visibilityProp,
+    });
     setIsEditing(true);
     /* 편집 모드 렌더 후 드롭다운 오픈 (setTimeout으로 렌더 완료 대기 →
        트리거 ref가 마운트된 뒤 위치 계산이 정상 동작) */
     setTimeout(() => setIsAddMenuOpen(true), 0);
   };
 
-  /* ── 모드 전환 ── */
   const enterEditMode = () => {
-    setDraft({ caption, media: media ?? [] });
+    setDraft({
+      caption,
+      media: media ?? [],
+      fileMap: fileMapProp ?? {},
+      visibility: visibilityProp,
+    });
     setIsEditing(true);
   };
 
   const cancelEdit = () => {
-    /* 새로 만든 ObjectURL 정리 */
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     objectUrlsRef.current = [];
     setIsAddMenuOpen(false);
     setIsEditing(false);
   };
 
-  const saveEdit = () => {
+  const handleEditConfirm = () => {
     const cleaned: SnsLogData = {
       caption: draft.caption?.trim() || undefined,
       media: draft.media,
+      fileMap: draft.fileMap,
     };
 
     /* ── 메모리 누수 방지 ──
@@ -232,12 +251,11 @@ export default function SnsLogCard({
       (url) => !stillInUse.has(url),
     );
     toRevoke.forEach((url) => URL.revokeObjectURL(url));
-    /* 사용 중인 URL만 남겨서 언마운트 시 정리되도록 추적 유지 */
     objectUrlsRef.current = objectUrlsRef.current.filter((url) =>
       stillInUse.has(url),
     );
 
-    onSave?.(cleaned);
+    onUpload?.(cleaned);
     setIsEditing(false);
   };
 
@@ -257,24 +275,25 @@ export default function SnsLogCard({
     if (!files || files.length === 0) return;
 
     const newMedia: SnsMedia[] = [];
+    const newFileMap: Record<string, File> = {};
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const url = URL.createObjectURL(file);
       objectUrlsRef.current.push(url);
-
-      const isVideo = file.type.startsWith("video/");
+      const id = crypto.randomUUID();
       newMedia.push({
-        /* RFC 4122 UUID v4로 충돌 가능성 사실상 0.
-         * 주의: crypto.randomUUID는 secure context (HTTPS 또는 localhost)에서만 동작.
-         * Vite 개발 서버(localhost) 및 프로덕션 HTTPS 환경에서 모두 OK. */
-        id: crypto.randomUUID(),
-        type: isVideo ? "video" : "image",
+        id,
+        type: file.type.startsWith("video/") ? "video" : "image",
         url,
       });
+      newFileMap[id] = file;
     }
 
-    setDraft((prev) => ({ ...prev, media: [...prev.media, ...newMedia] }));
-    /* 같은 파일 다시 선택 가능하도록 input 리셋 */
+    setDraft((prev) => ({
+      ...prev,
+      media: [...prev.media, ...newMedia],
+      fileMap: { ...prev.fileMap, ...newFileMap },
+    }));
     e.target.value = "";
   };
 
@@ -304,15 +323,23 @@ export default function SnsLogCard({
   };
 
   const handleRemoveMedia = (id: string) => {
-    setDraft((prev) => ({
-      ...prev,
-      media: prev.media.filter((m) => m.id !== id),
-    }));
+    setDraft((prev) => {
+      const { [id]: _removed, ...restFileMap } = prev.fileMap;
+      return {
+        ...prev,
+        media: prev.media.filter((m) => m.id !== id),
+        fileMap: restFileMap,
+      };
+    });
   };
 
-  /* ── 업로드 (보기 모드 하단 버튼) ── */
   const handleUploadClick = () => {
-    onUpload?.({ caption, media: media ?? [] });
+    onUpload?.({
+      caption,
+      media: media ?? [],
+      fileMap: fileMapProp ?? {},
+      visibility: visibilityProp,
+    });
   };
 
   /* ══════════════════════════════════════════
@@ -357,10 +384,10 @@ export default function SnsLogCard({
             </button>
             <button
               type="button"
-              onClick={saveEdit}
+              onClick={handleEditConfirm}
               className="px-3 py-1 rounded text-body3 font-semibold text-gray-900 bg-primary hover:brightness-95 transition-all cursor-pointer border-none"
             >
-              저장
+              {snsPostId ? "수정" : "업로드"}
             </button>
           </div>
         ) : (
@@ -403,10 +430,28 @@ export default function SnsLogCard({
               사진 / 영상
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {draft.media.map((m) => (
+              {draft.media.map((m, i) => (
                 <div
                   key={m.id}
-                  className="relative aspect-square rounded-md overflow-hidden bg-gray-100"
+                  draggable
+                  onDragStart={() => setDragMediaIdx(i)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => {
+                    if (dragMediaIdx !== null && dragMediaIdx !== i) {
+                      setDraft((prev) => {
+                        const next = [...prev.media];
+                        const [moved] = next.splice(dragMediaIdx, 1);
+                        next.splice(i, 0, moved);
+                        return { ...prev, media: next };
+                      });
+                    }
+                    setDragMediaIdx(null);
+                  }}
+                  onDragEnd={() => setDragMediaIdx(null)}
+                  className={[
+                    "relative aspect-square rounded-md overflow-hidden bg-gray-100 cursor-grab active:cursor-grabbing",
+                    dragMediaIdx === i ? "opacity-40" : "",
+                  ].join(" ")}
                 >
                   {m.type === "image" ? (
                     <img
@@ -605,7 +650,7 @@ export default function SnsLogCard({
             )}
           </div>
 
-          {/* 캡션 + 업로드 버튼 영역 */}
+          {/* 캡션 + 공개범위 배지 + 업로드 버튼 */}
           <div className="flex flex-col gap-3 p-4">
             {caption && (
               <p className="font-pretendard text-body2 text-gray-900 m-0 whitespace-pre-wrap break-words">
@@ -613,7 +658,11 @@ export default function SnsLogCard({
               </p>
             )}
 
-            {/* 업로드 버튼: SNS 페이지에 게시 (TODO) */}
+            {/* 공개범위 배지 */}
+            <span className="self-start px-2 py-0.5 rounded-full bg-gray-100 font-pretendard text-body5 text-gray-500">
+              {VISIBILITY_LABELS[visibilityProp]}
+            </span>
+
             <button
               type="button"
               onClick={handleUploadClick}
@@ -625,7 +674,7 @@ export default function SnsLogCard({
                   : "bg-gray-200 text-gray-400 cursor-not-allowed",
               ].join(" ")}
             >
-              업로드
+              {snsPostId ? "수정" : "업로드"}
             </button>
           </div>
         </>

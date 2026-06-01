@@ -17,6 +17,7 @@ export default function SnsPage() {
   const [selectedPost, setSelectedPost] = useState<SnsPost | null>(null);
   const [trending, setTrending] = useState<TrendingDestination[]>([]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const importer = useImportWorkspace();
 
@@ -76,11 +77,22 @@ export default function SnsPage() {
     handleSearch(dest.city);
   };
 
-  const handleLoadMore = () => {
-    if (!isLoading && hasMore && !filterKeyword) {
-      loadFeed(page + 1);
-    }
-  };
+  // 스크롤 하단 감지 → 자동 페이지 로드
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading && hasMore && !filterKeyword) {
+          loadFeed(page + 1);
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [isLoading, hasMore, filterKeyword, page, loadFeed]);
 
   const handleLikeChange = (postId: string, liked: boolean, count: number) => {
     setPosts((prev) =>
@@ -137,17 +149,15 @@ export default function SnsPage() {
                 <>
                   <SnsPostGrid posts={posts} onPostClick={setSelectedPost} />
 
-                  {hasMore && !filterKeyword && (
-                    <div className="flex justify-center mt-8">
-                      <button
-                        type="button"
-                        onClick={handleLoadMore}
-                        disabled={isLoading}
-                        className="font-pretendard text-body3 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg px-6 py-2 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
-                      >
-                        {isLoading ? "불러오는 중..." : "더 보기"}
-                      </button>
+                  {/* 스크롤 무한 로딩 sentinel */}
+                  <div ref={sentinelRef} className="h-1" />
+                  {isLoading && posts.length > 0 && (
+                    <div className="flex justify-center mt-6">
+                      <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
                     </div>
+                  )}
+                  {!hasMore && posts.length > 0 && !filterKeyword && (
+                    <p className="text-center font-pretendard text-body4 text-gray-400 mt-6">모든 게시물을 불러왔어요.</p>
                   )}
                 </>
               )}

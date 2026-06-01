@@ -1,14 +1,19 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
 import HotelCard from "@/components/hotel/HotelCard";
+import HotelDetailModal from "@/components/hotel/HotelDetailModal";
 import HotelFilterPanel from "@/components/hotel/HotelFilterPanel";
 import { useHotelSearch } from "@/hooks/useHotelSearch";
+import { type HotelOfferItem } from "@/api/hotelApi";
 import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 import {
   type FlightSearchParams,
   buildFlightSearchParams,
 } from "@/utils/flightSearchQuery";
+
+/* 기본 정렬 — Booking.com "Our top picks"(인기순). price가 기본이 되지 않도록 명시 적용 */
+const DEFAULT_SORT = "popularity";
 
 /* URL query params ↔ hotel search params */
 function parseParams(sp: URLSearchParams): HotelSearchBarParams | null {
@@ -43,60 +48,78 @@ export function buildHotelSearchParams(p: HotelSearchBarParams): URLSearchParams
 export default function HotelSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [selectedHotel, setSelectedHotel] = useState<HotelOfferItem | null>(null);
 
   const parsedParams = parseParams(searchParams);
-  const sortBy = searchParams.get("sortBy") ?? "price";
+  const sortBy = searchParams.get("sortBy") ?? "";
+  const effectiveSort = sortBy || DEFAULT_SORT;
   const filtersParam = searchParams.get("filters") ?? "";
+  const categoriesFilter = filtersParam || "";
+  const priceMin = Number(searchParams.get("priceMin") ?? 0) || 0;
+  const priceMax = Number(searchParams.get("priceMax") ?? 0) || 0;
   const selectedFilters = filtersParam ? filtersParam.split(",") : [];
 
-  const { hotels, totalCount, sortOptions, filterOptions, isLoading, error, search } =
-    useHotelSearch();
+  const {
+    hotels,
+    totalCount,
+    sortOptions,
+    filterOptions,
+    isLoading,
+    isFetchingMore,
+    hasMore,
+    error,
+    search,
+    loadMore,
+  } = useHotelSearch();
 
-  /* 첫 로드 및 URL 파라미터 변경 시 검색 */
+  /* 무한 스크롤 sentinel */
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  /* 검색 조건 변경 시 새 검색 (페이지는 무한 스크롤이 담당) */
   useEffect(() => {
     if (!parsedParams) return;
-    search(
-      {
-        destId: parsedParams.destId,
-        searchType: parsedParams.searchType,
-        arrivalDate: parsedParams.arrivalDate,
-        departureDate: parsedParams.departureDate,
-        adults: parsedParams.adults,
-        roomQty: parsedParams.roomQty,
-        sortBy,
-        categoriesFilter: filtersParam || undefined,
-        currencyCode: "KRW",
-        languageCode: "ko",
-      },
-      true,
-    );
+    search({
+      destId: parsedParams.destId,
+      searchType: parsedParams.searchType,
+      arrivalDate: parsedParams.arrivalDate,
+      departureDate: parsedParams.departureDate,
+      adults: parsedParams.adults,
+      roomQty: parsedParams.roomQty,
+      sortBy: effectiveSort,
+      categoriesFilter: categoriesFilter || undefined,
+      priceMin,
+      priceMax,
+      currencyCode: "KRW",
+      languageCode: "ko",
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     parsedParams?.destId,
+    parsedParams?.searchType,
     parsedParams?.arrivalDate,
     parsedParams?.departureDate,
+    parsedParams?.adults,
+    parsedParams?.roomQty,
+    effectiveSort,
+    categoriesFilter,
+    priceMin,
+    priceMax,
   ]);
 
-  /* 정렬/필터 변경 */
+  /* sentinel이 보이면 다음 페이지 로드 */
   useEffect(() => {
-    if (!parsedParams) return;
-    search(
-      {
-        destId: parsedParams.destId,
-        searchType: parsedParams.searchType,
-        arrivalDate: parsedParams.arrivalDate,
-        departureDate: parsedParams.departureDate,
-        adults: parsedParams.adults,
-        roomQty: parsedParams.roomQty,
-        sortBy,
-        categoriesFilter: filtersParam || undefined,
-        currencyCode: "KRW",
-        languageCode: "ko",
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
       },
-      false,
+      { threshold: 0.1 },
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, filtersParam]);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+    // hotels.length·hasMore 변화로 sentinel이 (재)마운트될 때 observer를 다시 연결
+  }, [loadMore, hasMore, hotels.length]);
 
   const handleSortChange = (id: string) => {
     setSearchParams((prev) => {
@@ -104,6 +127,7 @@ export default function HotelSearchPage() {
       next.set("sortBy", id);
       return next;
     });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleFilterChange = (filterId: string) => {
@@ -117,6 +141,27 @@ export default function HotelSearchPage() {
         : [...current, filterId];
       if (updated.length > 0) next.set("filters", updated.join(","));
       else next.delete("filters");
+      return next;
+    });
+  };
+
+  const handlePriceChange = (nextMin: number, nextMax: number) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (nextMin > 0) next.set("priceMin", String(nextMin));
+      else next.delete("priceMin");
+      if (nextMax > 0) next.set("priceMax", String(nextMax));
+      else next.delete("priceMax");
+      return next;
+    });
+  };
+
+  const handleClearFilters = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("filters");
+      next.delete("priceMin");
+      next.delete("priceMax");
       return next;
     });
   };
@@ -172,7 +217,7 @@ export default function HotelSearchPage() {
           {/* 정렬 */}
           {sortOptions.length > 0 && (
             <select
-              value={sortBy}
+              value={effectiveSort}
               onChange={(e) => handleSortChange(e.target.value)}
               className="font-pretendard text-body3 text-gray-700 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-gray-700 cursor-pointer"
             >
@@ -188,11 +233,15 @@ export default function HotelSearchPage() {
         {/* 필터 + 결과 */}
         <div className="flex gap-8 items-start">
           {/* 필터 패널 */}
-          {filterOptions.length > 0 && (
+          {parsedParams && (
             <HotelFilterPanel
               filterOptions={filterOptions}
               selectedFilters={selectedFilters}
+              priceMin={priceMin}
+              priceMax={priceMax}
               onFilterChange={handleFilterChange}
+              onPriceChange={handlePriceChange}
+              onClear={handleClearFilters}
             />
           )}
 
@@ -237,11 +286,47 @@ export default function HotelSearchPage() {
             )}
 
             {hotels.map((hotel) => (
-              <HotelCard key={hotel.hotel_id} hotel={hotel} />
+              <HotelCard
+                key={hotel.hotel_id}
+                hotel={hotel}
+                onClick={() => setSelectedHotel(hotel)}
+              />
             ))}
+
+            {/* 무한 스크롤: 다음 페이지 로딩 표시 */}
+            {isFetchingMore && (
+              <div className="flex items-center justify-center py-6 gap-2">
+                <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
+                <span className="font-pretendard text-body4 text-gray-500">
+                  더 불러오는 중...
+                </span>
+              </div>
+            )}
+
+            {/* sentinel — 화면에 들어오면 다음 페이지 로드 */}
+            {!isLoading && !error && hotels.length > 0 && hasMore && (
+              <div ref={sentinelRef} className="h-px w-full" />
+            )}
+
+            {!isLoading && !error && hotels.length > 0 && !hasMore && (
+              <p className="py-6 text-center font-pretendard text-body4 text-gray-400 m-0">
+                모든 숙소를 확인했어요
+              </p>
+            )}
           </div>
         </div>
       </div>
+
+      {selectedHotel && parsedParams && (
+        <HotelDetailModal
+          hotel={selectedHotel}
+          arrivalDate={parsedParams.arrivalDate}
+          departureDate={parsedParams.departureDate}
+          adults={parsedParams.adults}
+          roomQty={parsedParams.roomQty}
+          onClose={() => setSelectedHotel(null)}
+        />
+      )}
     </div>
   );
 }

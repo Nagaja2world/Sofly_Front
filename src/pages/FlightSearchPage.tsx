@@ -1,8 +1,10 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
+import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 import FilterSidebar from "@/components/flightSearch/FilterSidebar";
 import FlightResultList from "@/components/flightSearch/FlightResultList";
+import { buildHotelSearchParams } from "@/pages/HotelSearchPage";
 import {
   searchFlightsFull,
   searchFlights,
@@ -374,6 +376,13 @@ export default function FlightSearchPage() {
     });
   };
 
+  const handleHotelSearch = useCallback(
+    (params: HotelSearchBarParams) => {
+      navigate(`/hotel-search?${buildHotelSearchParams(params).toString()}`);
+    },
+    [navigate],
+  );
+
   /* ══════════════════════════════════════════
      렌더
      ══════════════════════════════════════════ */
@@ -395,6 +404,7 @@ export default function FlightSearchPage() {
             <SearchModeBar
               searchBarKey={searchBarKey}
               onFlightSearch={handleReSearch}
+              onHotelSearch={handleHotelSearch}
               initialValues={searchBarInitialValues}
               onModeChange={(m) => setIsFlightMode(m === "flight")}
             />

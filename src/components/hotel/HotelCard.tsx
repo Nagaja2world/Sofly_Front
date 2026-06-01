@@ -2,6 +2,7 @@ import { type HotelOfferItem } from "@/api/hotelApi";
 
 interface HotelCardProps {
   hotel: HotelOfferItem;
+  onClick?: () => void;
 }
 
 function Stars({ count }: { count: number | null }) {
@@ -17,17 +18,36 @@ function Stars({ count }: { count: number | null }) {
   );
 }
 
-export default function HotelCard({ hotel }: HotelCardProps) {
+function formatPrice(amount: number, currency: string): string {
+  return currency === "KRW"
+    ? `₩${Math.round(amount).toLocaleString("ko-KR")}`
+    : `${currency} ${Math.round(amount).toLocaleString()}`;
+}
+
+export default function HotelCard({ hotel, onClick }: HotelCardProps) {
   const price =
     hotel.min_total_price ??
     hotel.composite_price_breakdown?.gross_amount?.value;
+  const currency =
+    hotel.composite_price_breakdown?.gross_amount?.currency ?? "KRW";
+  const formattedPrice = price == null ? null : formatPrice(price, currency);
+  const formattedStrikethrough =
+    hotel.strikethrough_price != null && hotel.strikethrough_price > (price ?? 0)
+      ? formatPrice(hotel.strikethrough_price, currency)
+      : null;
 
   return (
-    <a
-      href={hotel.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow no-underline"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      className="flex bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
     >
       {/* 썸네일 */}
       {hotel.main_photo_url ? (
@@ -108,18 +128,23 @@ export default function HotelCard({ hotel }: HotelCardProps) {
             </div>
           )}
 
-          {price != null && (
+          {formattedPrice && (
             <div className="text-right">
               <p className="font-pretendard text-body5 text-gray-400 m-0">
                 1박
               </p>
+              {formattedStrikethrough && (
+                <p className="font-pretendard text-body5 text-gray-400 line-through m-0">
+                  {formattedStrikethrough}
+                </p>
+              )}
               <p className="font-pretendard text-title3 font-bold text-gray-900 m-0">
-                ₩{Math.round(price).toLocaleString()}
+                {formattedPrice}
               </p>
             </div>
           )}
         </div>
       </div>
-    </a>
+    </div>
   );
 }

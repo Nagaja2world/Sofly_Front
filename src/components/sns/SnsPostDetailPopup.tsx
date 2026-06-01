@@ -12,8 +12,10 @@ import {
   deleteComment,
   followUser,
   unfollowUser,
+  getSnsPost,
   type CommentResponse,
 } from "@/api/snsApi";
+import type { SnsMedia } from "@/types/snsType";
 import UserPublicProfilePopup from "@/components/sns/UserPublicProfilePopup";
 
 const CAPTION_MAX = 80;
@@ -45,6 +47,7 @@ export default function SnsPostDetailPopup({
 
   const [mediaIndex, setMediaIndex] = useState(0);
   const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [fullMedia, setFullMedia] = useState<SnsMedia[] | null>(null);
 
   // 팔로우
   const [isFollowing, setIsFollowing] = useState(false);
@@ -71,9 +74,34 @@ export default function SnsPostDetailPopup({
 
   const isOpen = post !== null;
   const workspaceIdNum = post ? Number(post.workspaceId) : null;
-  const mediaLength = post?.media.length ?? 0;
+
+  // 팝업이 열릴 때 전체 이미지 목록 로드 (피드 카드는 대표 이미지 1장만 갖고 있음)
+  useEffect(() => {
+    if (!workspaceIdNum) {
+      setFullMedia(null);
+      return;
+    }
+    setFullMedia(null);
+    setMediaIndex(0);
+    getSnsPost(workspaceIdNum)
+      .then((snsPost) => {
+        const media: SnsMedia[] = snsPost.images.map((img) => ({
+          id: String(img.id),
+          type: "image" as const,
+          url: img.url,
+        }));
+        setFullMedia(media);
+      })
+      .catch(() => {
+        /* 실패 시 post.media 그대로 사용 */
+      });
+  }, [workspaceIdNum]);
+
+  const displayMedia = fullMedia ?? post?.media ?? [];
+  const mediaLength = displayMedia.length;
   const safeIndex =
     mediaLength === 0 ? 0 : Math.min(mediaIndex, mediaLength - 1);
+  const currentMedia = displayMedia[safeIndex];
 
   const goPrev = useCallback(() => {
     setMediaIndex((i) => (i <= 0 ? mediaLength - 1 : i - 1));
@@ -188,7 +216,6 @@ export default function SnsPostDetailPopup({
 
   if (!post) return null;
 
-  const currentMedia = post.media[safeIndex];
   const hasMultiple = mediaLength > 1;
   const hasWorkspace = !!post.workspaceId;
   const isLoggedIn = !!user;
@@ -286,7 +313,7 @@ export default function SnsPostDetailPopup({
         </header>
 
         {/* 미디어 캐러셀 */}
-        <div className="relative w-full bg-black flex items-center justify-center min-h-0 flex-1 max-h-[60vh] overflow-hidden">
+        <div className="relative w-full bg-white flex items-center justify-center min-h-0 flex-1 max-h-[60vh] overflow-hidden">
           {currentMedia ? (
             currentMedia.type === "image" ? (
               <img
@@ -354,7 +381,7 @@ export default function SnsPostDetailPopup({
                 </svg>
               </button>
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-                {post.media.map((_, i) => (
+                {displayMedia.map((_, i) => (
                   <span
                     key={i}
                     className={`rounded-full transition-all ${i === safeIndex ? "w-2 h-2 bg-white" : "w-1.5 h-1.5 bg-white/55"}`}
@@ -446,28 +473,46 @@ export default function SnsPostDetailPopup({
             )}
           </div>
 
-          {/* 캡션 */}
-          {post.caption && (
-            <div className="px-5 pb-3">
-              <p
-                className={`font-pretendard text-body2 text-gray-900 m-0 whitespace-pre-wrap break-words leading-relaxed ${captionExpanded ? "" : "line-clamp-2"}`}
-              >
-                <span className="font-semibold mr-2">
-                  {post.author.username}
-                </span>
-                {post.caption}
-              </p>
-              {post.caption.length > CAPTION_MAX && (
-                <button
-                  type="button"
-                  onClick={() => setCaptionExpanded((v) => !v)}
-                  className="mt-1 font-pretendard text-body3 text-gray-500 hover:text-gray-700 bg-transparent border-none cursor-pointer p-0"
+          {/* SNS 본문 + 여행지 + 워크스페이스 제목 */}
+          <div className="px-5 pb-3 flex flex-col gap-1.5">
+            {/* 워크스페이스 제목 (인스타그램 스타일: 작성자 bold + 제목) */}
+            {post.caption && (
+              <div>
+                <p
+                  className={`font-pretendard text-body2 text-gray-900 m-0 whitespace-pre-wrap break-words leading-relaxed ${captionExpanded ? "" : "line-clamp-3"}`}
                 >
-                  {captionExpanded ? "접기" : "더보기"}
-                </button>
-              )}
-            </div>
-          )}
+                  <span className="font-semibold mr-2">
+                    {post.author.username}
+                  </span>
+                  {post.caption}
+                </p>
+                {post.caption.length > CAPTION_MAX && (
+                  <button
+                    type="button"
+                    onClick={() => setCaptionExpanded((v) => !v)}
+                    className="mt-0.5 font-pretendard text-body3 text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer p-0"
+                  >
+                    {captionExpanded ? "접기" : "더보기"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 여행지 */}
+            {post.destination && (
+              <p className="font-pretendard text-body3 text-gray-500 m-0 flex items-center gap-1">
+                <span aria-hidden>📍</span>
+                {post.destination}
+              </p>
+            )}
+
+            {/* SNS 게시글 본문 */}
+            {post.snsContent && (
+              <p className="font-pretendard text-body4 text-gray-900 m-0 whitespace-pre-wrap break-words">
+                {post.snsContent}
+              </p>
+            )}
+          </div>
 
           {/* 댓글 섹션 */}
           {showComments && (

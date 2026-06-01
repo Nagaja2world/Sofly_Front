@@ -4,7 +4,7 @@ import Button from "./common/Button";
 import SelectField from "./common/SelectField";
 import CalendarDropdown, { type DateRange } from "./searchbar/CalendarDropdown";
 import { useHotelDestinations } from "@/hooks/useHotelDestinations";
-import { type HotelDestination } from "@/api/hotelApi";
+import { searchHotelDestinations, type HotelDestination } from "@/api/hotelApi";
 
 export interface HotelSearchBarParams {
   destId: string;
@@ -72,6 +72,7 @@ export default function HotelSearchBar({
   const [fourStarPlus, setFourStarPlus] = useState(false);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [isResolvingDest, setIsResolvingDest] = useState(false);
 
   const guestRef = useRef<HTMLDivElement>(null);
   const destRef = useRef<HTMLDivElement>(null);
@@ -116,13 +117,22 @@ export default function HotelSearchBar({
 
   const guestLabel = `성인 ${guests.adults}명, ${guests.rooms}개`;
 
-  const handleSearch = () => {
+  const resolveDestination = async (): Promise<HotelDestination | null> => {
+    if (selectedDest) return selectedDest;
+
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) return null;
+
+    const firstLoaded = destResults[0];
+    if (firstLoaded) return firstLoaded;
+
+    const results = await searchHotelDestinations(trimmedQuery);
+    return results[0] ?? null;
+  };
+
+  const handleSearch = async () => {
     setSearchError(null);
     if (mode === "destination") {
-      if (!selectedDest) {
-        setSearchError("목적지를 선택해주세요");
-        return;
-      }
       if (!dateRange.start) {
         setSearchError("체크인 날짜를 선택해주세요");
         return;
@@ -131,10 +141,33 @@ export default function HotelSearchBar({
         setSearchError("체크아웃 날짜를 선택해주세요");
         return;
       }
+
+      setIsResolvingDest(true);
+      let dest: HotelDestination | null = null;
+      try {
+        dest = await resolveDestination();
+      } catch (err) {
+        setSearchError(
+          err instanceof Error ? err.message : "목적지를 찾는 중 오류가 발생했어요",
+        );
+        setIsResolvingDest(false);
+        return;
+      }
+
+      setIsResolvingDest(false);
+      if (!dest?.destId || !dest.destType) {
+        setSearchError("검색할 목적지나 호텔을 찾을 수 없어요");
+        return;
+      }
+      setSelectedDest(dest);
+      setQuery(dest.label ?? dest.name);
+      clearDest();
+      setActivePanel(null);
+
       onSearch?.({
-        destId: selectedDest.destId,
-        searchType: selectedDest.destType,
-        destName: selectedDest.name,
+        destId: dest.destId,
+        searchType: dest.destType,
+        destName: dest.name,
         arrivalDate: toApiDate(dateRange.start),
         departureDate: toApiDate(dateRange.end),
         adults: guests.adults,
@@ -349,8 +382,9 @@ export default function HotelSearchBar({
             btnType="solid"
             className="py-4 px-8 text-body2 shrink-0"
             onClick={handleSearch}
+            disabled={isResolvingDest}
           >
-            검색하기
+            {isResolvingDest ? "검색 중..." : "검색하기"}
           </Button>
         </div>
 
