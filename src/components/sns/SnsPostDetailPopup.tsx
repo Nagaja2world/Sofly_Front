@@ -370,7 +370,7 @@ export default function SnsPostDetailPopup({
 
             {/* SNS 게시글 본문 */}
             {post.snsContent && (
-              <p className="font-pretendard text-body4 text-gray-400 m-0 whitespace-pre-wrap break-words">{post.snsContent}</p>
+              <p className="font-pretendard text-body4 text-gray-900 m-0 whitespace-pre-wrap break-words">{post.snsContent}</p>
             )}
           </div>
 
