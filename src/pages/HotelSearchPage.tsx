@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
 import HotelCard from "@/components/hotel/HotelCard";
@@ -78,9 +78,9 @@ export default function HotelSearchPage() {
   const [selectedHotel, setSelectedHotel] = useState<HotelOfferItem | null>(null);
 
   const parsedParams = parseParams(searchParams);
-  const sortBy = searchParams.get("sortBy") ?? "price";
+  const sortBy = searchParams.get("sortBy") ?? "";
   const filtersParam = searchParams.get("filters") ?? "";
-  const categoriesFilter = filtersParam || "popular";
+  const categoriesFilter = filtersParam || "";
   const priceMin = Number(searchParams.get("priceMin") ?? 0) || 0;
   const priceMax = Number(searchParams.get("priceMax") ?? 0) || 0;
   const pageNumber = Math.max(1, Number(searchParams.get("pageNumber") ?? 1) || 1);
@@ -92,9 +92,28 @@ export default function HotelSearchPage() {
   const pageItems = totalPages > 0 ? buildPageItems(pageNumber, totalPages) : [];
   const hasNextPage = totalPages > 0 ? pageNumber < totalPages : hotels.length >= HOTEL_PAGE_SIZE;
 
+  const prevSearchKey = useRef<string>("");
+
   /* 첫 로드 및 URL 파라미터 변경 시 검색 */
   useEffect(() => {
     if (!parsedParams) return;
+
+    const searchKey = [
+      parsedParams.destId,
+      parsedParams.searchType,
+      parsedParams.arrivalDate,
+      parsedParams.departureDate,
+      parsedParams.adults,
+      parsedParams.roomQty,
+      sortBy,
+      categoriesFilter,
+      priceMin,
+      priceMax,
+    ].join("|");
+
+    const isNewSearch = searchKey !== prevSearchKey.current;
+    prevSearchKey.current = searchKey;
+
     search(
       {
         destId: parsedParams.destId,
@@ -103,15 +122,15 @@ export default function HotelSearchPage() {
         departureDate: parsedParams.departureDate,
         adults: parsedParams.adults,
         roomQty: parsedParams.roomQty,
-        sortBy,
-        categoriesFilter,
+        sortBy: sortBy || undefined,
+        categoriesFilter: categoriesFilter || undefined,
         priceMin,
         priceMax,
         pageNumber,
         currencyCode: "KRW",
         languageCode: "ko",
       },
-      true,
+      isNewSearch,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -236,7 +255,7 @@ export default function HotelSearchPage() {
           {/* 정렬 */}
           {sortOptions.length > 0 && (
             <select
-              value={sortBy}
+              value={sortBy || sortOptions[0]?.id || ""}
               onChange={(e) => handleSortChange(e.target.value)}
               className="font-pretendard text-body3 text-gray-700 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-gray-700 cursor-pointer"
             >
