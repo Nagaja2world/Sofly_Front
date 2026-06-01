@@ -472,6 +472,7 @@ export default function FlightDetailPage() {
       {activeFareToken && !showWorkspaceModal && (
         <FareActionModal
           fareName={activeFareName}
+          bookingUrl={offer?.bookingUrl}
           onReserve={() => setActiveFareToken(null)}
           onSaveToWorkspace={() => {
             setActiveFareToken(null);
