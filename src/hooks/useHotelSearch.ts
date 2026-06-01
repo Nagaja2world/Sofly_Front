@@ -54,7 +54,7 @@ export function useHotelSearch() {
           setState((prev) => ({
             ...prev,
             hotels: offersRes.data?.hotels ?? [],
-            totalCount: offersRes.data?.count ?? 0,
+            // totalCount는 초기 검색 값을 유지 — 페이지별 API 응답은 현재 페이지 수만 반환할 수 있음
             isLoading: false,
           }));
         }

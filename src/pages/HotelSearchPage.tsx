@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from "react";
+import { useEffect, useCallback, useState, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
 import HotelCard from "@/components/hotel/HotelCard";
@@ -93,6 +93,16 @@ export default function HotelSearchPage() {
   const hasNextPage = totalPages > 0 ? pageNumber < totalPages : hotels.length >= HOTEL_PAGE_SIZE;
 
   const prevSearchKey = useRef<string>("");
+
+  /* sortOptions 중 "Our top picks"(추천순)에 해당하는 기본 옵션 ID */
+  const defaultSortId = useMemo(() => {
+    if (!sortOptions.length) return "";
+    return (
+      sortOptions.find((opt) =>
+        /upsort|popular|recommend|추천|인기/i.test(opt.id + opt.title),
+      )?.id ?? sortOptions[0].id
+    );
+  }, [sortOptions]);
 
   /* 첫 로드 및 URL 파라미터 변경 시 검색 */
   useEffect(() => {
@@ -255,7 +265,7 @@ export default function HotelSearchPage() {
           {/* 정렬 */}
           {sortOptions.length > 0 && (
             <select
-              value={sortBy || sortOptions[0]?.id || ""}
+              value={sortBy || defaultSortId}
               onChange={(e) => handleSortChange(e.target.value)}
               className="font-pretendard text-body3 text-gray-700 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-gray-700 cursor-pointer"
             >
