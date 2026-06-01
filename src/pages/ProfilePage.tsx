@@ -82,7 +82,7 @@ export default function ProfilePage() {
     setWsError(null);
     try {
       const data = await fetchWorkspaces();
-      setWorkspaces([...data].reverse());
+      setWorkspaces(data);
     } catch (err) {
       setWsError(err instanceof Error ? err.message : "불러오기 실패");
     } finally {
