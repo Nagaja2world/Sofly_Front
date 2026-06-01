@@ -123,6 +123,11 @@ export interface HotelFilterCategory {
   filters: HotelFilterItem[];
 }
 
+export interface HotelFilterResult {
+  categories: HotelFilterCategory[];
+  totalCount: number;
+}
+
 export interface HotelSearchInput {
   destId: string;
   searchType: string;
@@ -226,9 +231,11 @@ type RawHotelOffersData = Partial<HotelOffersResponse["data"]> & {
   data?: Partial<HotelOffersResponse["data"]> & {
     hotels?: RawBookingHotel[];
     meta?: Array<{ title?: string }>;
+    pagination?: { nbResultsTotal?: number };
   };
   hotels?: RawBookingHotel[];
   meta?: Array<{ title?: string }>;
+  pagination?: { nbResultsTotal?: number };
 };
 
 type RawHotelFilterCategory = Partial<HotelFilterCategory> & {
@@ -386,7 +393,9 @@ function normalizeOffers(data: RawHotelOffersData | undefined): HotelOffersRespo
   const metaCount = payload?.meta?.[0]?.title
     ? Number(payload.meta[0].title.match(/\d+/)?.[0])
     : undefined;
+  const nbResultsTotal = payload?.pagination?.nbResultsTotal;
   const count = Math.max(
+    nbResultsTotal ?? 0,
     payload?.count ?? 0,
     payload?.primary_count ?? 0,
     metaCount ?? 0,
@@ -622,11 +631,13 @@ function pickArray(value: unknown, keys: string[]): unknown[] {
 }
 
 function normalizeSortOptions(data: unknown): HotelSortOption[] {
-  const options = pickArray(data, ["sortOptions", "options", "sorts", "items"]);
+  // sort-options endpoint may return filters array (same format as filter-options)
+  const options = pickArray(data, ["sortOptions", "options", "sorts", "items", "filters"]);
   return options
     .map((option) => {
       const item = asRecord(option);
-      const id = item?.id ?? item?.value ?? item?.key;
+      // Booking.com sort options: try 'id', fallback to 'field'
+      const id = item?.id ?? item?.value ?? item?.key ?? item?.field;
       const title = item?.title ?? item?.name ?? item?.label;
       if (typeof id !== "string" || typeof title !== "string") return null;
       return { id, title };
@@ -634,8 +645,12 @@ function normalizeSortOptions(data: unknown): HotelSortOption[] {
     .filter((option): option is HotelSortOption => option !== null);
 }
 
-function normalizeFilterOptions(data: unknown): HotelFilterCategory[] {
-  const categories = pickArray(data, [
+function normalizeFilterOptions(data: unknown): HotelFilterResult {
+  const record = asRecord(data);
+  const paginationRecord = asRecord(record?.pagination);
+  const totalCount = Number(paginationRecord?.nbResultsTotal ?? 0) || 0;
+
+  const rawCategories = pickArray(data, [
     "filterOptions",
     "filterCategories",
     "categories",
@@ -644,57 +659,35 @@ function normalizeFilterOptions(data: unknown): HotelFilterCategory[] {
     "filters",
   ]);
 
-  const normalized = categories
+  const categories = rawCategories
     .map((category) => {
-      const item = category as RawHotelFilterCategory & Record<string, unknown>;
-      const id = item.id ?? item.value ?? item.key;
+      const item = category as Record<string, unknown>;
+      // Booking.com: 'field' is the category ID
+      const id = item.field ?? item.id ?? item.value ?? item.key;
       const title = item.title ?? item.name ?? item.label;
-      const rawFilters = pickArray(item, ["filters", "options", "items", "values"]);
       if (typeof id !== "string" || typeof title !== "string") return null;
-      return {
-        id,
-        title,
-        filters: rawFilters
-          .map((filter) => {
-            const rawFilter = filter as Partial<HotelFilterItem> &
-              Record<string, unknown>;
-            const filterId = rawFilter.id ?? rawFilter.value ?? rawFilter.key;
-            const filterTitle = rawFilter.title ?? rawFilter.name ?? rawFilter.label;
-            if (typeof filterId !== "string" || typeof filterTitle !== "string") {
-              return null;
-            }
-            return {
-              id: filterId,
-              title: filterTitle,
-              count: Number(rawFilter.count ?? rawFilter.total ?? 0) || 0,
-            };
-          })
-          .filter((filter): filter is HotelFilterItem => filter !== null),
-      };
+
+      const rawFilters = pickArray(item, ["options", "filters", "items", "values"]);
+      const filters = rawFilters
+        .map((filter) => {
+          const rawFilter = filter as Record<string, unknown>;
+          // Booking.com: 'genericId' is the filter item ID
+          const filterId = rawFilter.genericId ?? rawFilter.id ?? rawFilter.value ?? rawFilter.key;
+          const filterTitle = rawFilter.title ?? rawFilter.name ?? rawFilter.label;
+          if (typeof filterId !== "string" || typeof filterTitle !== "string") return null;
+          // Booking.com: 'countNotAutoextended' is the count
+          const count =
+            Number(rawFilter.countNotAutoextended ?? rawFilter.count ?? rawFilter.total ?? 0) || 0;
+          return { id: filterId, title: filterTitle, count };
+        })
+        .filter((f): f is HotelFilterItem => f !== null);
+
+      if (filters.length === 0) return null;
+      return { id, title, filters };
     })
-    .filter((category): category is HotelFilterCategory => category !== null);
+    .filter((c): c is HotelFilterCategory => c !== null);
 
-  if (normalized.some((category) => category.filters.length > 0)) {
-    return normalized;
-  }
-
-  const leafFilters = categories
-    .map((filter) => {
-      const rawFilter = filter as Partial<HotelFilterItem> & Record<string, unknown>;
-      const id = rawFilter.id ?? rawFilter.value ?? rawFilter.key;
-      const title = rawFilter.title ?? rawFilter.name ?? rawFilter.label;
-      if (typeof id !== "string" || typeof title !== "string") return null;
-      return {
-        id,
-        title,
-        count: Number(rawFilter.count ?? rawFilter.total ?? 0) || 0,
-      };
-    })
-    .filter((filter): filter is HotelFilterItem => filter !== null);
-
-  return leafFilters.length > 0
-    ? [{ id: "filters", title: "필터", filters: leafFilters }]
-    : [];
+  return { categories, totalCount };
 }
 
 /* ── API functions ── */
@@ -731,7 +724,7 @@ export async function fetchHotelSortOptions(
 
 export async function fetchHotelFilterOptions(
   params: HotelSearchInput,
-): Promise<HotelFilterCategory[]> {
+): Promise<HotelFilterResult> {
   const res = await apiFetch(
     `${API_BASE}/api/v1/hotels/filter-options?${buildQuery(params)}`,
   );

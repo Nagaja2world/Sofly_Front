@@ -41,11 +41,16 @@ export function useHotelSearch() {
             fetchHotelSortOptions(params),
             fetchHotelFilterOptions(params),
           ]);
+          // pagination.nbResultsTotal from filter response is the most reliable total count
+          const totalCount =
+            filterRes.totalCount ||
+            offersRes.data?.count ||
+            0;
           setState({
             hotels: offersRes.data?.hotels ?? [],
-            totalCount: offersRes.data?.count ?? 0,
+            totalCount,
             sortOptions: sortRes,
-            filterOptions: filterRes,
+            filterOptions: filterRes.categories,
             isLoading: false,
             error: null,
           });
