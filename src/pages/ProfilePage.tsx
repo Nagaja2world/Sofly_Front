@@ -222,7 +222,9 @@ export default function ProfilePage() {
                   className="w-[64px] h-[64px] rounded-full object-cover shrink-0 border border-gray-200"
                 />
               ) : (
-                <GroupIcon className="w-[64px] h-[64px] shrink-0" />
+                <span className="w-[64px] h-[64px] rounded-full overflow-hidden shrink-0 border border-gray-200 inline-flex items-center justify-center bg-gray-100">
+                  <GroupIcon className="w-full h-full object-cover" />
+                </span>
               )}
               <div>
                 <h1 className="font-montserrat text-title2 font-semibold text-gray-900 m-0">

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIsCompact } from "@/hooks/useMediaQuery";
 import BottomSheet from "@/components/mobile/searchbar/BottomSheet";
-import PopUpBg from "@/assets/pop_up_bg.svg?react";
+import PopUpBg from "@/assets/pop_up_bg_long.svg?react";
 import KakaoLogin from "@/assets/kakao_login.svg?react";
 import GoogleLogin from "@/assets/google_login.svg?react";
 import NaverLogin from "@/assets/naver_login.svg?react";
@@ -82,7 +82,7 @@ function LoginButtons({
 /* ── 약관 안내 (데스크톱·모바일 공유) ── */
 function TermsNotice() {
   return (
-    <p className="font-pretendard text-body5 text-gray-500 text-center m-0 leading-relaxed">
+    <p className="font-pretendard text-body4 text-gray-500 text-center m-0 leading-relaxed">
       로그인 시{" "}
       <button
         type="button"
@@ -230,12 +230,12 @@ export default function LoginPopup({
         {/* 컨텐츠 오버레이 */}
         <div className="absolute inset-0 flex flex-col px-8 pt-14 pb-8">
           {/* 타이틀 영역 */}
-          <div className="mb-6">
+          <div>
             <LoginHeading />
           </div>
 
           {/* 로그인 버튼 영역 */}
-          <div className="mt-auto">
+          <div className="mt-6">
             <LoginButtons
               onKakaoLogin={onKakaoLogin}
               onGoogleLogin={onGoogleLogin}
@@ -244,7 +244,7 @@ export default function LoginPopup({
           </div>
 
           {/* 이용약관 안내 */}
-          <div className="mt-5">
+          <div className="mt-10">
             <TermsNotice />
           </div>
         </div>

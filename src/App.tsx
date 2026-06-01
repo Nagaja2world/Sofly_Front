@@ -17,7 +17,12 @@ function PermissionToast() {
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
           <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M8 5v3.5M8 11h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <path
+            d="M8 5v3.5M8 11h.01"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
         </svg>
         {message}
       </div>
@@ -36,6 +41,7 @@ import HotelSearchPage from "@/pages/HotelSearchPage";
 import WorkspacePage from "@/pages/WorkspacePage";
 import WorkspacePreviewPage from "@/pages/WorkspacePreviewPage";
 import SnsPage from "./pages/SnsPage";
+import LegalPage from "./pages/LegalPage";
 
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import ConquestMapPage from "@/pages/ConquestMapPage";
@@ -66,6 +72,7 @@ const router = createBrowserRouter([
       { path: "flight-detail/:id", element: <FlightDetailPage /> },
       { path: "hotel-search", element: <HotelSearchPage /> },
       { path: "sns", element: <SnsPage /> },
+      { path: "legal/:type", element: <LegalPage /> },
     ],
   },
 

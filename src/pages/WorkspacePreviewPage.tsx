@@ -1,321 +1,61 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import NarrowLeftIcon from "@/assets/narrow-left.svg?react";
 import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
-import type { WorkspaceMember } from "@/components/workspace/MemberSidebar";
-import FlightInfoCard, {
-  type FlightLegInfo,
-} from "@/components/workspace/FlightInfoCard";
-import ItineraryDayCard, {
-  type ItineraryRow,
-} from "@/components/workspace/ItineraryDayCard";
-import TravelLogCard, {
-  type WeatherType,
-} from "@/components/workspace/TravelLogCard";
-import type { JSONContent } from "@tiptap/core";
+import {
+  fetchWorkspaceById,
+  fetchWorkspaceMembers,
+  type Workspace,
+} from "@/api/workspaceApi";
+import FlightInfoCard from "@/components/workspace/FlightInfoCard";
+import ItineraryDayCard from "@/components/workspace/ItineraryDayCard";
+import TravelLogCard from "@/components/workspace/TravelLogCard";
+import SectionHeader from "@/components/workspace/SectionHeader";
+import { useWorkspaceFlights } from "@/hooks/useWorkspaceFlights";
+import { useSchedule } from "@/hooks/useSchedule";
+import { useTravelLogs } from "@/hooks/useTravelLogs";
+import Button from "@/components/common/Button";
+import ConfirmPopup from "@/components/common/ConfirmPopup";
+import { useImportWorkspace } from "@/hooks/useImportWorkspace";
+import type { SnsPost } from "@/types/snsType";
 
 /* ══════════════════════════════════════════
-   타입 (페이지 단위 데이터 모델)
-   - WorkspacePage와 동일한 구조를 사용
-   - 추후 공용 타입 파일로 분리 고려
+   SNS용 워크스페이스 미리보기 페이지 (이슈 #24)
+   ══════════════════════════════════════════
+   - SNS 게시물의 "워크스페이스 보러가기" → /workspace/:id/preview 진입.
+   - 다른 사람의 (공개) 워크스페이스를 "구경"만 하는 읽기 전용 페이지.
+   - 항공 일정 / 여행 일정 / 여행 기록을 실제 API에서 로드해 표시.
+   - 모든 편집/삭제/추가 콜백을 넘기지 않고 readOnly로 렌더 → 변경 불가.
+   - 데이터 로딩은 WorkspacePage와 동일한 훅(useWorkspaceFlights /
+     useSchedule / useTravelLogs)을 그대로 재사용.
+
+   권한(403)에 대한 설계 결정 — 중요
+   - 현재 백엔드는 엔드포인트마다 권한 정책이 다르다.
+     · /api/v1/schedules...           → 비참여자도 200 (열려 있음)
+     · /api/workspaces/{id}           → 비참여자 403
+     · /api/workspaces/{id}/flights   → 비참여자 403
+     · /api/workspaces/{id}/members   → 비참여자 403
+     · /api/workspaces/{id}/travellogs/full → 비참여자 403
+   - 따라서 403을 "전체 차단(볼 수 없음)"으로 다루면 안 된다. 하나라도
+     403이 나면 페이지 전체가 막혀버려, 정작 200으로 오는 일정조차 못 본다.
+   - 대신 WorkspacePage와 동일하게 각 요청의 403을 "그 섹션만 빈 상태"로
+     흡수한다. 상세/멤버 조회가 실패하면 제목·게시자명만 기본값으로 두고
+     페이지는 그대로 렌더한다. (각 훅은 이미 내부 try/catch로 실패 시 빈
+     배열을 유지하므로 항공/기록 섹션은 자동으로 빈 상태가 된다.)
+   - 백엔드가 flights/travellogs/상세를 PUBLIC에 열어주면, 이 페이지는
+     코드 변경 없이 해당 섹션들이 자동으로 채워진다.
+
+   린트(Calling setState synchronously within an effect)
+   - effect 본문에서 동기 setState를 하지 않도록, 상세 조회 결과는
+     .then/.catch(비동기 콜백) 안에서만 setState 한다.
    ══════════════════════════════════════════ */
 
-interface FlightInfo {
-  direction: "가는편" | "오는편";
-  date: string;
-  legs: FlightLegInfo[];
-  bookingUrl?: string;
-  bookingNumber?: string;
-}
-
-interface ItineraryDay {
-  dayNumber: number;
-  rows: ItineraryRow[];
-}
-
-interface TravelLog {
-  mainTitle: string | null;
-  oneLineSummary?: string;
-  weather?: WeatherType;
-  content?: JSONContent;
-  albumPhotos?: string[];
-}
-
-/* ══════════════════════════════════════════
-   목업 데이터
-   - WorkspacePage와 동일한 mock을 사용 (이슈 #24의 "다른 사람의 워크스페이스를
-     미리보기"라는 시맨틱 상, 실제 API 연결 시 :id에 맞는 워크스페이스를 fetch).
-   - 추후 공통 mock 또는 API 호출 훅으로 분리.
-   ══════════════════════════════════════════ */
-
-const MOCK_WORKSPACE_NAME = "프랑크푸르트 여행";
-
-const MOCK_MEMBERS: WorkspaceMember[] = [
-  { id: 1, userId: 101, name: "홍길동", isHost: true },
-  { id: 2, userId: 102, name: "이대화" },
-  { id: 3, userId: 103, name: "김갑자" },
-  { id: 4, userId: 104, name: "박조원" },
-  { id: 5, userId: 105, name: "조마마" },
-];
-
-const MOCK_FLIGHTS: FlightInfo[] = [
-  {
-    direction: "가는편",
-    date: "2026년 3월 11일",
-    legs: [
-      {
-        meridiem: "오전",
-        time: "11:10",
-        airportCode: "ICN",
-        airportName: "인천국제공항",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0312",
-      },
-      {
-        meridiem: "오후",
-        time: "12:30",
-        airportCode: "PEK",
-        airportName: "베이징캐피탈",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0313",
-      },
-    ],
-    bookingUrl: "https://www.myrealtrip.com/dfsg...",
-    bookingNumber: "2603140000007895321",
-  },
-  {
-    direction: "오는편",
-    date: "2026년 3월 14일",
-    legs: [
-      {
-        meridiem: "오전",
-        time: "11:10",
-        airportCode: "FRA",
-        airportName: "프랑크푸르트",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0312",
-      },
-      {
-        meridiem: "오후",
-        time: "12:30",
-        airportCode: "GMP",
-        airportName: "김포공항",
-        duration: "2시간 20분",
-        airline: "대한항공",
-        flightNo: "FN0313",
-      },
-    ],
-    bookingUrl: "https://www.myrealtrip.com/dfsg...",
-    bookingNumber: "2603140000007895321",
-  },
-];
-
-/* ItineraryRow 스키마는 schedule API 통합 이후 다음과 같이 재설계됨:
- *  - title, visitTime, cost, remark + 내부용 _category, _latitude, _longitude 등
- *  - 옛날 stayDuration / transport / moveDuration 필드는 제거됨.
- * mock 데이터에서는 체류시간/교통편 정보를 remark에 묶어 표현. */
-const MOCK_ITINERARY_DAYS: ItineraryDay[] = [
-  {
-    dayNumber: 1,
-    rows: [
-      {
-        id: "d1-1",
-        title: "공항 도착",
-        visitTime: "09:00",
-        cost: "13,000원",
-        remark: "체류 30분 · 대중교통 1시간",
-        _category: "TRANSPORT",
-        _estimatedCost: 13000,
-      },
-      {
-        id: "d1-2",
-        title: "감자 레스토랑",
-        visitTime: "11:00",
-        cost: "7,000원",
-        remark: "체류 1시간 · 대중교통 30분",
-        _category: "RESTAURANT",
-        _estimatedCost: 7000,
-      },
-      {
-        id: "d1-3",
-        title: "뢰머 광장",
-        visitTime: "13:00",
-        remark: "체류 1시간 30분 · 대중교통 1시간",
-        _category: "ATTRACTION",
-      },
-      {
-        id: "d1-4",
-        title: "프랑크푸르트 호텔",
-        visitTime: "16:00",
-        remark: "대중교통 1시간 30분",
-        _category: "ACCOMMODATION",
-      },
-    ],
-  },
-  {
-    dayNumber: 2,
-    rows: [
-      {
-        id: "d2-1",
-        title: "호텔 조식",
-        visitTime: "08:00",
-        remark: "체류 1시간",
-        _category: "RESTAURANT",
-      },
-      {
-        id: "d2-2",
-        title: "프랑크푸르트 호텔 체크아웃",
-        visitTime: "10:00",
-        _category: "ACCOMMODATION",
-      },
-      {
-        id: "d2-3",
-        title: "뢰머 광장",
-        visitTime: "11:00",
-        remark: "체류 1시간 30분 · 대중교통 1시간",
-        _category: "ATTRACTION",
-      },
-      {
-        id: "d2-4",
-        title: "브렉퍼스트",
-        visitTime: "13:30",
-        remark: "체류 2시간 · 대중교통 1시간 30분",
-        _category: "RESTAURANT",
-      },
-    ],
-  },
-];
-
-const MOCK_BODY_CONTENT: JSONContent = {
-  type: "doc",
-  content: [
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "프랑크푸르트 공항에 도착해 본격적인 여행을 시작했다.",
-        },
-      ],
-    },
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "간단히 이동 후 감자 레스토랑에 들러 가볍게 식사를 하고,",
-        },
-      ],
-    },
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "뢰머 광장을 둘러보며 첫 도시의 분위기를 느꼈다.",
-        },
-      ],
-    },
-    {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "이후 호텔에 체크인하며 하루를 마무리했다.",
-        },
-      ],
-    },
-  ],
-};
-
-const MOCK_TRAVEL_LOGS: TravelLog[] = [
-  {
-    mainTitle: "1일차",
-    oneLineSummary: "프랑크푸르트 여행 1일차, 날씨가 다웠다.",
-    weather: "sunny",
-    content: MOCK_BODY_CONTENT,
-    albumPhotos: [],
-  },
-  {
-    mainTitle: "2일차",
-    oneLineSummary: "프랑크푸르트 여행 2일차, 날씨가 다웠다.",
-    weather: "sunny",
-    content: MOCK_BODY_CONTENT,
-    albumPhotos: [],
-  },
-  {
-    mainTitle: "3일차",
-    oneLineSummary: "프랑크푸르트 여행 3일차, 날씨가 다웠다.",
-    weather: "sunny",
-    content: MOCK_BODY_CONTENT,
-    albumPhotos: [],
-  },
-];
-
-/* ══════════════════════════════════════════
-   섹션 헤더
-   - WorkspacePage의 SectionHeader와 동일하지만 미리보기는 "+" 등의 action이 없으므로 단순화
-   ══════════════════════════════════════════ */
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <h2 className="font-pretendard text-title2 font-semibold text-gray-900 m-0">
-      {title}
-    </h2>
-  );
-}
-
-/* ══════════════════════════════════════════
-   메인 컴포넌트
-   ══════════════════════════════════════════ */
-
-/**
- * SNS용 워크스페이스 미리보기 페이지 (이슈 #24)
- *
- * - 다른 사람이 SNS 페이지에 게시한 워크스페이스를 "구경"만 하는 페이지.
- * - 편집/삭제/추가 등 모든 변경 동작이 비활성화됨.
- *   · ItineraryDayCard는 readOnly={true}로 편집 버튼이 사라지고, 행 삭제 및
- *     카테고리 변경도 부모가 콜백을 넘기지 않아 자동으로 비활성화됨.
- *   · TravelLogCard는 onSave/onDelete를 넘기지 않아 편집/삭제 버튼이 사라짐.
- *     (TravelLogCard 자체의 readOnly prop은 별도 이슈에서 도입 예정.)
- * - 좌측 멤버 사이드바, 우측 AI 채팅 패널 모두 없음.
- *
- * 레이아웃 (데스크톱)
- *  ┌──────────────────────────────────────────┐
- *  │             Header (공통)                │
- *  ├──────────────────────────────────────────┤
- *  │  ← SNS로 돌아가기                        │
- *  │                                          │
- *  │       프랑크푸르트 여행                  │
- *  │       홍길동님이 공유한 여행             │
- *  │                                          │
- *  │       항공 일정                          │
- *  │       [가는편]  [오는편]                 │
- *  │                                          │
- *  │       여행 일정                          │
- *  │       [1일차]                            │
- *  │       [2일차]                            │
- *  │                                          │
- *  │       여행 기록                          │
- *  │       [1일차] [2일차] [3일차] →          │
- *  │                                          │
- *  └──────────────────────────────────────────┘
- *
- * - 본문 폭은 max-w-[800px] (인스타그램 게시물 느낌)
- * - SNS 카드는 표시하지 않음 (이미 SNS 페이지에서 본 카드를 클릭해서 들어왔으므로)
- *
- * 모바일 (md 미만)
- *  - WorkspacePage와 동일하게 "준비 중" 메시지만 표시. (별도 작업으로 분리)
- *
- * 데이터
- *  - 현재는 mock 데이터를 그대로 사용. URL의 :id는 라우팅을 위해 받지만 미사용.
- *  - API 연결 시 useEffect + fetch(`/workspaces/${id}/preview`)로 교체.
- */
 export default function WorkspacePreviewPage() {
   const navigate = useNavigate();
+  const { id: workspaceIdParam } = useParams<{ id: string }>();
+  const workspaceId = Number(workspaceIdParam);
+  const isValidId = !!workspaceId && !isNaN(workspaceId);
   const { logout } = useAuthStore();
 
   const handleLogout = () => {
@@ -323,24 +63,118 @@ export default function WorkspacePreviewPage() {
     navigate("/");
   };
 
-  /** 뒤로가기 (SNS 페이지로 돌아가기)
-   *  - SNS 페이지가 아직 없으므로 일단 navigate(-1)로 브라우저 히스토리 사용.
-   *  - 추후 SNS 라우트가 생기면 navigate("/sns")로 명시적으로 이동하도록 수정. */
+  /** 뒤로가기 — SNS 페이지로 돌아가기 */
   const handleBack = () => {
-    navigate(-1);
+    navigate("/sns");
   };
 
-  /* ── mock 데이터 ── */
-  const workspaceName = MOCK_WORKSPACE_NAME;
-  const flights = MOCK_FLIGHTS;
-  const itineraryDays = MOCK_ITINERARY_DAYS;
-  const travelLogs = MOCK_TRAVEL_LOGS;
+  /* ── 워크스페이스 상세(제목용) + 호스트명 ──
+     비참여자에게는 403이 날 수 있다. 실패해도 페이지는 그대로 렌더하고
+     제목/게시자명만 기본값으로 둔다(전체 차단 X). */
+  const [workspaceDetail, setWorkspaceDetail] = useState<Workspace | null>(
+    null,
+  );
+  const [hostName, setHostName] = useState<string>("");
 
-  /** 호스트(게시자) 이름 추출.
-   *  - 워크스페이스 멤버 중 isHost === true인 멤버가 게시자.
-   *  - 없는 경우는 데이터 무결성 상 발생하면 안 되지만, 안전하게 fallback 처리. */
-  const hostName =
-    MOCK_MEMBERS.find((m) => m.isHost)?.name ?? "알 수 없는 사용자";
+  /* ── 섹션 데이터 (WorkspacePage와 동일 훅 재사용) ──
+     각 훅은 내부에서 실패를 흡수하고 빈 배열을 유지하므로,
+     403이 나는 섹션은 자연히 "빈 상태"로 표시된다. */
+  const { flights, loadFlights } = useWorkspaceFlights(workspaceId);
+  const { itineraryDays, isLoadingSchedule, loadSchedule } =
+    useSchedule(workspaceId);
+  const { travelLogs, loadTravelLogs } = useTravelLogs(workspaceId);
+
+  /* ── 워크스페이스 가져오기 (SnsPostDetailPopup과 동일 동작) ──
+     useImportWorkspace는 SnsPost를 받지만 실제로는 workspaceId/workspaceName만
+     사용하므로, 이 페이지에서는 해당 필드만 채운 최소 객체를 넘긴다. */
+  const importer = useImportWorkspace();
+
+  const handleImport = () => {
+    if (!isValidId) return;
+    const minimalPost: SnsPost = {
+      id: String(workspaceId),
+      author: { id: "", username: "" },
+      media: [],
+      createdAt: new Date().toISOString(),
+      workspaceId: String(workspaceId),
+      workspaceName: workspaceDetail?.title ?? "",
+    };
+    importer.request(minimalPost);
+  };
+
+  /* 상세 조회 — 실패해도 조용히 무시 (WorkspacePage와 동일 방침) */
+  useEffect(() => {
+    if (!isValidId) return;
+    let cancelled = false;
+
+    fetchWorkspaceById(workspaceId)
+      .then((ws) => {
+        if (cancelled) return;
+        setWorkspaceDetail(ws);
+      })
+      .catch((err) => {
+        // 403(비참여) 등 — 제목만 기본값으로 두고 페이지는 그대로 표시
+        console.warn(
+          "[WorkspacePreviewPage] 워크스페이스 상세 조회 실패:",
+          err,
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, isValidId]);
+
+  /* 호스트(OWNER) 이름 — 실패해도 게시자명만 비움 */
+  useEffect(() => {
+    if (!isValidId) return;
+    let cancelled = false;
+
+    fetchWorkspaceMembers(workspaceId)
+      .then((members) => {
+        if (cancelled) return;
+        const owner = members.find((m) => m.role === "OWNER");
+        setHostName(owner?.nickname ?? "");
+      })
+      .catch((err) =>
+        console.warn("[WorkspacePreviewPage] 멤버 조회 실패:", err),
+      );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, isValidId]);
+
+  /* 섹션 데이터 로드 — 상세 조회 성공 여부와 무관하게 항상 시도.
+     (일정은 비참여자도 200으로 오므로 최소한 일정은 표시된다.) */
+  useEffect(() => {
+    if (!isValidId) return;
+    loadFlights();
+    loadSchedule();
+    loadTravelLogs();
+  }, [isValidId, loadFlights, loadSchedule, loadTravelLogs]);
+
+  const workspaceName = workspaceDetail?.title ?? "워크스페이스";
+
+  /* ── 뒤로가기 버튼 (공통) ── */
+  const backButton = (
+    <button
+      type="button"
+      onClick={handleBack}
+      aria-label="SNS로 돌아가기"
+      className={[
+        "inline-flex items-center gap-1 px-2 py-1.5",
+        "rounded-md",
+        "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+        "transition-colors cursor-pointer",
+        "border-none bg-transparent",
+        "font-pretendard text-body3",
+      ].join(" ")}
+    >
+      <NarrowLeftIcon className="w-4 h-4 shrink-0" />
+      <span>SNS로 돌아가기</span>
+    </button>
+  );
 
   return (
     <>
@@ -364,112 +198,142 @@ export default function WorkspacePreviewPage() {
           </div>
         </div>
 
-        {/* ── 페이지 컨텐츠 ──
-            본문 폭 800px 중앙 정렬, 좌우 사이드바 없음 */}
+        {/* ── 페이지 컨텐츠 — 본문 폭 800px 중앙 정렬 ── */}
         <div className="w-full pb-12">
           <div className="max-w-[800px] mx-auto px-4 pt-6">
-            {/* ── 1. 뒤로가기 버튼 ── */}
-            <button
-              type="button"
-              onClick={handleBack}
-              aria-label="SNS로 돌아가기"
-              className={[
-                "inline-flex items-center gap-1 px-2 py-1.5",
-                "rounded-md",
-                "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
-                "transition-colors cursor-pointer",
-                "border-none bg-transparent",
-                "font-pretendard text-body3",
-              ].join(" ")}
-            >
-              <NarrowLeftIcon className="w-4 h-4 shrink-0" />
-              <span>SNS로 돌아가기</span>
-            </button>
+            {backButton}
 
-            {/* ── 2. 페이지 헤더 (워크스페이스 이름 + 게시자 정보) ── */}
-            <header className="mt-4 mb-8 flex flex-col gap-1">
-              <h1 className="font-pretendard text-title1 font-semibold text-gray-900 m-0">
-                {workspaceName}
-              </h1>
-              <p className="font-pretendard text-body3 text-gray-600 m-0">
-                {hostName}님이 공유한 여행
-              </p>
-            </header>
+            {/* 잘못된 id일 때만 안내, 그 외에는 항상 페이지 렌더 */}
+            {!isValidId ? (
+              <div className="mt-16 flex flex-col items-center gap-2 text-center">
+                <p className="font-pretendard text-title3 font-semibold text-gray-900 m-0">
+                  잘못된 주소예요
+                </p>
+                <p className="font-pretendard text-body3 text-gray-500 m-0">
+                  올바른 워크스페이스 주소인지 확인해 주세요.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* ── 페이지 헤더 (워크스페이스 이름 + 게시자 / 가져오기 버튼) ── */}
+                <header className="mt-4 mb-8 flex items-start justify-between gap-4">
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <h1 className="font-pretendard text-title1 font-semibold text-gray-900 m-0">
+                      {workspaceName}
+                    </h1>
+                    {hostName && (
+                      <p className="font-pretendard text-body3 text-gray-600 m-0">
+                        {hostName}님이 공유한 여행
+                      </p>
+                    )}
+                  </div>
+                  <div className="shrink-0">
+                    <Button btnType="solid" onClick={handleImport}>
+                      워크스페이스 가져오기
+                    </Button>
+                  </div>
+                </header>
 
-            {/* ── 3. 본문 (항공 일정 / 여행 일정 / 여행 기록) ── */}
-            <main className="flex flex-col gap-8">
-              {/* ── 항공 일정 ── */}
-              <section className="flex flex-col gap-3">
-                <SectionHeader title="항공 일정" />
-                {/* 본문 폭 800px이라 lg(1024px) 미만에선 항상 1열로 펼쳐짐.
-                    워크스페이스 페이지와 동일한 grid 패턴을 유지하되 미리보기에선 1열 고정해도 무방. */}
-                <div className="grid grid-cols-1 gap-3">
-                  {flights.map((f, i) => (
-                    <FlightInfoCard
-                      key={i}
-                      direction={f.direction}
-                      date={f.date}
-                      legs={f.legs}
-                      bookingUrl={f.bookingUrl}
-                      bookingNumber={f.bookingNumber}
-                    />
-                  ))}
-                </div>
-              </section>
+                <main className="flex flex-col gap-8">
+                  {/* ── 항공 일정 ──
+                      (현재 비참여자는 403 → 빈 상태. 백엔드 개방 시 자동 표시) */}
+                  <section className="flex flex-col gap-3">
+                    <SectionHeader title="항공 일정" />
+                    {flights.length === 0 ? (
+                      <EmptyBox text="표시할 항공 일정이 없어요" />
+                    ) : (
+                      <div className="grid grid-cols-1 gap-3">
+                        {flights.map((f) => (
+                          <FlightInfoCard
+                            key={f.id}
+                            direction={f.direction}
+                            date={f.date}
+                            legs={f.legs}
+                            bookingUrl={f.bookingUrl}
+                            bookingNumber={f.bookingNumber}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
 
-              {/* ── 여행 일정 ──
-                  readOnly={true}: 편집 버튼 사라짐. 지도 보기는 그대로 동작.
-                  onDeleteItem / onCategoryChange를 넘기지 않음으로써
-                  행별 삭제 / 카테고리 변경도 자동으로 비활성화됨. */}
-              <section className="flex flex-col gap-3">
-                <SectionHeader title="여행 일정" />
-                <div className="flex flex-col gap-3">
-                  {itineraryDays.map((d) => (
-                    <ItineraryDayCard
-                      key={d.dayNumber}
-                      dayNumber={d.dayNumber}
-                      rows={d.rows}
-                      readOnly
-                    />
-                  ))}
-                </div>
-              </section>
+                  {/* ── 여행 일정 (readOnly) — 비참여자도 200으로 표시됨 ── */}
+                  <section className="flex flex-col gap-3">
+                    <SectionHeader title="여행 일정" />
+                    {isLoadingSchedule ? (
+                      <EmptyBox text="여행 일정을 불러오는 중..." />
+                    ) : itineraryDays.length === 0 ? (
+                      <EmptyBox text="등록된 여행 일정이 없어요" />
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        {itineraryDays.map((d) => (
+                          <ItineraryDayCard
+                            key={d.dayNumber}
+                            dayNumber={d.dayNumber}
+                            rows={d.rows}
+                            readOnly
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
 
-              {/* ── 여행 기록 ──
-                  - SNS 카드는 표시하지 않음 (이미 SNS 페이지에서 본 카드를 클릭해서 들어왔으므로).
-                  - 일자별 카드만 렌더.
-                  - onSave / onDelete를 넘기지 않아 편집/삭제 버튼이 사라짐.
-                    (TravelLogCard에 명시적 readOnly prop을 도입하는 건 별도 이슈에서 처리 예정.)
-                  - "+" 추가 버튼도 없음.
-                  - 가로 스크롤은 워크스페이스 페이지와 동일하게 유지. */}
-              <section className="flex flex-col gap-3">
-                <SectionHeader title="여행 기록" />
-                <div
-                  className={[
-                    "flex gap-3 overflow-x-auto pb-2",
-                    "[&::-webkit-scrollbar]:h-2",
-                    "[&::-webkit-scrollbar-thumb]:bg-gray-300",
-                    "[&::-webkit-scrollbar-thumb]:rounded",
-                  ].join(" ")}
-                >
-                  {travelLogs.map((log, i) => (
-                    <div key={i} className="shrink-0">
-                      <TravelLogCard
-                        mainTitle={log.mainTitle}
-                        oneLineSummary={log.oneLineSummary}
-                        weather={log.weather}
-                        content={log.content}
-                        albumPhotos={log.albumPhotos}
-                        readOnly
-                      />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </main>
+                  {/* ── 여행 기록 (readOnly, 가로 스크롤) ──
+                      (현재 비참여자는 403 → 빈 상태. 백엔드 개방 시 자동 표시) */}
+                  <section className="flex flex-col gap-3">
+                    <SectionHeader title="여행 기록" />
+                    {travelLogs.length === 0 ? (
+                      <EmptyBox text="기록된 여행 이야기가 없어요" />
+                    ) : (
+                      <div
+                        className={[
+                          "flex gap-3 overflow-x-auto pb-2",
+                          "[&::-webkit-scrollbar]:h-2",
+                          "[&::-webkit-scrollbar-thumb]:bg-gray-300",
+                          "[&::-webkit-scrollbar-thumb]:rounded",
+                        ].join(" ")}
+                      >
+                        {travelLogs.map((log, i) => (
+                          <div key={log.id ?? i} className="shrink-0">
+                            <TravelLogCard
+                              mainTitle={log.mainTitle}
+                              oneLineSummary={log.oneLineSummary}
+                              weather={log.weather}
+                              content={log.content}
+                              albumPhotos={log.albumPhotos}
+                              readOnly
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                </main>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {/* ── 워크스페이스 가져오기 확인 팝업 (SnsPostDetailPopup과 동일) ── */}
+      <ConfirmPopup
+        isOpen={importer.isConfirmOpen}
+        onClose={importer.cancel}
+        onConfirm={importer.confirm}
+        title="이 워크스페이스의 여행 일정을 가져올까요?"
+        description={importer.descriptionText}
+        confirmLabel="가져오기"
+        variant="primary"
+      />
     </>
+  );
+}
+
+/* ── 빈 상태 박스 (섹션 공용) ── */
+function EmptyBox({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-10 flex items-center justify-center text-center">
+      <p className="font-pretendard text-body3 text-gray-500 m-0">{text}</p>
+    </div>
   );
 }

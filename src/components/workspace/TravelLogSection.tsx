@@ -150,6 +150,7 @@ export default function TravelLogSection({
                 fileMap={snsLog.fileMap}
                 visibility={snsLog.visibility}
                 snsPostId={snsPostId}
+                sharedAlbumPhotos={sharedAlbumPhotos}
                 onSave={onSaveSnsLog}
                 onDelete={onDeleteSnsLog}
                 onUpload={onUploadSnsLog}
@@ -194,9 +195,7 @@ export default function TravelLogSection({
                 onSave={(data) =>
                   log.id != null && onSaveTravelLog(log.id, data)
                 }
-                onDelete={() =>
-                  log.id != null && onDeleteTravelLog(log.id)
-                }
+                onDelete={() => log.id != null && onDeleteTravelLog(log.id)}
               />
             </div>
           ))}
