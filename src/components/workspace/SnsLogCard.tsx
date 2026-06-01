@@ -122,7 +122,7 @@ export default function SnsLogCard({
 
   /* ── 보기 모드에서 이미지 영역 클릭 → 편집 모드로 전환 + 파일 피커 오픈 ── */
   const handleViewAreaClick = () => {
-    setDraft({ caption, media: media ?? [] });
+    setDraft({ caption, media: media ?? [], fileMap: fileMapProp ?? {}, visibility: visibilityProp });
     setIsEditing(true);
     /* 편집 모드 렌더 후 파일 피커 오픈 (setTimeout으로 렌더 완료 대기) */
     setTimeout(() => fileInputRef.current?.click(), 0);
