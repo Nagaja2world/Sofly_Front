@@ -158,8 +158,8 @@ function buildQuery(params: HotelSearchInput): string {
   p.set("childrenAge", params.childrenAge ?? "0");
   if (params.pageNumber != null) p.set("pageNumber", String(params.pageNumber));
   if (params.sortBy) p.set("sortBy", params.sortBy);
-  if (params.priceMin != null) p.set("priceMin", String(params.priceMin));
-  if (params.priceMax != null) p.set("priceMax", String(params.priceMax));
+  if (params.priceMin != null && params.priceMin > 0) p.set("priceMin", String(params.priceMin));
+  if (params.priceMax != null && params.priceMax > 0) p.set("priceMax", String(params.priceMax));
   if (params.categoriesFilter) p.set("categoriesFilter", params.categoriesFilter);
   p.set("units", params.units ?? "METRIC");
   p.set("temperatureUnit", params.temperatureUnit ?? "CELSIUS");
