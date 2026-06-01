@@ -427,24 +427,34 @@ export default function WorkspacePage() {
 
   const handleUploadSnsLog = async (data: SnsLogData) => {
     const fileMap = data.fileMap ?? {};
-    const files = Object.values(fileMap);
-    // fileMap에 없는 media = 서버에 이미 있는 이미지 → ID를 유지 요청
-    const keepImageIds = data.media
-      .filter(m => !(m.id in fileMap))
-      .map(m => Number(m.id))
-      .filter(id => !isNaN(id) && id > 0);
     const visibility: SnsPostVisibility = (workspaceDetail?.visibility as SnsPostVisibility) ?? 'PUBLIC';
+
+    // media 순서를 유지하면서 모든 이미지를 File로 수집
+    // - 새로 추가된 이미지: fileMap에서 가져옴
+    // - 기존 서버 이미지: URL에서 blob으로 다운로드 후 File 변환 (서버가 파일 전체 교체 방식이므로)
+    const settled = await Promise.allSettled(
+      data.media.map(async (m) => {
+        if (m.id in fileMap) return fileMap[m.id];
+        const res = await fetch(m.url);
+        const blob = await res.blob();
+        const ext = blob.type.split('/')[1]?.split(';')[0] || 'jpg';
+        return new File([blob], `image_${m.id}.${ext}`, { type: blob.type });
+      }),
+    );
+    const allFiles = settled
+      .filter((r): r is PromiseFulfilledResult<File> => r.status === 'fulfilled')
+      .map((r) => r.value);
+
     try {
       let post;
       if (snsPostId) {
         post = await updateSnsPost(workspaceId, {
-          files: files.length > 0 ? files : undefined,
+          files: allFiles.length > 0 ? allFiles : undefined,
           content: data.caption,
           visibility,
-          keepImageIds: keepImageIds.length > 0 ? keepImageIds : undefined,
         });
       } else {
-        post = await createSnsPost(workspaceId, files, data.caption, visibility);
+        post = await createSnsPost(workspaceId, allFiles, data.caption, visibility);
       }
       setSnsPostId(post.id);
       setSnsLog({
