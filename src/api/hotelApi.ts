@@ -233,9 +233,6 @@ type RawHotelOffersData = Partial<HotelOffersResponse["data"]> & {
   pagination?: { nbResultsTotal?: number };
 };
 
-type RawHotelFilterCategory = Partial<HotelFilterCategory> & {
-  filters?: Partial<HotelFilterItem>[];
-};
 
 type RawHotelDetailsData = Partial<HotelDetailsData> & {
   data?: RawHotelDetailsData;
