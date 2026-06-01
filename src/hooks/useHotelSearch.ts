@@ -41,10 +41,10 @@ export function useHotelSearch() {
             fetchHotelSortOptions(params),
             fetchHotelFilterOptions(params),
           ]);
-          // pagination.nbResultsTotal from filter response is the most reliable total count
+          // offers meta "N properties"가 실제 예약 가능 수 — filter의 nbResultsTotal은 날짜 무관 전체 수라 더 클 수 있음
           const totalCount =
-            filterRes.totalCount ||
             offersRes.data?.count ||
+            filterRes.totalCount ||
             0;
           setState({
             hotels: offersRes.data?.hotels ?? [],

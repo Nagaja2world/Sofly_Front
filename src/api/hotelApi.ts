@@ -631,13 +631,11 @@ function pickArray(value: unknown, keys: string[]): unknown[] {
 }
 
 function normalizeSortOptions(data: unknown): HotelSortOption[] {
-  // sort-options endpoint may return filters array (same format as filter-options)
-  const options = pickArray(data, ["sortOptions", "options", "sorts", "items", "filters"]);
+  const options = pickArray(data, ["sortOptions", "options", "sorts", "items"]);
   return options
     .map((option) => {
       const item = asRecord(option);
-      // Booking.com sort options: try 'id', fallback to 'field'
-      const id = item?.id ?? item?.value ?? item?.key ?? item?.field;
+      const id = item?.id ?? item?.value ?? item?.key;
       const title = item?.title ?? item?.name ?? item?.label;
       if (typeof id !== "string" || typeof title !== "string") return null;
       return { id, title };
