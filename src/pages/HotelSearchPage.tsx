@@ -13,6 +13,34 @@ import {
 } from "@/utils/flightSearchQuery";
 
 const HOTEL_PAGE_SIZE = 20;
+const PAGE_WINDOW = 5;
+
+function buildPageItems(currentPage: number, totalPages: number): Array<number | "..."> {
+  if (totalPages <= PAGE_WINDOW + 2) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const half = Math.floor(PAGE_WINDOW / 2);
+  let start = Math.max(2, currentPage - half);
+  let end = Math.min(totalPages - 1, currentPage + half);
+
+  if (currentPage <= half + 2) {
+    start = 2;
+    end = PAGE_WINDOW;
+  }
+
+  if (currentPage >= totalPages - half - 1) {
+    start = totalPages - PAGE_WINDOW + 1;
+    end = totalPages - 1;
+  }
+
+  const pages: Array<number | "..."> = [1];
+  if (start > 2) pages.push("...");
+  for (let page = start; page <= end; page += 1) pages.push(page);
+  if (end < totalPages - 1) pages.push("...");
+  pages.push(totalPages);
+  return pages;
+}
 
 /* URL query params ↔ hotel search params */
 function parseParams(sp: URLSearchParams): HotelSearchBarParams | null {
@@ -60,10 +88,9 @@ export default function HotelSearchPage() {
 
   const { hotels, totalCount, sortOptions, filterOptions, isLoading, error, search } =
     useHotelSearch();
-  const hasNextPage =
-    totalCount > 0
-      ? pageNumber * HOTEL_PAGE_SIZE < totalCount
-      : hotels.length >= HOTEL_PAGE_SIZE;
+  const totalPages = totalCount > 0 ? Math.max(1, Math.ceil(totalCount / HOTEL_PAGE_SIZE)) : 0;
+  const pageItems = totalPages > 0 ? buildPageItems(pageNumber, totalPages) : [];
+  const hasNextPage = totalPages > 0 ? pageNumber < totalPages : hotels.length >= HOTEL_PAGE_SIZE;
 
   /* 첫 로드 및 URL 파라미터 변경 시 검색 */
   useEffect(() => {
@@ -286,7 +313,7 @@ export default function HotelSearchPage() {
             ))}
 
             {!isLoading && !error && parsedParams && hotels.length > 0 && (
-              <div className="flex items-center justify-center gap-3 pt-4">
+              <div className="flex items-center justify-center gap-2 pt-4 flex-wrap">
                 <button
                   type="button"
                   onClick={() => handlePageChange(pageNumber - 1)}
@@ -300,9 +327,37 @@ export default function HotelSearchPage() {
                 >
                   이전
                 </button>
-                <span className="min-w-16 text-center font-pretendard text-body3 font-semibold text-gray-800">
-                  {pageNumber}
-                </span>
+                {pageItems.length > 0 ? (
+                  pageItems.map((item, index) =>
+                    item === "..." ? (
+                      <span
+                        key={`ellipsis-${index}`}
+                        className="px-2 font-pretendard text-body3 text-gray-400"
+                      >
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => handlePageChange(item)}
+                        aria-current={item === pageNumber ? "page" : undefined}
+                        className={[
+                          "min-w-10 rounded-lg border px-3 py-2 font-pretendard text-body3",
+                          item === pageNumber
+                            ? "border-gray-900 bg-gray-900 text-white"
+                            : "border-gray-300 bg-white text-gray-800 cursor-pointer hover:border-gray-700",
+                        ].join(" ")}
+                      >
+                        {item}
+                      </button>
+                    ),
+                  )
+                ) : (
+                  <span className="min-w-16 text-center font-pretendard text-body3 font-semibold text-gray-800">
+                    {pageNumber}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => handlePageChange(pageNumber + 1)}

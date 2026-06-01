@@ -386,7 +386,12 @@ function normalizeOffers(data: RawHotelOffersData | undefined): HotelOffersRespo
   const metaCount = payload?.meta?.[0]?.title
     ? Number(payload.meta[0].title.match(/\d+/)?.[0])
     : undefined;
-  const count = payload?.count ?? payload?.primary_count ?? metaCount ?? hotels.length;
+  const count = Math.max(
+    payload?.count ?? 0,
+    payload?.primary_count ?? 0,
+    metaCount ?? 0,
+    hotels.length,
+  );
   return {
     data: {
       hotels,
