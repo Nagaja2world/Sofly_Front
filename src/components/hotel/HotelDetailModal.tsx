@@ -100,6 +100,7 @@ function RoomCard({ room }: { room: HotelRoom }) {
 function HotelDetailContent({ data }: { data: HotelDetailsData }) {
   const mainPhoto = data.photos?.[0]?.url_original ?? data.photos?.[0]?.url_max300;
   const rooms = data.block ?? [];
+  const chips = [...(data.highlights ?? []), ...(data.facilities ?? [])].slice(0, 10);
 
   return (
     <div className="flex flex-col gap-5">
@@ -152,8 +153,36 @@ function HotelDetailContent({ data }: { data: HotelDetailsData }) {
               </div>
             )}
           </div>
+
+          {data.price && (
+            <div className="mt-2">
+              <p className="font-pretendard text-body5 text-gray-400 m-0">예상 요금</p>
+              <p className="font-pretendard text-body1 font-bold text-gray-900 m-0">
+                {formatPrice(data.price.value, data.price.currency)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
+
+      {data.hotel_text?.description && (
+        <p className="font-pretendard text-body3 text-gray-600 leading-relaxed m-0">
+          {data.hotel_text.description}
+        </p>
+      )}
+
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((chip) => (
+            <span
+              key={chip}
+              className="font-pretendard text-body5 text-gray-700 bg-gray-100 border border-gray-200 px-2 py-1 rounded"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* 객실 목록 */}
       {rooms.length > 0 && (

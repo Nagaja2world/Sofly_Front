@@ -12,6 +12,8 @@ import {
   buildFlightSearchParams,
 } from "@/utils/flightSearchQuery";
 
+const HOTEL_PAGE_SIZE = 20;
+
 /* URL query params ↔ hotel search params */
 function parseParams(sp: URLSearchParams): HotelSearchBarParams | null {
   const destId = sp.get("destId");
@@ -53,10 +55,15 @@ export default function HotelSearchPage() {
   const categoriesFilter = filtersParam || "popular";
   const priceMin = Number(searchParams.get("priceMin") ?? 0) || 0;
   const priceMax = Number(searchParams.get("priceMax") ?? 0) || 0;
+  const pageNumber = Math.max(1, Number(searchParams.get("pageNumber") ?? 1) || 1);
   const selectedFilters = filtersParam ? filtersParam.split(",") : [];
 
   const { hotels, totalCount, sortOptions, filterOptions, isLoading, error, search } =
     useHotelSearch();
+  const hasNextPage =
+    totalCount > 0
+      ? pageNumber * HOTEL_PAGE_SIZE < totalCount
+      : hotels.length >= HOTEL_PAGE_SIZE;
 
   /* 첫 로드 및 URL 파라미터 변경 시 검색 */
   useEffect(() => {
@@ -73,6 +80,7 @@ export default function HotelSearchPage() {
         categoriesFilter,
         priceMin,
         priceMax,
+        pageNumber,
         currencyCode: "KRW",
         languageCode: "ko",
       },
@@ -90,12 +98,14 @@ export default function HotelSearchPage() {
     categoriesFilter,
     priceMin,
     priceMax,
+    pageNumber,
   ]);
 
   const handleSortChange = (id: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("sortBy", id);
+      next.set("pageNumber", "1");
       return next;
     });
   };
@@ -111,6 +121,7 @@ export default function HotelSearchPage() {
         : [...current, filterId];
       if (updated.length > 0) next.set("filters", updated.join(","));
       else next.delete("filters");
+      next.set("pageNumber", "1");
       return next;
     });
   };
@@ -122,6 +133,7 @@ export default function HotelSearchPage() {
       else next.delete("priceMin");
       if (nextMax > 0) next.set("priceMax", String(nextMax));
       else next.delete("priceMax");
+      next.set("pageNumber", "1");
       return next;
     });
   };
@@ -132,8 +144,18 @@ export default function HotelSearchPage() {
       next.delete("filters");
       next.delete("priceMin");
       next.delete("priceMax");
+      next.set("pageNumber", "1");
       return next;
     });
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("pageNumber", String(Math.max(1, nextPage)));
+      return next;
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleHotelSearch = useCallback(
@@ -262,6 +284,40 @@ export default function HotelSearchPage() {
                 onClick={() => setSelectedHotel(hotel)}
               />
             ))}
+
+            {!isLoading && !error && parsedParams && hotels.length > 0 && (
+              <div className="flex items-center justify-center gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(pageNumber - 1)}
+                  disabled={pageNumber <= 1}
+                  className={[
+                    "rounded-lg border px-4 py-2 font-pretendard text-body3",
+                    pageNumber <= 1
+                      ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "border-gray-300 bg-white text-gray-800 cursor-pointer hover:border-gray-700",
+                  ].join(" ")}
+                >
+                  이전
+                </button>
+                <span className="min-w-16 text-center font-pretendard text-body3 font-semibold text-gray-800">
+                  {pageNumber}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(pageNumber + 1)}
+                  disabled={!hasNextPage}
+                  className={[
+                    "rounded-lg border px-4 py-2 font-pretendard text-body3",
+                    !hasNextPage
+                      ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "border-gray-300 bg-white text-gray-800 cursor-pointer hover:border-gray-700",
+                  ].join(" ")}
+                >
+                  다음
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -52,6 +52,7 @@ export interface HotelRoomPhoto {
 
 export interface HotelRoom {
   block_id?: string;
+  room_id?: number | string;
   room_name?: string;
   name_without_policy?: string;
   min_price?: { price: number; currency: string };
@@ -76,6 +77,9 @@ export interface HotelDetailsData {
   block?: HotelRoom[];
   photos?: Array<{ url_original: string; url_max300?: string }>;
   hotel_text?: { description?: string };
+  facilities?: string[];
+  highlights?: string[];
+  price?: { value: number; currency: string };
 }
 
 export interface HotelDetailsResponse {
@@ -261,7 +265,7 @@ type RawHotelDetailsData = Partial<HotelDetailsData> & {
     untilTime?: string;
   };
   block?: RawHotelRoom[];
-  rooms?: RawHotelRoom[];
+  rooms?: RawHotelRoom[] | Record<string, RawHotelRoom>;
   availableRooms?: RawHotelRoom[];
   photos?: Array<{
     url_original?: string;
@@ -272,9 +276,17 @@ type RawHotelDetailsData = Partial<HotelDetailsData> & {
   photoUrls?: string[];
   hotel_text?: { description?: string };
   description?: string;
+  product_price_breakdown?: RawPriceBreakdown;
+  composite_price_breakdown?: RawPriceBreakdown;
+  facilities_block?: {
+    facilities?: Array<{ name?: string }>;
+  };
+  property_highlight_strip?: Array<{ name?: string }>;
+  top_ufi_benefits?: Array<{ translated_name?: string; name?: string }>;
 };
 
 type RawHotelRoom = Partial<HotelRoom> & {
+  room_id?: number | string;
   roomName?: string;
   name?: string;
   nameWithoutPolicy?: string;
@@ -288,13 +300,41 @@ type RawHotelRoom = Partial<HotelRoom> & {
   maxOccupancy?: number;
   roomSurfaceInM2?: number;
   isFreeCancellable?: number | boolean;
+  photos?: Array<HotelRoomPhoto & RawHotelPhoto & {
+    url_max300?: string;
+    url_max750?: string;
+    url_original?: string;
+  }>;
+  block_text?: {
+    policies?: Array<{ content?: string; class?: string }>;
+  };
+  paymentterms?: {
+    cancellation?: { type_translation?: string };
+    prepayment?: { type_translation?: string; simple_translation?: string };
+  };
 };
 
 type RawHotelPhoto = {
   url_original?: string;
   url_max300?: string;
+  url_max750?: string;
   url?: string;
   url_1440?: string;
+};
+
+type RawPriceBreakdown = {
+  gross_amount?: {
+    value?: number;
+    currency?: string;
+  };
+  gross_amount_hotel_currency?: {
+    value?: number;
+    currency?: string;
+  };
+  all_inclusive_amount?: {
+    value?: number;
+    currency?: string;
+  };
 };
 
 function isApiResponse<T>(json: unknown): json is ApiResponse<T> {
@@ -421,9 +461,28 @@ function normalizeHotelDetails(
   const payload = data?.data ?? data;
   if (!payload) return {};
 
-  const rawRooms = payload.block ?? payload.rooms ?? payload.availableRooms ?? [];
+  const roomsRecord =
+    payload.rooms && !Array.isArray(payload.rooms)
+      ? (payload.rooms as Record<string, RawHotelRoom>)
+      : {};
+  const rawRooms =
+    payload.block ??
+    (Array.isArray(payload.rooms) ? payload.rooms : undefined) ??
+    payload.availableRooms ??
+    [];
   const photoUrls = payload.photoUrls ?? [];
   const rawPhotos = payload.photos as RawHotelPhoto[] | undefined;
+  const price = pickPrice(
+    payload.product_price_breakdown ?? payload.composite_price_breakdown,
+  );
+  const facilities = [
+    ...(payload.property_highlight_strip?.map((item) => item.name).filter(Boolean) ?? []),
+    ...(payload.facilities_block?.facilities?.map((item) => item.name).filter(Boolean) ?? []),
+  ].filter((name, index, arr): name is string => !!name && arr.indexOf(name) === index);
+  const highlights =
+    payload.top_ufi_benefits
+      ?.map((item) => item.translated_name ?? item.name)
+      .filter((name): name is string => !!name) ?? [];
   const photos: HotelDetailsData["photos"] =
     Array.isArray(rawPhotos) && rawPhotos.length > 0
       ? rawPhotos.reduce<NonNullable<HotelDetailsData["photos"]>>((acc, photo) => {
@@ -459,20 +518,55 @@ function normalizeHotelDetails(
             until: payload.checkout.until ?? payload.checkout.untilTime ?? "",
           }
         : undefined,
-      block: Array.isArray(rawRooms) ? rawRooms.map(normalizeHotelRoom) : [],
+      block: Array.isArray(rawRooms)
+        ? rawRooms.map((room) => normalizeHotelRoom(room, findRoomDetail(room, roomsRecord)))
+        : [],
       photos,
       hotel_text: payload.hotel_text ?? (payload.description ? { description: payload.description } : undefined),
+      facilities,
+      highlights,
+      price,
     },
   };
 }
 
-function normalizeHotelRoom(room: RawHotelRoom): HotelRoom {
+function findRoomDetail(
+  room: RawHotelRoom,
+  roomsRecord: Record<string, RawHotelRoom>,
+): RawHotelRoom | undefined {
+  const roomId = room.room_id ?? room.room_id;
+  if (roomId != null && roomsRecord[String(roomId)]) return roomsRecord[String(roomId)];
+
+  const blockPrefix = room.block_id?.split("_")[0];
+  return blockPrefix ? roomsRecord[blockPrefix] : undefined;
+}
+
+function pickPrice(
+  breakdown: RawPriceBreakdown | undefined,
+): HotelDetailsData["price"] {
+  const amount =
+    breakdown?.gross_amount_hotel_currency ??
+    breakdown?.gross_amount ??
+    breakdown?.all_inclusive_amount;
+  return amount?.value != null
+    ? { value: amount.value, currency: amount.currency ?? "KRW" }
+    : undefined;
+}
+
+function normalizeHotelRoom(room: RawHotelRoom, detail?: RawHotelRoom): HotelRoom {
   const grossPrice = room.priceBreakdown?.grossPrice;
+  const roomPhotos = (detail?.photos ?? room.photos ?? []) as RawHotelPhoto[];
+  const roomHighlights = detail?.highlights ?? room.highlights ?? [];
   return {
     block_id: room.block_id,
-    room_name: room.room_name ?? room.roomName ?? room.name,
+    room_id: room.room_id ?? detail?.room_id,
+    room_name: room.room_name ?? room.roomName ?? room.name ?? detail?.room_name ?? detail?.name,
     name_without_policy:
-      room.name_without_policy ?? room.nameWithoutPolicy ?? room.room_name ?? room.roomName,
+      room.name_without_policy ??
+      room.nameWithoutPolicy ??
+      room.room_name ??
+      room.roomName ??
+      detail?.name,
     min_price:
       room.min_price ??
       (room.minPrice?.price != null || room.minPrice?.value != null
@@ -483,11 +577,23 @@ function normalizeHotelRoom(room: RawHotelRoom): HotelRoom {
         : grossPrice?.value != null
           ? { price: grossPrice.value, currency: grossPrice.currency ?? "KRW" }
           : undefined),
-    max_occupancy: room.max_occupancy ?? room.maxOccupancy,
-    room_surface_in_m2: room.room_surface_in_m2 ?? room.roomSurfaceInM2,
+    max_occupancy:
+      Number(room.max_occupancy ?? room.maxOccupancy ?? detail?.max_occupancy) || undefined,
+    room_surface_in_m2: room.room_surface_in_m2 ?? room.roomSurfaceInM2 ?? detail?.room_surface_in_m2,
     is_free_cancellable: room.is_free_cancellable ?? room.isFreeCancellable,
-    photos: Array.isArray(room.photos) ? room.photos : [],
-    highlights: Array.isArray(room.highlights) ? room.highlights : [],
+    photos: Array.isArray(roomPhotos)
+      ? roomPhotos.reduce<HotelRoomPhoto[]>((acc, photo) => {
+          const url =
+            photo.url ??
+            photo.url_max300 ??
+            photo.url_max750 ??
+            photo.url_original ??
+            photo.url_1440;
+          if (url) acc.push({ url, url_1440: photo.url_1440 ?? photo.url_original });
+          return acc;
+        }, [])
+      : [],
+    highlights: Array.isArray(roomHighlights) ? roomHighlights : [],
   };
 }
 
