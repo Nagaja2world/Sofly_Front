@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef, useMemo } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
 import HotelCard from "@/components/hotel/HotelCard";
@@ -12,35 +12,8 @@ import {
   buildFlightSearchParams,
 } from "@/utils/flightSearchQuery";
 
-const HOTEL_PAGE_SIZE = 20;
-const PAGE_WINDOW = 5;
-
-function buildPageItems(currentPage: number, totalPages: number): Array<number | "..."> {
-  if (totalPages <= PAGE_WINDOW + 2) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-
-  const half = Math.floor(PAGE_WINDOW / 2);
-  let start = Math.max(2, currentPage - half);
-  let end = Math.min(totalPages - 1, currentPage + half);
-
-  if (currentPage <= half + 2) {
-    start = 2;
-    end = PAGE_WINDOW;
-  }
-
-  if (currentPage >= totalPages - half - 1) {
-    start = totalPages - PAGE_WINDOW + 1;
-    end = totalPages - 1;
-  }
-
-  const pages: Array<number | "..."> = [1];
-  if (start > 2) pages.push("...");
-  for (let page = start; page <= end; page += 1) pages.push(page);
-  if (end < totalPages - 1) pages.push("...");
-  pages.push(totalPages);
-  return pages;
-}
+/* 기본 정렬 — Booking.com "Our top picks"(인기순). price가 기본이 되지 않도록 명시 적용 */
+const DEFAULT_SORT = "popularity";
 
 /* URL query params ↔ hotel search params */
 function parseParams(sp: URLSearchParams): HotelSearchBarParams | null {
@@ -79,69 +52,46 @@ export default function HotelSearchPage() {
 
   const parsedParams = parseParams(searchParams);
   const sortBy = searchParams.get("sortBy") ?? "";
+  const effectiveSort = sortBy || DEFAULT_SORT;
   const filtersParam = searchParams.get("filters") ?? "";
   const categoriesFilter = filtersParam || "";
   const priceMin = Number(searchParams.get("priceMin") ?? 0) || 0;
   const priceMax = Number(searchParams.get("priceMax") ?? 0) || 0;
-  const pageNumber = Math.max(1, Number(searchParams.get("pageNumber") ?? 1) || 1);
   const selectedFilters = filtersParam ? filtersParam.split(",") : [];
 
-  const { hotels, totalCount, sortOptions, filterOptions, isLoading, error, search } =
-    useHotelSearch();
-  const totalPages = totalCount > 0 ? Math.max(1, Math.ceil(totalCount / HOTEL_PAGE_SIZE)) : 0;
-  const pageItems = totalPages > 0 ? buildPageItems(pageNumber, totalPages) : [];
-  const hasNextPage = totalPages > 0 ? pageNumber < totalPages : hotels.length >= HOTEL_PAGE_SIZE;
+  const {
+    hotels,
+    totalCount,
+    sortOptions,
+    filterOptions,
+    isLoading,
+    isFetchingMore,
+    hasMore,
+    error,
+    search,
+    loadMore,
+  } = useHotelSearch();
 
-  const prevSearchKey = useRef<string>("");
+  /* 무한 스크롤 sentinel */
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  /* sortOptions 중 "Our top picks" = popularity 옵션 ID */
-  const defaultSortId = useMemo(() => {
-    if (!sortOptions.length) return "";
-    // popularity가 "Our top picks"에 해당 — upsort_bh는 "Entire homes first"라 제외
-    return (
-      sortOptions.find((opt) => /^popular/i.test(opt.id))?.id ??
-      sortOptions[0].id
-    );
-  }, [sortOptions]);
-
-  /* 첫 로드 및 URL 파라미터 변경 시 검색 */
+  /* 검색 조건 변경 시 새 검색 (페이지는 무한 스크롤이 담당) */
   useEffect(() => {
     if (!parsedParams) return;
-
-    const searchKey = [
-      parsedParams.destId,
-      parsedParams.searchType,
-      parsedParams.arrivalDate,
-      parsedParams.departureDate,
-      parsedParams.adults,
-      parsedParams.roomQty,
-      sortBy,
-      categoriesFilter,
+    search({
+      destId: parsedParams.destId,
+      searchType: parsedParams.searchType,
+      arrivalDate: parsedParams.arrivalDate,
+      departureDate: parsedParams.departureDate,
+      adults: parsedParams.adults,
+      roomQty: parsedParams.roomQty,
+      sortBy: effectiveSort,
+      categoriesFilter: categoriesFilter || undefined,
       priceMin,
       priceMax,
-    ].join("|");
-
-    const isNewSearch = searchKey !== prevSearchKey.current;
-    prevSearchKey.current = searchKey;
-
-    search(
-      {
-        destId: parsedParams.destId,
-        searchType: parsedParams.searchType,
-        arrivalDate: parsedParams.arrivalDate,
-        departureDate: parsedParams.departureDate,
-        adults: parsedParams.adults,
-        roomQty: parsedParams.roomQty,
-        sortBy: sortBy || undefined,
-        categoriesFilter: categoriesFilter || undefined,
-        priceMin,
-        priceMax,
-        pageNumber,
-        currencyCode: "KRW",
-        languageCode: "ko",
-      },
-      isNewSearch,
-    );
+      currencyCode: "KRW",
+      languageCode: "ko",
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     parsedParams?.destId,
@@ -150,20 +100,34 @@ export default function HotelSearchPage() {
     parsedParams?.departureDate,
     parsedParams?.adults,
     parsedParams?.roomQty,
-    sortBy,
+    effectiveSort,
     categoriesFilter,
     priceMin,
     priceMax,
-    pageNumber,
   ]);
+
+  /* sentinel이 보이면 다음 페이지 로드 */
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+    // hotels.length·hasMore 변화로 sentinel이 (재)마운트될 때 observer를 다시 연결
+  }, [loadMore, hasMore, hotels.length]);
 
   const handleSortChange = (id: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("sortBy", id);
-      next.set("pageNumber", "1");
       return next;
     });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleFilterChange = (filterId: string) => {
@@ -177,7 +141,6 @@ export default function HotelSearchPage() {
         : [...current, filterId];
       if (updated.length > 0) next.set("filters", updated.join(","));
       else next.delete("filters");
-      next.set("pageNumber", "1");
       return next;
     });
   };
@@ -189,7 +152,6 @@ export default function HotelSearchPage() {
       else next.delete("priceMin");
       if (nextMax > 0) next.set("priceMax", String(nextMax));
       else next.delete("priceMax");
-      next.set("pageNumber", "1");
       return next;
     });
   };
@@ -200,18 +162,8 @@ export default function HotelSearchPage() {
       next.delete("filters");
       next.delete("priceMin");
       next.delete("priceMax");
-      next.set("pageNumber", "1");
       return next;
     });
-  };
-
-  const handlePageChange = (nextPage: number) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("pageNumber", String(Math.max(1, nextPage)));
-      return next;
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleHotelSearch = useCallback(
@@ -265,7 +217,7 @@ export default function HotelSearchPage() {
           {/* 정렬 */}
           {sortOptions.length > 0 && (
             <select
-              value={sortBy || defaultSortId}
+              value={effectiveSort}
               onChange={(e) => handleSortChange(e.target.value)}
               className="font-pretendard text-body3 text-gray-700 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-gray-700 cursor-pointer"
             >
@@ -341,66 +293,25 @@ export default function HotelSearchPage() {
               />
             ))}
 
-            {!isLoading && !error && parsedParams && hotels.length > 0 && (
-              <div className="flex items-center justify-center gap-2 pt-4 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => handlePageChange(pageNumber - 1)}
-                  disabled={pageNumber <= 1}
-                  className={[
-                    "rounded-lg border px-4 py-2 font-pretendard text-body3",
-                    pageNumber <= 1
-                      ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "border-gray-300 bg-white text-gray-800 cursor-pointer hover:border-gray-700",
-                  ].join(" ")}
-                >
-                  이전
-                </button>
-                {pageItems.length > 0 ? (
-                  pageItems.map((item, index) =>
-                    item === "..." ? (
-                      <span
-                        key={`ellipsis-${index}`}
-                        className="px-2 font-pretendard text-body3 text-gray-400"
-                      >
-                        ...
-                      </span>
-                    ) : (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => handlePageChange(item)}
-                        aria-current={item === pageNumber ? "page" : undefined}
-                        className={[
-                          "min-w-10 rounded-lg border px-3 py-2 font-pretendard text-body3",
-                          item === pageNumber
-                            ? "border-gray-900 bg-gray-900 text-white"
-                            : "border-gray-300 bg-white text-gray-800 cursor-pointer hover:border-gray-700",
-                        ].join(" ")}
-                      >
-                        {item}
-                      </button>
-                    ),
-                  )
-                ) : (
-                  <span className="min-w-16 text-center font-pretendard text-body3 font-semibold text-gray-800">
-                    {pageNumber}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handlePageChange(pageNumber + 1)}
-                  disabled={!hasNextPage}
-                  className={[
-                    "rounded-lg border px-4 py-2 font-pretendard text-body3",
-                    !hasNextPage
-                      ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "border-gray-300 bg-white text-gray-800 cursor-pointer hover:border-gray-700",
-                  ].join(" ")}
-                >
-                  다음
-                </button>
+            {/* 무한 스크롤: 다음 페이지 로딩 표시 */}
+            {isFetchingMore && (
+              <div className="flex items-center justify-center py-6 gap-2">
+                <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
+                <span className="font-pretendard text-body4 text-gray-500">
+                  더 불러오는 중...
+                </span>
               </div>
+            )}
+
+            {/* sentinel — 화면에 들어오면 다음 페이지 로드 */}
+            {!isLoading && !error && hotels.length > 0 && hasMore && (
+              <div ref={sentinelRef} className="h-px w-full" />
+            )}
+
+            {!isLoading && !error && hotels.length > 0 && !hasMore && (
+              <p className="py-6 text-center font-pretendard text-body4 text-gray-400 m-0">
+                모든 숙소를 확인했어요
+              </p>
             )}
           </div>
         </div>
