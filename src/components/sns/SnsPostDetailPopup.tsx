@@ -342,21 +342,37 @@ export default function SnsPostDetailPopup({
             )}
           </div>
 
-          {/* 캡션 */}
-          {post.caption && (
-            <div className="px-5 pb-3">
-              <p className={`font-pretendard text-body2 text-gray-900 m-0 whitespace-pre-wrap break-words leading-relaxed ${captionExpanded ? '' : 'line-clamp-2'}`}>
-                <span className="font-semibold mr-2">{post.author.username}</span>
-                {post.caption}
+          {/* SNS 본문 + 여행지 + 워크스페이스 제목 */}
+          <div className="px-5 pb-3 flex flex-col gap-1.5">
+            {/* SNS 게시글 본문 (인스타그램 스타일: 작성자 bold + 본문) */}
+            {post.snsContent && (
+              <div>
+                <p className={`font-pretendard text-body2 text-gray-900 m-0 whitespace-pre-wrap break-words leading-relaxed ${captionExpanded ? '' : 'line-clamp-3'}`}>
+                  <span className="font-semibold mr-2">{post.author.username}</span>
+                  {post.snsContent}
+                </p>
+                {post.snsContent.length > CAPTION_MAX && (
+                  <button type="button" onClick={() => setCaptionExpanded((v) => !v)}
+                    className="mt-0.5 font-pretendard text-body3 text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer p-0">
+                    {captionExpanded ? '접기' : '더보기'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 여행지 */}
+            {post.destination && (
+              <p className="font-pretendard text-body3 text-gray-500 m-0 flex items-center gap-1">
+                <span aria-hidden>📍</span>
+                {post.destination}
               </p>
-              {post.caption.length > CAPTION_MAX && (
-                <button type="button" onClick={() => setCaptionExpanded((v) => !v)}
-                  className="mt-1 font-pretendard text-body3 text-gray-500 hover:text-gray-700 bg-transparent border-none cursor-pointer p-0">
-                  {captionExpanded ? '접기' : '더보기'}
-                </button>
-              )}
-            </div>
-          )}
+            )}
+
+            {/* 워크스페이스 제목 (여행지가 없을 때만 표시, 또는 항상 작게 표시) */}
+            {post.caption && (
+              <p className="font-pretendard text-body4 text-gray-400 m-0">{post.caption}</p>
+            )}
+          </div>
 
           {/* 댓글 섹션 */}
           {showComments && (

@@ -63,6 +63,7 @@ export interface PublicWorkspacePost {
   createdAt: string;
   snsPostId: number | null;
   snsFirstImageUrl: string | null;
+  snsPostContent: string | null;
 }
 
 export interface PageResponse<T> {
@@ -243,7 +244,9 @@ export function toSnsPost(p: PublicWorkspacePost) {
     media: imageUrl
       ? [{ id: '0', type: 'image' as const, url: imageUrl }]
       : [],
-    caption: p.title + (p.destination ? ` · ${p.destination}` : ''),
+    caption: p.title,
+    destination: p.destination ?? null,
+    snsContent: p.snsPostContent ?? null,
     createdAt: p.createdAt,
     workspaceId: String(p.id),
     workspaceName: p.title,
