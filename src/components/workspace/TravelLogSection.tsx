@@ -137,7 +137,7 @@ export default function TravelLogSection({
               onAddDailyCard={onAddDailyCard}
               onAddSnsCard={onAddSnsCard}
               onCancel={onCancelAddCard}
-              disableSnsCard={snsLog !== null || travelLogs.length === 0}
+              disableSnsCard={snsLog !== null}
             />
           )}
 
