@@ -269,7 +269,7 @@ export default function SnsPostDetailPopup({
         </header>
 
         {/* 미디어 캐러셀 */}
-        <div className="relative w-full bg-black flex items-center justify-center min-h-0 flex-1 max-h-[60vh] overflow-hidden">
+        <div className="relative w-full bg-white flex items-center justify-center min-h-0 flex-1 max-h-[60vh] overflow-hidden">
           {currentMedia ? (
             currentMedia.type === 'image' ? (
               <img src={currentMedia.url} alt={post.caption ?? ''} className="max-w-full max-h-full object-contain" />
@@ -344,14 +344,14 @@ export default function SnsPostDetailPopup({
 
           {/* SNS 본문 + 여행지 + 워크스페이스 제목 */}
           <div className="px-5 pb-3 flex flex-col gap-1.5">
-            {/* SNS 게시글 본문 (인스타그램 스타일: 작성자 bold + 본문) */}
-            {post.snsContent && (
+            {/* 워크스페이스 제목 (인스타그램 스타일: 작성자 bold + 제목) */}
+            {post.caption && (
               <div>
                 <p className={`font-pretendard text-body2 text-gray-900 m-0 whitespace-pre-wrap break-words leading-relaxed ${captionExpanded ? '' : 'line-clamp-3'}`}>
                   <span className="font-semibold mr-2">{post.author.username}</span>
-                  {post.snsContent}
+                  {post.caption}
                 </p>
-                {post.snsContent.length > CAPTION_MAX && (
+                {post.caption.length > CAPTION_MAX && (
                   <button type="button" onClick={() => setCaptionExpanded((v) => !v)}
                     className="mt-0.5 font-pretendard text-body3 text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer p-0">
                     {captionExpanded ? '접기' : '더보기'}
@@ -368,9 +368,9 @@ export default function SnsPostDetailPopup({
               </p>
             )}
 
-            {/* 워크스페이스 제목 (여행지가 없을 때만 표시, 또는 항상 작게 표시) */}
-            {post.caption && (
-              <p className="font-pretendard text-body4 text-gray-400 m-0">{post.caption}</p>
+            {/* SNS 게시글 본문 */}
+            {post.snsContent && (
+              <p className="font-pretendard text-body4 text-gray-400 m-0 whitespace-pre-wrap break-words">{post.snsContent}</p>
             )}
           </div>
 
