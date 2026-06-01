@@ -22,6 +22,14 @@ export default function HotelCard({ hotel, onClick }: HotelCardProps) {
   const price =
     hotel.min_total_price ??
     hotel.composite_price_breakdown?.gross_amount?.value;
+  const currency =
+    hotel.composite_price_breakdown?.gross_amount?.currency ?? "KRW";
+  const formattedPrice =
+    price == null
+      ? null
+      : currency === "KRW"
+        ? `₩${Math.round(price).toLocaleString("ko-KR")}`
+        : `${currency} ${Math.round(price).toLocaleString()}`;
 
   return (
     <div
@@ -115,13 +123,13 @@ export default function HotelCard({ hotel, onClick }: HotelCardProps) {
             </div>
           )}
 
-          {price != null && (
+          {formattedPrice && (
             <div className="text-right">
               <p className="font-pretendard text-body5 text-gray-400 m-0">
                 1박
               </p>
               <p className="font-pretendard text-title3 font-bold text-gray-900 m-0">
-                ₩{Math.round(price).toLocaleString()}
+                {formattedPrice}
               </p>
             </div>
           )}

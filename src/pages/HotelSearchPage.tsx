@@ -51,6 +51,8 @@ export default function HotelSearchPage() {
   const sortBy = searchParams.get("sortBy") ?? "price";
   const filtersParam = searchParams.get("filters") ?? "";
   const categoriesFilter = filtersParam || "popular";
+  const priceMin = Number(searchParams.get("priceMin") ?? 0) || 0;
+  const priceMax = Number(searchParams.get("priceMax") ?? 0) || 0;
   const selectedFilters = filtersParam ? filtersParam.split(",") : [];
 
   const { hotels, totalCount, sortOptions, filterOptions, isLoading, error, search } =
@@ -69,6 +71,8 @@ export default function HotelSearchPage() {
         roomQty: parsedParams.roomQty,
         sortBy,
         categoriesFilter,
+        priceMin,
+        priceMax,
         currencyCode: "KRW",
         languageCode: "ko",
       },
@@ -84,6 +88,8 @@ export default function HotelSearchPage() {
     parsedParams?.roomQty,
     sortBy,
     categoriesFilter,
+    priceMin,
+    priceMax,
   ]);
 
   const handleSortChange = (id: string) => {
@@ -105,6 +111,27 @@ export default function HotelSearchPage() {
         : [...current, filterId];
       if (updated.length > 0) next.set("filters", updated.join(","));
       else next.delete("filters");
+      return next;
+    });
+  };
+
+  const handlePriceChange = (nextMin: number, nextMax: number) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (nextMin > 0) next.set("priceMin", String(nextMin));
+      else next.delete("priceMin");
+      if (nextMax > 0) next.set("priceMax", String(nextMax));
+      else next.delete("priceMax");
+      return next;
+    });
+  };
+
+  const handleClearFilters = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("filters");
+      next.delete("priceMin");
+      next.delete("priceMax");
       return next;
     });
   };
@@ -176,11 +203,15 @@ export default function HotelSearchPage() {
         {/* 필터 + 결과 */}
         <div className="flex gap-8 items-start">
           {/* 필터 패널 */}
-          {filterOptions.length > 0 && (
+          {parsedParams && (
             <HotelFilterPanel
               filterOptions={filterOptions}
               selectedFilters={selectedFilters}
+              priceMin={priceMin}
+              priceMax={priceMax}
               onFilterChange={handleFilterChange}
+              onPriceChange={handlePriceChange}
+              onClear={handleClearFilters}
             />
           )}
 
@@ -241,6 +272,7 @@ export default function HotelSearchPage() {
           arrivalDate={parsedParams.arrivalDate}
           departureDate={parsedParams.departureDate}
           adults={parsedParams.adults}
+          roomQty={parsedParams.roomQty}
           onClose={() => setSelectedHotel(null)}
         />
       )}

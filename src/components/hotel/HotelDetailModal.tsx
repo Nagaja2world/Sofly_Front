@@ -11,6 +11,7 @@ interface HotelDetailModalProps {
   arrivalDate: string;
   departureDate: string;
   adults: number;
+  roomQty: number;
   onClose: () => void;
 }
 
@@ -177,11 +178,32 @@ function HotelDetailContent({ data }: { data: HotelDetailsData }) {
   );
 }
 
+function buildFallbackDetails(hotel: HotelOfferItem): HotelDetailsData {
+  return {
+    hotel_id: hotel.hotel_id,
+    hotel_name: hotel.name,
+    url: hotel.property?.bookingUrl ?? hotel.url,
+    review_score: hotel.review_score ?? undefined,
+    review_score_word: hotel.review_score_word ?? undefined,
+    review_nr: hotel.review_nr ?? undefined,
+    checkin: hotel.checkin ? { from: hotel.checkin.from } : undefined,
+    checkout: hotel.checkout ? { until: hotel.checkout.until } : undefined,
+    photos: hotel.main_photo_url
+      ? [{ url_original: hotel.main_photo_url, url_max300: hotel.main_photo_url }]
+      : [],
+    block: [],
+    hotel_text: hotel.accessibilityLabel
+      ? { description: hotel.accessibilityLabel.replace(/\n/g, " ") }
+      : undefined,
+  };
+}
+
 export default function HotelDetailModal({
   hotel,
   arrivalDate,
   departureDate,
   adults,
+  roomQty,
   onClose,
 }: HotelDetailModalProps) {
   const [detailData, setDetailData] = useState<HotelDetailsData | null>(null);
@@ -201,6 +223,7 @@ export default function HotelDetailModal({
       arrivalDate,
       departureDate,
       adults,
+      roomQty,
       languageCode: "ko",
       currencyCode: "KRW",
     })
@@ -209,12 +232,13 @@ export default function HotelDetailModal({
         if (res.data) {
           setDetailData(res.data);
         } else {
-          setError("상세 정보를 불러올 수 없어요");
+          setDetailData(buildFallbackDetails(hotel));
         }
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "오류가 발생했어요");
+        console.error("호텔 상세 조회 실패:", err);
+        setDetailData(buildFallbackDetails(hotel));
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -223,7 +247,7 @@ export default function HotelDetailModal({
     return () => {
       cancelled = true;
     };
-  }, [hotel.hotel_id, arrivalDate, departureDate, adults]);
+  }, [hotel, arrivalDate, departureDate, adults, roomQty]);
 
   /* ESC로 닫기 */
   useEffect(() => {
