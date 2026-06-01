@@ -27,6 +27,7 @@ import type { SnsPost } from "@/types/snsType";
 import profileHeroSvg from "@/assets/profile_hero.svg";
 import GroupIcon from "@/assets/group.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
+import HeroFxLayer from "@/components/homepage/HeroFxLayer";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -189,12 +190,13 @@ export default function ProfilePage() {
       <div className="hidden md:block">
         {/* ── ① Hero 이미지: Header 아래로 끌어올려 겹침 ── */}
         {/* Header 높이(h-20 = 80px)만큼 올려서 Header 뒤에 깔리도록 */}
-        <div className="w-full h-[374px] overflow-hidden">
+        <div className="relative w-full h-[374px] overflow-hidden">
           <img
             src={profileHeroSvg}
             alt="Profile Hero"
             className="w-full h-full object-cover block"
           />
+          <HeroFxLayer particleCount={24} />
         </div>
 
         {/* ── ② Header (login 상태, 흰 배경) ── */}
