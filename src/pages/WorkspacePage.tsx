@@ -426,7 +426,13 @@ export default function WorkspacePage() {
   };
 
   const handleUploadSnsLog = async (data: SnsLogData) => {
-    const files = Object.values(data.fileMap ?? {});
+    const fileMap = data.fileMap ?? {};
+    const files = Object.values(fileMap);
+    // fileMap에 없는 media = 서버에 이미 있는 이미지 → ID를 유지 요청
+    const keepImageIds = data.media
+      .filter(m => !(m.id in fileMap))
+      .map(m => Number(m.id))
+      .filter(id => !isNaN(id) && id > 0);
     const visibility: SnsPostVisibility = (workspaceDetail?.visibility as SnsPostVisibility) ?? 'PUBLIC';
     try {
       let post;
@@ -435,6 +441,7 @@ export default function WorkspacePage() {
           files: files.length > 0 ? files : undefined,
           content: data.caption,
           visibility,
+          keepImageIds: keepImageIds.length > 0 ? keepImageIds : undefined,
         });
       } else {
         post = await createSnsPost(workspaceId, files, data.caption, visibility);

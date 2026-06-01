@@ -284,10 +284,11 @@ export async function getSnsPost(workspaceId: number): Promise<SnsPostResponse> 
 
 export async function updateSnsPost(
   workspaceId: number,
-  opts: { files?: File[]; content?: string; visibility?: SnsPostVisibility },
+  opts: { files?: File[]; content?: string; visibility?: SnsPostVisibility; keepImageIds?: number[] },
 ): Promise<SnsPostResponse> {
   const form = new FormData();
   opts.files?.forEach(f => form.append('files', f));
+  opts.keepImageIds?.forEach(id => form.append('keepImageIds', String(id)));
   if (opts.content !== undefined) form.append('content', opts.content);
   if (opts.visibility) form.append('visibility', opts.visibility);
   const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/sns/post`, {

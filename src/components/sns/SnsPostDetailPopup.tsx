@@ -8,8 +8,10 @@ import {
   addLike, removeLike,
   fetchComments, postComment, deleteComment,
   followUser, unfollowUser,
+  getSnsPost,
   type CommentResponse,
 } from "@/api/snsApi";
+import type { SnsMedia } from "@/types/snsType";
 import UserPublicProfilePopup from "@/components/sns/UserPublicProfilePopup";
 
 const CAPTION_MAX = 80;
@@ -41,6 +43,7 @@ export default function SnsPostDetailPopup({
 
   const [mediaIndex, setMediaIndex] = useState(0);
   const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [fullMedia, setFullMedia] = useState<SnsMedia[] | null>(null);
 
   // 팔로우
   const [isFollowing, setIsFollowing] = useState(false);
@@ -65,8 +68,28 @@ export default function SnsPostDetailPopup({
 
   const isOpen = post !== null;
   const workspaceIdNum = post ? Number(post.workspaceId) : null;
-  const mediaLength = post?.media.length ?? 0;
+
+  // 팝업이 열릴 때 전체 이미지 목록 로드 (피드 카드는 대표 이미지 1장만 갖고 있음)
+  useEffect(() => {
+    if (!workspaceIdNum) { setFullMedia(null); return; }
+    setFullMedia(null);
+    setMediaIndex(0);
+    getSnsPost(workspaceIdNum)
+      .then((snsPost) => {
+        const media: SnsMedia[] = snsPost.images.map((img) => ({
+          id: String(img.id),
+          type: 'image' as const,
+          url: img.url,
+        }));
+        setFullMedia(media);
+      })
+      .catch(() => { /* 실패 시 post.media 그대로 사용 */ });
+  }, [workspaceIdNum]);
+
+  const displayMedia = fullMedia ?? post?.media ?? [];
+  const mediaLength = displayMedia.length;
   const safeIndex = mediaLength === 0 ? 0 : Math.min(mediaIndex, mediaLength - 1);
+  const currentMedia = displayMedia[safeIndex];
 
   const goPrev = useCallback(() => {
     setMediaIndex((i) => (i <= 0 ? mediaLength - 1 : i - 1));
@@ -179,7 +202,6 @@ export default function SnsPostDetailPopup({
 
   if (!post) return null;
 
-  const currentMedia = post.media[safeIndex];
   const hasMultiple = mediaLength > 1;
   const hasWorkspace = !!post.workspaceId;
   const isLoggedIn = !!user;
@@ -267,7 +289,7 @@ export default function SnsPostDetailPopup({
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-                {post.media.map((_, i) => (
+                {displayMedia.map((_, i) => (
                   <span key={i} className={`rounded-full transition-all ${i === safeIndex ? 'w-2 h-2 bg-white' : 'w-1.5 h-1.5 bg-white/55'}`} aria-hidden />
                 ))}
               </div>

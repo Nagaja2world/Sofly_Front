@@ -75,7 +75,7 @@ export default function SnsLogCard({
   visibility: visibilityProp = 'PUBLIC',
   snsPostId,
   onDelete,
-  onSave,
+  onSave: _onSave,
   onUpload,
   className = "",
 }: SnsLogCardProps) {
@@ -105,6 +105,7 @@ export default function SnsLogCard({
   const objectUrlsRef = useRef<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragMediaIdx, setDragMediaIdx] = useState<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -284,10 +285,28 @@ export default function SnsLogCard({
               사진 / 영상
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {draft.media.map((m) => (
+              {draft.media.map((m, i) => (
                 <div
                   key={m.id}
-                  className="relative aspect-square rounded-md overflow-hidden bg-gray-100"
+                  draggable
+                  onDragStart={() => setDragMediaIdx(i)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => {
+                    if (dragMediaIdx !== null && dragMediaIdx !== i) {
+                      setDraft((prev) => {
+                        const next = [...prev.media];
+                        const [moved] = next.splice(dragMediaIdx, 1);
+                        next.splice(i, 0, moved);
+                        return { ...prev, media: next };
+                      });
+                    }
+                    setDragMediaIdx(null);
+                  }}
+                  onDragEnd={() => setDragMediaIdx(null)}
+                  className={[
+                    "relative aspect-square rounded-md overflow-hidden bg-gray-100 cursor-grab active:cursor-grabbing",
+                    dragMediaIdx === i ? "opacity-40" : "",
+                  ].join(" ")}
                 >
                   {m.type === "image" ? (
                     <img
