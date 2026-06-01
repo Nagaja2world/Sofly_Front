@@ -367,6 +367,7 @@ export default function WorkspacePage() {
   const [snsLog, setSnsLog] = useState<SnsLogData | null>(null);
   const [snsPostId, setSnsPostId] = useState<number | null>(null);
   const [showAddCard, setShowAddCard] = useState(false);
+  const [showFileSizeError, setShowFileSizeError] = useState(false);
 
   // 기존 SNS 카드 로드 (워크스페이스 진입 시)
   useEffect(() => {
@@ -465,8 +466,12 @@ export default function WorkspacePage() {
         visibility: post.visibility as SnsPostVisibility,
       });
       alert(snsPostId ? "SNS 게시물이 수정됐어요!" : "SNS에 게시됐어요!");
-    } catch {
-      alert("업로드에 실패했어요. 잠시 후 다시 시도해주세요.");
+    } catch (err) {
+      if ((err as Error).message === 'FILE_TOO_LARGE') {
+        setShowFileSizeError(true);
+      } else {
+        alert("업로드에 실패했어요. 잠시 후 다시 시도해주세요.");
+      }
     }
   };
 
@@ -514,8 +519,12 @@ export default function WorkspacePage() {
         Array.from(files),
       );
       setSharedAlbumPhotos((prev) => [...uploaded, ...prev]);
-    } catch {
-      alert("사진 업로드에 실패했습니다.");
+    } catch (err) {
+      if ((err as Error).message === 'FILE_TOO_LARGE') {
+        setShowFileSizeError(true);
+      } else {
+        alert("사진 업로드에 실패했습니다.");
+      }
     } finally {
       setAlbumUploading(false);
     }
@@ -873,6 +882,17 @@ export default function WorkspacePage() {
         initialData={editFlight ?? undefined}
         onClose={() => { setShowAddFlightModal(false); setEditFlight(null); }}
         onSave={editFlight ? handleUpdateFlight : handleSaveFlight}
+      />
+
+      <ConfirmPopup
+        isOpen={showFileSizeError}
+        onClose={() => setShowFileSizeError(false)}
+        onConfirm={() => setShowFileSizeError(false)}
+        title="파일 용량 초과"
+        description={"업로드한 파일이 너무 큽니다.\n더 작은 용량의 파일을 사용해주세요."}
+        confirmLabel="확인"
+        cancelLabel=""
+        variant="danger"
       />
     </>
   );

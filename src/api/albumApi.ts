@@ -19,6 +19,7 @@ interface ApiResponse<T> {
 
 async function unwrap<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T;
+  if (res.status === 413) throw new Error('FILE_TOO_LARGE');
   const json: ApiResponse<T> = await res.json();
   if (!res.ok || !json.success) throw new Error(json.message ?? `API 오류: ${res.status}`);
   return json.data;

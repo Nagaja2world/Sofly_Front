@@ -14,6 +14,7 @@ function authHeadersMultipart(): HeadersInit {
 }
 
 async function unwrap<T>(res: Response): Promise<T> {
+  if (res.status === 413) throw new Error('FILE_TOO_LARGE');
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
   const json = await res.json();
   return json.data ?? json;
