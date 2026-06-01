@@ -207,6 +207,26 @@ function HotelDetailContent({ data }: { data: HotelDetailsData }) {
   );
 }
 
+/** 상세 응답에 빠진 필드(사진·평점 등)를 리스트 데이터로 보강 */
+function mergeDetails(
+  base: HotelDetailsData,
+  detail: HotelDetailsData,
+): HotelDetailsData {
+  return {
+    ...base,
+    ...detail,
+    review_score: detail.review_score ?? base.review_score,
+    review_score_word: detail.review_score_word ?? base.review_score_word,
+    review_nr: detail.review_nr ?? base.review_nr,
+    photos:
+      detail.photos && detail.photos.length > 0 ? detail.photos : base.photos,
+    checkin: detail.checkin ?? base.checkin,
+    checkout: detail.checkout ?? base.checkout,
+    hotel_text: detail.hotel_text ?? base.hotel_text,
+    url: detail.url ?? base.url,
+  };
+}
+
 function buildFallbackDetails(hotel: HotelOfferItem): HotelDetailsData {
   return {
     hotel_id: hotel.hotel_id,
@@ -258,11 +278,8 @@ export default function HotelDetailModal({
     })
       .then((res) => {
         if (cancelled) return;
-        if (res.data) {
-          setDetailData(res.data);
-        } else {
-          setDetailData(buildFallbackDetails(hotel));
-        }
+        const fallback = buildFallbackDetails(hotel);
+        setDetailData(res.data ? mergeDetails(fallback, res.data) : fallback);
       })
       .catch((err) => {
         if (cancelled) return;

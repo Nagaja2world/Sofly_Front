@@ -289,6 +289,7 @@ type RawHotelRoom = Partial<HotelRoom> & {
   roomName?: string;
   name?: string;
   nameWithoutPolicy?: string;
+  description?: string;
   minPrice?: { price?: number; value?: number; currency?: string };
   priceBreakdown?: {
     grossPrice?: {
@@ -296,6 +297,8 @@ type RawHotelRoom = Partial<HotelRoom> & {
       currency?: string;
     };
   };
+  product_price_breakdown?: RawPriceBreakdown;
+  composite_price_breakdown?: RawPriceBreakdown;
   maxOccupancy?: number;
   roomSurfaceInM2?: number;
   isFreeCancellable?: number | boolean;
@@ -317,6 +320,8 @@ type RawHotelPhoto = {
   url_original?: string;
   url_max300?: string;
   url_max750?: string;
+  url_max1280?: string;
+  url_square180?: string;
   url?: string;
   url_1440?: string;
 };
@@ -354,6 +359,29 @@ async function unwrap<T>(res: Response): Promise<T> {
     return json.data as T;
   }
   return json as T;
+}
+
+/** Booking.com 썸네일 URL의 사이즈 세그먼트를 더 큰 해상도로 교체 (리스트는 square60만 내려옴) */
+function upgradeBookingPhoto(
+  url: string | null | undefined,
+  size = "square240",
+): string | null {
+  if (!url) return null;
+  return url.replace(/\/(square60|square180|max300|max500)\//, `/${size}/`);
+}
+
+/** accessibilityLabel에서 도심까지 거리(km) 추출 — metric("11 km"/"650 m"), imperial("11 miles") 모두 지원 */
+function parseDistanceKm(label: string | undefined): string | null {
+  if (!label) return null;
+  const match = label.match(
+    /(\d+(?:[.,]\d+)?)\s*(km|m|miles?)\s+from\s+(?:the\s+)?(?:city\s+)?cent(?:re|er)/i,
+  );
+  if (!match) return null;
+  const value = parseFloat(match[1].replace(",", "."));
+  if (Number.isNaN(value)) return null;
+  const unit = match[2].toLowerCase();
+  const km = unit === "km" ? value : unit === "m" ? value / 1000 : value * 1.60934;
+  return km.toFixed(1);
 }
 
 function normalizeDestination(dest: RawHotelDestination): HotelDestination {
@@ -418,10 +446,7 @@ function normalizeHotelOffer(raw: RawBookingHotel): HotelOfferItem | null {
 
   const strikethroughValue = property?.priceBreakdown?.strikethroughPrice?.value ?? null;
 
-  // accessibilityLabel에서 거리 추출: "1.9 miles from centre" → "1.9"
-  const distanceMatch = raw.accessibilityLabel?.match(/(\d+(?:\.\d+)?)\s*miles?\s*from\s*(?:city\s*)?cent(?:re|er)/i);
-  const distanceMiles = distanceMatch ? parseFloat(distanceMatch[1]) : null;
-  const distanceKm = distanceMiles != null ? (distanceMiles * 1.60934).toFixed(1) : null;
+  const distanceKm = raw.distance_to_cc ?? parseDistanceKm(raw.accessibilityLabel);
 
   return {
     hotel_id: id,
@@ -430,7 +455,8 @@ function normalizeHotelOffer(raw: RawBookingHotel): HotelOfferItem | null {
     review_score_word: raw.review_score_word ?? property?.reviewScoreWord ?? null,
     review_nr: raw.review_nr ?? property?.reviewCount ?? null,
     class: classValue,
-    main_photo_url: raw.main_photo_url ?? property?.photoUrls?.[0] ?? null,
+    main_photo_url:
+      upgradeBookingPhoto(raw.main_photo_url ?? property?.photoUrls?.[0]) ?? null,
     url: raw.url ?? property?.bookingUrl ?? "",
     min_total_price: raw.min_total_price ?? grossPrice?.value ?? null,
     strikethrough_price: strikethroughValue,
@@ -446,7 +472,7 @@ function normalizeHotelOffer(raw: RawBookingHotel): HotelOfferItem | null {
         : null),
     latitude: raw.latitude ?? property?.latitude ?? 0,
     longitude: raw.longitude ?? property?.longitude ?? 0,
-    distance_to_cc: raw.distance_to_cc ?? distanceKm,
+    distance_to_cc: distanceKm,
     checkin: raw.checkin ?? (property?.checkin?.fromTime ? { from: property.checkin.fromTime } : null),
     checkout:
       raw.checkout ??
@@ -486,9 +512,23 @@ function normalizeHotelDetails(
     [];
   const photoUrls = payload.photoUrls ?? [];
   const rawPhotos = payload.photos as RawHotelPhoto[] | undefined;
+  // 상세 응답은 호텔 레벨 photos가 없는 경우가 많음 → 객실 사진을 모아 갤러리로 사용
+  const photoSource: RawHotelPhoto[] =
+    Array.isArray(rawPhotos) && rawPhotos.length > 0
+      ? rawPhotos
+      : Object.values(roomsRecord).flatMap((room) =>
+          Array.isArray(room.photos) ? (room.photos as RawHotelPhoto[]) : [],
+        );
   const price = pickPrice(
     payload.product_price_breakdown ?? payload.composite_price_breakdown,
   );
+  // 호텔 레벨 description이 없으면 객실 설명을 대체로 사용
+  const roomDescription = Object.values(roomsRecord).find(
+    (room): room is RawHotelRoom & { description: string } =>
+      typeof room.description === "string" && room.description.length > 0,
+  )?.description;
+  const description =
+    payload.hotel_text?.description ?? payload.description ?? roomDescription;
   const facilities = [
     ...(payload.property_highlight_strip?.map((item) => item.name).filter(Boolean) ?? []),
     ...(payload.facilities_block?.facilities?.map((item) => item.name).filter(Boolean) ?? []),
@@ -498,13 +538,18 @@ function normalizeHotelDetails(
       ?.map((item) => item.translated_name ?? item.name)
       .filter((name): name is string => !!name) ?? [];
   const photos: HotelDetailsData["photos"] =
-    Array.isArray(rawPhotos) && rawPhotos.length > 0
-      ? rawPhotos.reduce<NonNullable<HotelDetailsData["photos"]>>((acc, photo) => {
-          const url = photo.url_original ?? photo.url_1440 ?? photo.url;
+    photoSource.length > 0
+      ? photoSource.reduce<NonNullable<HotelDetailsData["photos"]>>((acc, photo) => {
+          const url =
+            photo.url_max1280 ??
+            photo.url_original ??
+            photo.url_max750 ??
+            photo.url_1440 ??
+            photo.url;
           if (!url) return acc;
           acc.push({
             url_original: url,
-            url_max300: photo.url_max300 ?? photo.url ?? url,
+            url_max300: photo.url_max300 ?? photo.url_square180 ?? photo.url ?? url,
           });
           return acc;
         }, [])
@@ -536,7 +581,7 @@ function normalizeHotelDetails(
         ? rawRooms.map((room) => normalizeHotelRoom(room, findRoomDetail(room, roomsRecord)))
         : [],
       photos,
-      hotel_text: payload.hotel_text ?? (payload.description ? { description: payload.description } : undefined),
+      hotel_text: description ? { description } : undefined,
       facilities,
       highlights,
       price,
@@ -548,7 +593,7 @@ function findRoomDetail(
   room: RawHotelRoom,
   roomsRecord: Record<string, RawHotelRoom>,
 ): RawHotelRoom | undefined {
-  const roomId = room.room_id ?? room.room_id;
+  const roomId = room.room_id;
   if (roomId != null && roomsRecord[String(roomId)]) return roomsRecord[String(roomId)];
 
   const blockPrefix = room.block_id?.split("_")[0];
@@ -558,10 +603,11 @@ function findRoomDetail(
 function pickPrice(
   breakdown: RawPriceBreakdown | undefined,
 ): HotelDetailsData["price"] {
+  // 요청 통화(gross_amount)를 우선 — gross_amount_hotel_currency는 현지통화(예: INR)라 표시용으로 부적절
   const amount =
-    breakdown?.gross_amount_hotel_currency ??
     breakdown?.gross_amount ??
-    breakdown?.all_inclusive_amount;
+    breakdown?.all_inclusive_amount ??
+    breakdown?.gross_amount_hotel_currency;
   return amount?.value != null
     ? { value: amount.value, currency: amount.currency ?? "KRW" }
     : undefined;
@@ -569,6 +615,13 @@ function pickPrice(
 
 function normalizeHotelRoom(room: RawHotelRoom, detail?: RawHotelRoom): HotelRoom {
   const grossPrice = room.priceBreakdown?.grossPrice;
+  // 상세 응답의 객실 가격은 product_price_breakdown / composite_price_breakdown에 들어옴
+  const breakdownPrice = pickPrice(
+    room.product_price_breakdown ??
+      room.composite_price_breakdown ??
+      detail?.product_price_breakdown ??
+      detail?.composite_price_breakdown,
+  );
   const roomPhotos = (detail?.photos ?? room.photos ?? []) as RawHotelPhoto[];
   const roomHighlights = detail?.highlights ?? room.highlights ?? [];
   return {
@@ -590,7 +643,9 @@ function normalizeHotelRoom(room: RawHotelRoom, detail?: RawHotelRoom): HotelRoo
           }
         : grossPrice?.value != null
           ? { price: grossPrice.value, currency: grossPrice.currency ?? "KRW" }
-          : undefined),
+          : breakdownPrice != null
+            ? { price: breakdownPrice.value, currency: breakdownPrice.currency }
+            : undefined),
     max_occupancy:
       Number(room.max_occupancy ?? room.maxOccupancy ?? detail?.max_occupancy) || undefined,
     room_surface_in_m2: room.room_surface_in_m2 ?? room.roomSurfaceInM2 ?? detail?.room_surface_in_m2,
@@ -664,6 +719,8 @@ function normalizeFilterOptions(data: unknown): HotelFilterResult {
       const id = item.field ?? item.id ?? item.value ?? item.key;
       const title = item.title ?? item.name ?? item.label;
       if (typeof id !== "string" || typeof title !== "string") return null;
+      // "이전 필터"(previous)는 다른 카테고리 항목을 중복 노출하므로 제외
+      if (id === "previous") return null;
 
       const rawFilters = pickArray(item, ["options", "filters", "items", "values"]);
       const filters = rawFilters
