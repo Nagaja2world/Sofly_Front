@@ -187,15 +187,19 @@ export default function ProfilePage() {
       {/* ══════════════════════════════════════════
           데스크톱 (md 이상)
           ══════════════════════════════════════════ */}
-      <div className="hidden md:block">
+      <div className="hidden md:block relative">
         {/* ── ① Hero 이미지: Header 아래로 끌어올려 겹침 ── */}
         {/* Header 높이(h-20 = 80px)만큼 올려서 Header 뒤에 깔리도록 */}
-        <div className="relative w-full h-[374px] overflow-hidden">
+        <div className="w-full h-[374px] overflow-hidden">
           <img
             src={profileHeroSvg}
             alt="Profile Hero"
             className="w-full h-full object-cover block"
           />
+        </div>
+
+        {/* 나비 + 파티클: 상단 374px 전체에 오버레이 (컨텐츠 위, 헤더 아래) */}
+        <div className="absolute top-0 left-0 right-0 h-[374px] pointer-events-none z-[15]">
           <HeroFxLayer particleCount={24} />
         </div>
 
