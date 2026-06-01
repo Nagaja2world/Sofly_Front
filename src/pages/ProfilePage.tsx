@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchModeBar from "@/components/SearchModeBar";
+import { type HotelSearchBarParams } from "@/components/HotelSearchBar";
 import MobileProfileView from "@/components/mobile/pages/MobileProfileView";
 import WorkspaceCard from "@/components/profilePage/WorkspaceCard";
 import SnsPreviewSection from "@/components/profile/SnsPreviewSection";
 import Button from "@/components/common/Button";
 import Header from "@/components/common/Header";
+import { buildHotelSearchParams } from "@/pages/HotelSearchPage";
 import useAuthStore from "@/store/useAuthStore";
 import {
   buildFlightSearchQuery,
@@ -99,6 +101,13 @@ export default function ProfilePage() {
     const qs = buildFlightSearchQuery(params);
     navigate(`/flight-search?${qs}`);
   };
+
+  const handleHotelSearch = useCallback(
+    (params: HotelSearchBarParams) => {
+      navigate(`/hotel-search?${buildHotelSearchParams(params).toString()}`);
+    },
+    [navigate],
+  );
 
   const handleCardClick = (id: string) => {
     navigate(`/workspace/${id}`);
@@ -229,7 +238,10 @@ export default function ProfilePage() {
         {/* ── 검색 ── */}
         <div className="mt-[40px] z-10 px-4 relative">
           <div className="max-w-[1200px] w-full mx-auto">
-            <SearchModeBar onFlightSearch={handleSearch} />
+            <SearchModeBar
+              onFlightSearch={handleSearch}
+              onHotelSearch={handleHotelSearch}
+            />
           </div>
         </div>
 

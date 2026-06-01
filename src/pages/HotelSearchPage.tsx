@@ -50,6 +50,7 @@ export default function HotelSearchPage() {
   const parsedParams = parseParams(searchParams);
   const sortBy = searchParams.get("sortBy") ?? "price";
   const filtersParam = searchParams.get("filters") ?? "";
+  const categoriesFilter = filtersParam || "popular";
   const selectedFilters = filtersParam ? filtersParam.split(",") : [];
 
   const { hotels, totalCount, sortOptions, filterOptions, isLoading, error, search } =
@@ -67,7 +68,7 @@ export default function HotelSearchPage() {
         adults: parsedParams.adults,
         roomQty: parsedParams.roomQty,
         sortBy,
-        categoriesFilter: filtersParam || undefined,
+        categoriesFilter,
         currencyCode: "KRW",
         languageCode: "ko",
       },
@@ -76,30 +77,14 @@ export default function HotelSearchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     parsedParams?.destId,
+    parsedParams?.searchType,
     parsedParams?.arrivalDate,
     parsedParams?.departureDate,
+    parsedParams?.adults,
+    parsedParams?.roomQty,
+    sortBy,
+    categoriesFilter,
   ]);
-
-  /* 정렬/필터 변경 */
-  useEffect(() => {
-    if (!parsedParams) return;
-    search(
-      {
-        destId: parsedParams.destId,
-        searchType: parsedParams.searchType,
-        arrivalDate: parsedParams.arrivalDate,
-        departureDate: parsedParams.departureDate,
-        adults: parsedParams.adults,
-        roomQty: parsedParams.roomQty,
-        sortBy,
-        categoriesFilter: filtersParam || undefined,
-        currencyCode: "KRW",
-        languageCode: "ko",
-      },
-      false,
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, filtersParam]);
 
   const handleSortChange = (id: string) => {
     setSearchParams((prev) => {
