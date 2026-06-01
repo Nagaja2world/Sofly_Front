@@ -8,6 +8,11 @@ function authHeaders(): HeadersInit {
   };
 }
 
+function authHeadersMultipart(): HeadersInit {
+  const token = localStorage.getItem('accessToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`API 오류: ${res.status}`);
   const json = await res.json();
@@ -17,6 +22,23 @@ async function unwrap<T>(res: Response): Promise<T> {
 // ── 타입 ──────────────────────────────────────────
 
 export type WorkspaceVisibility = 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE';
+export type SnsPostVisibility = 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE';
+
+export interface SnsPostImageResponse {
+  id: number;
+  url: string;
+  orderIndex: number;
+}
+
+export interface SnsPostResponse {
+  id: number;
+  workspaceId: number;
+  author: SnsAuthorInfo;
+  content: string | null;
+  visibility: SnsPostVisibility;
+  images: SnsPostImageResponse[];
+  createdAt: string;
+}
 
 export interface SnsAuthorInfo {
   userId: number;
@@ -39,6 +61,8 @@ export interface PublicWorkspacePost {
   commentCount: number;
   isLiked: boolean | null;
   createdAt: string;
+  snsPostId: number | null;
+  snsFirstImageUrl: string | null;
 }
 
 export interface PageResponse<T> {
@@ -208,6 +232,7 @@ export async function fetchPublicProfile(
 
 /** API 응답 → 기존 SnsPost 포맷 변환 */
 export function toSnsPost(p: PublicWorkspacePost) {
+  const imageUrl = p.snsFirstImageUrl ?? p.coverImageUrl;
   return {
     id: String(p.id),
     author: {
@@ -215,8 +240,8 @@ export function toSnsPost(p: PublicWorkspacePost) {
       username: p.author.nickname,
       avatarUrl: p.author.profileImageUrl ?? undefined,
     },
-    media: p.coverImageUrl
-      ? [{ id: '0', type: 'image' as const, url: p.coverImageUrl }]
+    media: imageUrl
+      ? [{ id: '0', type: 'image' as const, url: imageUrl }]
       : [],
     caption: p.title + (p.destination ? ` · ${p.destination}` : ''),
     createdAt: p.createdAt,
@@ -225,5 +250,59 @@ export function toSnsPost(p: PublicWorkspacePost) {
     likeCount: p.likeCount,
     commentCount: p.commentCount,
     isLiked: p.isLiked,
+    snsPostId: p.snsPostId,
   };
+}
+
+// ── SNS 카드 CRUD ──────────────────────────────────
+
+export async function createSnsPost(
+  workspaceId: number,
+  files: File[],
+  content: string | undefined,
+  visibility: SnsPostVisibility,
+): Promise<SnsPostResponse> {
+  const form = new FormData();
+  files.forEach(f => form.append('files', f));
+  if (content) form.append('content', content);
+  form.append('visibility', visibility);
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/sns/post`, {
+    method: 'POST',
+    headers: authHeadersMultipart(),
+    body: form,
+  });
+  if (!res.ok) throw new Error(`SNS 카드 생성 실패: ${res.status}`);
+  return unwrap(res);
+}
+
+export async function getSnsPost(workspaceId: number): Promise<SnsPostResponse> {
+  return unwrap(await fetch(
+    `${API_BASE}/api/workspaces/${workspaceId}/sns/post`,
+    { headers: authHeaders() },
+  ));
+}
+
+export async function updateSnsPost(
+  workspaceId: number,
+  opts: { files?: File[]; content?: string; visibility?: SnsPostVisibility },
+): Promise<SnsPostResponse> {
+  const form = new FormData();
+  opts.files?.forEach(f => form.append('files', f));
+  if (opts.content !== undefined) form.append('content', opts.content);
+  if (opts.visibility) form.append('visibility', opts.visibility);
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/sns/post`, {
+    method: 'PATCH',
+    headers: authHeadersMultipart(),
+    body: form,
+  });
+  if (!res.ok) throw new Error(`SNS 카드 수정 실패: ${res.status}`);
+  return unwrap(res);
+}
+
+export async function deleteSnsPost(workspaceId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/sns/post`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok && res.status !== 204) throw new Error(`SNS 카드 삭제 실패: ${res.status}`);
 }

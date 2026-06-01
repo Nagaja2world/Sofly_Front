@@ -22,6 +22,7 @@ export interface TravelLog {
 interface TravelLogSectionProps {
   travelLogs: TravelLog[];
   snsLog: SnsLogData | null;
+  snsPostId?: number | null;
   showAddCard: boolean;
   sharedAlbumPhotos: string[];
   onOpenAddCard: () => void;
@@ -42,6 +43,7 @@ interface TravelLogSectionProps {
 export default function TravelLogSection({
   travelLogs,
   snsLog,
+  snsPostId,
   showAddCard,
   sharedAlbumPhotos,
   onOpenAddCard,
@@ -145,6 +147,9 @@ export default function TravelLogSection({
               <SnsLogCard
                 caption={snsLog.caption}
                 media={snsLog.media}
+                fileMap={snsLog.fileMap}
+                visibility={snsLog.visibility}
+                snsPostId={snsPostId}
                 onSave={onSaveSnsLog}
                 onDelete={onDeleteSnsLog}
                 onUpload={onUploadSnsLog}

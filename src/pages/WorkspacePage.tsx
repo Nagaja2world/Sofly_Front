@@ -17,6 +17,13 @@ import Header from "@/components/common/Header";
 import useAuthStore from "@/store/useAuthStore";
 import MemberSidebar from "@/components/workspace/MemberSidebar";
 import { type SnsLogData } from "@/components/workspace/SnsLogCard";
+import {
+  getSnsPost,
+  createSnsPost,
+  updateSnsPost,
+  deleteSnsPost,
+  type SnsPostVisibility,
+} from "@/api/snsApi";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
 import DeleteWorkspaceModal from "@/components/workspace/DeleteWorkspaceModal";
 import FlightDetailModal from "@/components/workspace/FlightDetailModal";
@@ -358,7 +365,29 @@ export default function WorkspacePage() {
   }, [loadTravelLogs]);
 
   const [snsLog, setSnsLog] = useState<SnsLogData | null>(null);
+  const [snsPostId, setSnsPostId] = useState<number | null>(null);
   const [showAddCard, setShowAddCard] = useState(false);
+
+  // 기존 SNS 카드 로드 (워크스페이스 진입 시)
+  useEffect(() => {
+    getSnsPost(workspaceId)
+      .then((post) => {
+        setSnsPostId(post.id);
+        setSnsLog({
+          caption: post.content ?? undefined,
+          media: post.images.map((img) => ({
+            id: String(img.id),
+            type: 'image' as const,
+            url: img.url,
+          })),
+          fileMap: {},
+          visibility: post.visibility as SnsPostVisibility,
+        });
+      })
+      .catch(() => {
+        // 404(SNS 카드 없음) 등은 무시
+      });
+  }, [workspaceId]);
 
   const handleOpenAddCard = () => setShowAddCard(true);
   const handleCancelAddCard = () => setShowAddCard(false);
@@ -373,7 +402,19 @@ export default function WorkspacePage() {
     setShowAddCard(false);
   };
   const handleSaveSnsLog = (data: SnsLogData) => setSnsLog(data);
-  const handleDeleteSnsLog = () => setSnsLog(null);
+
+  const handleDeleteSnsLog = async () => {
+    if (snsPostId) {
+      try {
+        await deleteSnsPost(workspaceId);
+      } catch {
+        alert("SNS 카드 삭제에 실패했어요. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+      setSnsPostId(null);
+    }
+    setSnsLog(null);
+  };
   const handleVisibilityChange = async (v: WorkspaceVisibility) => {
     if (!workspaceDetail) return;
     try {
@@ -384,23 +425,34 @@ export default function WorkspacePage() {
     }
   };
 
-  const handleUploadSnsLog = async (_data: SnsLogData) => {
-    if (!workspaceDetail) return;
+  const handleUploadSnsLog = async (data: SnsLogData) => {
+    const files = Object.values(data.fileMap ?? {});
+    const visibility: SnsPostVisibility = data.visibility ?? 'PUBLIC';
     try {
-      const updated = await updateWorkspace(workspaceId, {
-        title: workspaceDetail.title,
-        destination: workspaceDetail.destination,
-        countryCode: workspaceDetail.countryCode,
-        startDate: workspaceDetail.startDate,
-        endDate: workspaceDetail.endDate,
-        headcount: workspaceDetail.headcount,
-        coverImageUrl: workspaceDetail.coverImageUrl,
-        visibility: 'PUBLIC',
+      let post;
+      if (snsPostId) {
+        post = await updateSnsPost(workspaceId, {
+          files: files.length > 0 ? files : undefined,
+          content: data.caption,
+          visibility,
+        });
+      } else {
+        post = await createSnsPost(workspaceId, files, data.caption, visibility);
+      }
+      setSnsPostId(post.id);
+      setSnsLog({
+        caption: post.content ?? undefined,
+        media: post.images.map((img) => ({
+          id: String(img.id),
+          type: 'image' as const,
+          url: img.url,
+        })),
+        fileMap: {},
+        visibility: post.visibility as SnsPostVisibility,
       });
-      setWorkspaceDetail(updated);
-      alert("이 워크스페이스가 SNS에 공개됐어요!");
+      alert(snsPostId ? "SNS 게시물이 수정됐어요!" : "SNS에 게시됐어요!");
     } catch {
-      alert("공개 설정에 실패했어요. 잠시 후 다시 시도해주세요.");
+      alert("업로드에 실패했어요. 잠시 후 다시 시도해주세요.");
     }
   };
 
@@ -655,6 +707,7 @@ export default function WorkspacePage() {
                 <TravelLogSection
                   travelLogs={travelLogs}
                   snsLog={snsLog}
+                  snsPostId={snsPostId}
                   showAddCard={showAddCard}
                   sharedAlbumPhotos={sharedAlbumPhotos.map((p) => p.url)}
                   onOpenAddCard={handleOpenAddCard}
