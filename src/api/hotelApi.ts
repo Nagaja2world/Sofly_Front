@@ -1,3 +1,5 @@
+import { apiFetch } from "@/api/apiFetch";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 /* ── Types ── */
@@ -131,27 +133,108 @@ export interface HotelSearchInput {
   categoriesFilter?: string;
   currencyCode?: string;
   languageCode?: string;
+  supplier?: string;
+  units?: "METRIC" | "IMPERIAL";
+  temperatureUnit?: "CELSIUS" | "FAHRENHEIT";
+  location?: string;
 }
 
 /* ── Query builder ── */
 
 function buildQuery(params: HotelSearchInput): string {
   const p = new URLSearchParams();
+  if (params.supplier) p.set("supplier", params.supplier);
   p.set("destId", params.destId);
   p.set("searchType", params.searchType);
   p.set("arrivalDate", params.arrivalDate);
   p.set("departureDate", params.departureDate);
   if (params.adults != null) p.set("adults", String(params.adults));
   if (params.roomQty != null) p.set("roomQty", String(params.roomQty));
-  if (params.childrenAge) p.set("childrenAge", params.childrenAge);
+  p.set("childrenAge", params.childrenAge ?? "0");
   if (params.pageNumber != null) p.set("pageNumber", String(params.pageNumber));
   if (params.sortBy) p.set("sortBy", params.sortBy);
   if (params.priceMin != null) p.set("priceMin", String(params.priceMin));
   if (params.priceMax != null) p.set("priceMax", String(params.priceMax));
   if (params.categoriesFilter) p.set("categoriesFilter", params.categoriesFilter);
-  if (params.currencyCode) p.set("currencyCode", params.currencyCode);
-  if (params.languageCode) p.set("languageCode", params.languageCode);
+  p.set("units", params.units ?? "METRIC");
+  p.set("temperatureUnit", params.temperatureUnit ?? "CELSIUS");
+  p.set("currencyCode", params.currencyCode ?? "KRW");
+  p.set("languageCode", params.languageCode ?? "ko");
+  if (params.location) p.set("location", params.location);
   return p.toString();
+}
+
+interface ApiResponse<T> {
+  success?: boolean;
+  code?: string;
+  message?: string;
+  data?: T;
+}
+
+type RawHotelDestination = Partial<HotelDestination> & {
+  dest_id?: string;
+  dest_type?: string;
+  city_name?: string;
+  image_url?: string;
+};
+
+type RawHotelOffersData = Partial<HotelOffersResponse["data"]> & {
+  data?: Partial<HotelOffersResponse["data"]>;
+};
+
+function isApiResponse<T>(json: unknown): json is ApiResponse<T> {
+  return typeof json === "object" && json !== null && "success" in json;
+}
+
+async function unwrap<T>(res: Response): Promise<T> {
+  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+  const json: unknown = await res.json();
+  if (isApiResponse<T>(json)) {
+    if (json.success === false) {
+      throw new Error(json.message ?? "요청 처리 중 오류가 발생했어요");
+    }
+    return json.data as T;
+  }
+  return json as T;
+}
+
+function normalizeDestination(dest: RawHotelDestination): HotelDestination {
+  const destId = dest.destId ?? dest.dest_id ?? "";
+  const destType = dest.destType ?? dest.dest_type ?? "";
+  const name = dest.name ?? dest.label ?? "";
+  return {
+    destId,
+    destType,
+    name,
+    label: dest.label ?? name,
+    cityName: dest.cityName ?? dest.city_name ?? "",
+    country: dest.country ?? "",
+    region: dest.region ?? "",
+    latitude: dest.latitude ?? 0,
+    longitude: dest.longitude ?? 0,
+    imageUrl: dest.imageUrl ?? dest.image_url ?? "",
+    hotels: dest.hotels ?? 0,
+  };
+}
+
+function normalizeOffers(data: RawHotelOffersData | undefined): HotelOffersResponse {
+  const payload = data?.data ?? data;
+  const hotels = Array.isArray(payload?.hotels) ? payload.hotels : [];
+  const count = payload?.count ?? payload?.primary_count ?? hotels.length;
+  return {
+    data: {
+      hotels,
+      count,
+      primary_count: payload?.primary_count ?? count,
+    },
+  };
+}
+
+function normalizeHotelDetails(
+  data: HotelDetailsData | { data?: HotelDetailsData } | undefined,
+): HotelDetailsResponse {
+  if (data && "data" in data) return { data: data.data };
+  return { data: data as HotelDetailsData | undefined };
 }
 
 /* ── API functions ── */
@@ -159,41 +242,41 @@ function buildQuery(params: HotelSearchInput): string {
 export async function searchHotelDestinations(
   query: string,
 ): Promise<HotelDestination[]> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/v1/hotels/destinations?query=${encodeURIComponent(query)}`,
   );
-  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
-  return res.json();
+  const data = await unwrap<RawHotelDestination[]>(res);
+  return Array.isArray(data) ? data.map(normalizeDestination) : [];
 }
 
 export async function searchHotelOffers(
   params: HotelSearchInput,
 ): Promise<HotelOffersResponse> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/v1/hotels/offers?${buildQuery(params)}`,
   );
-  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
-  return res.json();
+  const data = await unwrap<RawHotelOffersData>(res);
+  return normalizeOffers(data);
 }
 
 export async function fetchHotelSortOptions(
   params: HotelSearchInput,
 ): Promise<HotelSortOption[]> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/v1/hotels/sort-options?${buildQuery(params)}`,
   );
-  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
-  return res.json();
+  const data = await unwrap<HotelSortOption[]>(res);
+  return Array.isArray(data) ? data : [];
 }
 
 export async function fetchHotelFilterOptions(
   params: HotelSearchInput,
 ): Promise<HotelFilterCategory[]> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/v1/hotels/filter-options?${buildQuery(params)}`,
   );
-  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
-  return res.json();
+  const data = await unwrap<HotelFilterCategory[]>(res);
+  return Array.isArray(data) ? data : [];
 }
 
 export async function fetchHotelDetails(
@@ -208,7 +291,7 @@ export async function fetchHotelDetails(
   if (params.roomQty != null) p.set("roomQty", String(params.roomQty));
   if (params.languageCode) p.set("languageCode", params.languageCode);
   if (params.currencyCode) p.set("currencyCode", params.currencyCode);
-  const res = await fetch(`${API_BASE}/api/v1/hotels/details?${p}`);
-  if (!res.ok) throw new Error(`API 오류: ${res.status}`);
-  return res.json();
+  const res = await apiFetch(`${API_BASE}/api/v1/hotels/details?${p}`);
+  const data = await unwrap<HotelDetailsData | { data?: HotelDetailsData }>(res);
+  return normalizeHotelDetails(data);
 }
