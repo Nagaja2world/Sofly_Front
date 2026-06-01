@@ -275,6 +275,7 @@ export async function createSnsPost(
     headers: authHeadersMultipart(),
     body: form,
   });
+  if (res.status === 413) throw new Error('FILE_TOO_LARGE');
   if (!res.ok) throw new Error(`SNS 카드 생성 실패: ${res.status}`);
   return unwrap(res);
 }
@@ -300,6 +301,7 @@ export async function updateSnsPost(
     headers: authHeadersMultipart(),
     body: form,
   });
+  if (res.status === 413) throw new Error('FILE_TOO_LARGE');
   if (!res.ok) throw new Error(`SNS 카드 수정 실패: ${res.status}`);
   return unwrap(res);
 }
