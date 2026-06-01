@@ -1,17 +1,19 @@
-interface FooterLink {
-  label: string;
-  href: string;
-}
+import { Link } from "react-router-dom";
 
 interface FooterProps {
   /** 우측 링크 목록 (기본: 이용약관, 개인정보처리방침, 여행약관) */
   links?: FooterLink[];
 }
 
+interface FooterLink {
+  label: string;
+  to: string;
+}
+
 const defaultLinks: FooterLink[] = [
-  { label: "이용약관", href: "#" },
-  { label: "개인정보처리방침", href: "#" },
-  { label: "여행약관", href: "#" },
+  { label: "이용약관", to: "/legal/terms" },
+  { label: "개인정보처리방침", to: "/legal/privacy" },
+  { label: "여행약관", to: "/legal/travel" },
 ];
 
 export default function Footer({ links = defaultLinks }: FooterProps) {
@@ -42,12 +44,12 @@ export default function Footer({ links = defaultLinks }: FooterProps) {
         <div className="flex gap-6">
           {links.map((link, index) => (
             <span key={link.label} className="flex items-center gap-6">
-              <a
-                href={link.href}
+              <Link
+                to={link.to}
                 className="font-pretendard text-body4 text-gray-800 no-underline hover:text-gray-900 transition-colors"
               >
                 {link.label}
-              </a>
+              </Link>
               {index < links.length - 1 && (
                 <span className="text-gray-400">|</span>
               )}

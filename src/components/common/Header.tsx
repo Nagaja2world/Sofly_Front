@@ -144,7 +144,9 @@ export default function Header({
                 className="w-9 h-9 rounded-full object-cover border border-gray-200"
               />
             ) : (
-              <UserIcon />
+              <span className="w-9 h-9 rounded-full overflow-hidden border border-gray-200 inline-flex items-center justify-center bg-gray-100">
+                <UserIcon className="w-full h-full object-cover" />
+              </span>
             )}
           </button>
 

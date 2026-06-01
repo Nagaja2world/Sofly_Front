@@ -23,6 +23,8 @@ interface CalendarDropdownProps {
   startLabel?: string;
   /** end 버튼 라벨 (기본: "오는편") */
   endLabel?: string;
+  /** 편도 모드: 단일 날짜만 선택, 오는편 비활성화 */
+  singleMode?: boolean;
   /** 추가 클래스 */
   className?: string;
 }
@@ -69,6 +71,7 @@ export default function CalendarDropdown({
   onClose,
   startLabel = "가는편",
   endLabel = "오는편",
+  singleMode = false,
   className = "",
 }: CalendarDropdownProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -99,6 +102,11 @@ export default function CalendarDropdown({
 
   const handleDateClick = (d: Date) => {
     if (isPast(d)) return;
+    if (singleMode) {
+      onChange({ start: d, end: null });
+      onClose();
+      return;
+    }
     if (selecting === "start") {
       const newEnd =
         dateRange.end && d.getTime() < dateRange.end.getTime()
@@ -146,7 +154,7 @@ export default function CalendarDropdown({
         isOpen={isOpen && selecting === "start"}
       />
 
-      {/* end 트리거 */}
+      {/* end 트리거 (편도 모드에서는 비활성화) */}
       <SelectField
         className="flex-1 min-w-0"
         bg="gray"
@@ -155,6 +163,7 @@ export default function CalendarDropdown({
         rightIcon={<CalendarIcon />}
         onClick={() => onOpen("end")}
         isOpen={isOpen && selecting === "end"}
+        disabled={singleMode}
       />
 
       {/* 캘린더 패널 */}
@@ -278,9 +287,11 @@ export default function CalendarDropdown({
           {/* 선택 안내 */}
           <div className="mt-3 pt-3 border-t border-gray-200">
             <p className="font-pretendard text-body4 text-gray-500 text-center m-0">
-              {selecting === "start"
+              {singleMode
                 ? `${startLabel} 날짜를 선택하세요`
-                : `${endLabel} 날짜를 선택하세요`}
+                : selecting === "start"
+                  ? `${startLabel} 날짜를 선택하세요`
+                  : `${endLabel} 날짜를 선택하세요`}
             </p>
           </div>
         </div>

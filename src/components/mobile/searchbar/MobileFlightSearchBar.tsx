@@ -28,7 +28,7 @@ import UsersIcon from "@/assets/users.svg?react";
      탭만 제공(별도 다구간 UI는 범위 외).
 */
 
-const tripTypes = ["편도", "왕복", "다구간"];
+const tripTypes = ["편도", "왕복"];
 
 type SheetKind = "dep" | "arr" | "calendar" | "pax" | null;
 

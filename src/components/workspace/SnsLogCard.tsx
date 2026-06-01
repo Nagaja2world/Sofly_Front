@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { createPortal } from "react-dom";
 import PlusIcon from "@/assets/plus.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
 import ConfirmPopup from "@/components/common/ConfirmPopup";
+import SharedAlbumPickerPopup from "@/components/workspace/SharedAlbumPickerPopup";
 import type { SnsMedia } from "@/types/snsType";
 
 /* ══════════════════════════════════════════
@@ -36,6 +38,15 @@ interface SnsLogCardProps {
    * 현재는 부모에서 console.log + TODO 주석 처리.
    */
   onUpload?: (data: SnsLogData) => void;
+  /**
+   * 워크스페이스 공유 앨범 사진 URL 배열.
+   * 편집 모드 "추가" 드롭다운의 "공유앨범에서 찾기" 클릭 시 열리는
+   * 선택 모달에 전달됨. 사용자가 고른 사진은 미디어(type: "image")로 추가됨.
+   *
+   * 미지정 시 빈 배열로 취급 → "공유앨범에서 찾기"를 눌러도 빈 상태 안내가 나옴.
+   * (TravelLogCard 본문 툴바의 공유앨범 삽입과 동일한 동작)
+   */
+  sharedAlbumPhotos?: string[];
   /** 추가 클래스 */
   className?: string;
 }
@@ -62,6 +73,8 @@ interface SnsLogCardProps {
  * 2) 편집 모드
  *    - 헤더: "SNS 게시물" 라벨 + 취소/저장 버튼
  *    - 미디어 그리드: 추가 / 삭제 가능
+ *      → "추가" 버튼은 드롭다운(내 기기에서 찾기 / 공유앨범에서 찾기) 트리거.
+ *        TravelLogCard 본문 툴바의 "사진" 드롭다운과 동일한 방식.
  *    - 캡션 textarea
  *
  * 디자인 스펙
@@ -74,6 +87,7 @@ export default function SnsLogCard({
   onDelete,
   onSave,
   onUpload,
+  sharedAlbumPhotos,
   className = "",
 }: SnsLogCardProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -92,6 +106,26 @@ export default function SnsLogCard({
   /** 삭제 확인 모달 열림 여부 */
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  /** "추가" 드롭다운 (내 기기 / 공유앨범) 열림 여부 */
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  /** 공유앨범 선택 모달 열림 여부 */
+  const [isSharedAlbumPickerOpen, setIsSharedAlbumPickerOpen] = useState(false);
+
+  /** 드롭다운 트리거 버튼 ref (위치 계산 + 외부 클릭 감지에서 제외) */
+  const addTriggerRef = useRef<HTMLButtonElement>(null);
+  /** 드롭다운 메뉴 ref (portal로 떠있으므로 외부 클릭 감지에서 별도 체크) */
+  const addMenuRef = useRef<HTMLDivElement>(null);
+
+  /** 드롭다운 위치 (fixed 좌표).
+   *  카드가 가로 스크롤 컨테이너 안에 있고 article에 overflow-hidden이 걸려있어
+   *  일반 absolute로는 잘려보이므로, portal로 body에 띄우면서 트리거의
+   *  getBoundingClientRect로 fixed 좌표를 계산.
+   *  (TravelLogCard EditorToolbar의 사진 드롭다운과 동일한 패턴) */
+  const [addMenuPos, setAddMenuPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
   /** 편집 중 새로 만든 ObjectURL 추적 (메모리 누수 방지) */
   const objectUrlsRef = useRef<string[]>([]);
 
@@ -105,6 +139,49 @@ export default function SnsLogCard({
     };
   }, []);
 
+  /** 트리거 버튼 위치를 측정해 드롭다운 좌표 갱신 */
+  const updateAddMenuPos = () => {
+    const el = addTriggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    /* 트리거의 왼쪽 모서리에 정렬, 아래로 4px 띄움 */
+    setAddMenuPos({ top: rect.bottom + 4, left: rect.left });
+  };
+
+  /* 외부 클릭 / ESC 키로 드롭다운 닫기 + 스크롤/리사이즈 시 위치 추적 */
+  useEffect(() => {
+    if (!isAddMenuOpen) return;
+
+    updateAddMenuPos();
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      /* 트리거 버튼이나 포털 메뉴 안의 클릭은 외부 클릭이 아님.
+         트리거 클릭은 토글 버튼 자체의 onClick이 처리하므로 여기선 무시.
+         메뉴 항목 클릭은 자체 onClick이 setIsAddMenuOpen(false) 호출. */
+      if (addTriggerRef.current?.contains(target)) return;
+      if (addMenuRef.current?.contains(target)) return;
+      setIsAddMenuOpen(false);
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsAddMenuOpen(false);
+    };
+    /* 카드가 가로 스크롤 컨테이너 안에 있어서 스크롤/리사이즈 시 트리거 위치가
+       바뀜 → 드롭다운도 따라가야 하므로 capture로 캐치 */
+    const handleReposition = () => updateAddMenuPos();
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEsc);
+    window.addEventListener("scroll", handleReposition, true);
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEsc);
+      window.removeEventListener("scroll", handleReposition, true);
+      window.removeEventListener("resize", handleReposition);
+    };
+  }, [isAddMenuOpen]);
+
   /** 캐러셀 인덱스를 media 길이에 맞춰 보정한 값.
    *  렌더 중에 파생값으로 계산 → useEffect + setState로 인한 cascading render 방지.
    *  (참고: https://react.dev/learn/you-might-not-need-an-effect) */
@@ -112,12 +189,13 @@ export default function SnsLogCard({
   const safeCarouselIndex =
     mediaLength === 0 ? 0 : Math.min(carouselIndex, mediaLength - 1);
 
-  /* ── 보기 모드에서 이미지 영역 클릭 → 편집 모드로 전환 + 파일 피커 오픈 ── */
+  /* ── 보기 모드에서 이미지 영역 클릭 → 편집 모드로 전환 + 추가 드롭다운 오픈 ── */
   const handleViewAreaClick = () => {
     setDraft({ caption, media: media ?? [] });
     setIsEditing(true);
-    /* 편집 모드 렌더 후 파일 피커 오픈 (setTimeout으로 렌더 완료 대기) */
-    setTimeout(() => fileInputRef.current?.click(), 0);
+    /* 편집 모드 렌더 후 드롭다운 오픈 (setTimeout으로 렌더 완료 대기 →
+       트리거 ref가 마운트된 뒤 위치 계산이 정상 동작) */
+    setTimeout(() => setIsAddMenuOpen(true), 0);
   };
 
   /* ── 모드 전환 ── */
@@ -130,6 +208,7 @@ export default function SnsLogCard({
     /* 새로 만든 ObjectURL 정리 */
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     objectUrlsRef.current = [];
+    setIsAddMenuOpen(false);
     setIsEditing(false);
   };
 
@@ -144,7 +223,10 @@ export default function SnsLogCard({
      *  더 이상 어디서도 사용하지 않으므로 즉시 revoke.
      *  저장된 media에 남아있는 URL은 보기 모드에서 계속 표시되어야 하므로,
      *  ref에 그대로 추적해두고 컴포넌트 언마운트 시 cleanup에서 해제됨.
-     *  (단순히 objectUrlsRef.current = []로 비우면 추적이 끊겨 누수 발생) */
+     *  (단순히 objectUrlsRef.current = []로 비우면 추적이 끊겨 누수 발생)
+     *
+     *  주의: 공유앨범에서 추가한 미디어의 URL은 ObjectURL이 아니라 공유앨범의
+     *  기존 URL이므로 애초에 objectUrlsRef에 들어있지 않음 → revoke 대상 아님. */
     const stillInUse = new Set(draft.media.map((m) => m.url));
     const toRevoke = objectUrlsRef.current.filter(
       (url) => !stillInUse.has(url),
@@ -159,9 +241,15 @@ export default function SnsLogCard({
     setIsEditing(false);
   };
 
-  /* ── 미디어 추가/삭제 (편집 모드) ── */
-  const handlePickMedia = () => {
+  /* ── 드롭다운 메뉴 항목 클릭 ── */
+  const handlePickFromDevice = () => {
+    setIsAddMenuOpen(false);
     fileInputRef.current?.click();
+  };
+
+  const handlePickFromSharedAlbum = () => {
+    setIsAddMenuOpen(false);
+    setIsSharedAlbumPickerOpen(true);
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -188,6 +276,31 @@ export default function SnsLogCard({
     setDraft((prev) => ({ ...prev, media: [...prev.media, ...newMedia] }));
     /* 같은 파일 다시 선택 가능하도록 input 리셋 */
     e.target.value = "";
+  };
+
+  /**
+   * 공유앨범 선택 모달에서 "선택" 클릭 시 호출.
+   * 받은 URL 배열을 받은 순서대로 미디어(type: "image")로 추가.
+   *
+   * 주의: 공유앨범의 기존 URL을 그대로 사용하므로 새 ObjectURL을 만들지 않음.
+   *       (TravelLogCard 본문 삽입과 동일 동작 → objectUrlsRef 등록 불필요)
+   *
+   * TODO(API 연결 시):
+   *   공유앨범에서 그 사진이 삭제되면 카드의 미디어도 깨지므로, 백엔드 정책
+   *   (참조 vs 복사)에 따라 여기서 새 URL을 받아오는 처리가 필요할 수 있음.
+   */
+  const handleInsertFromSharedAlbum = (urls: string[]) => {
+    if (urls.length === 0) {
+      setIsSharedAlbumPickerOpen(false);
+      return;
+    }
+    const newMedia: SnsMedia[] = urls.map((url) => ({
+      id: crypto.randomUUID(),
+      type: "image",
+      url,
+    }));
+    setDraft((prev) => ({ ...prev, media: [...prev.media, ...newMedia] }));
+    setIsSharedAlbumPickerOpen(false);
   };
 
   const handleRemoveMedia = (id: string) => {
@@ -325,10 +438,14 @@ export default function SnsLogCard({
                 </div>
               ))}
 
-              {/* 추가 버튼 */}
+              {/* 추가 버튼 (드롭다운 트리거: 내 기기 / 공유앨범) */}
               <button
+                ref={addTriggerRef}
                 type="button"
-                onClick={handlePickMedia}
+                onClick={() => setIsAddMenuOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={isAddMenuOpen}
+                aria-label="사진 / 영상 추가"
                 className="aspect-square rounded-md border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 hover:border-gray-500 hover:bg-gray-50 transition-colors cursor-pointer bg-white"
               >
                 <PlusIcon className="w-5 h-5 text-gray-500" />
@@ -345,6 +462,48 @@ export default function SnsLogCard({
               onChange={handleFileChange}
               className="hidden"
             />
+
+            {/* 드롭다운 메뉴 — portal로 body에 렌더, fixed 좌표로 트리거 바로 아래에 위치.
+                addMenuPos가 null인 첫 한 프레임은 렌더 생략 (effect에서 측정 후 갱신).
+                TravelLogCard EditorToolbar의 사진 드롭다운과 동일한 구조/스타일. */}
+            {isAddMenuOpen &&
+              addMenuPos &&
+              createPortal(
+                <div
+                  ref={addMenuRef}
+                  role="menu"
+                  aria-label="사진 / 영상 가져오기"
+                  style={{
+                    position: "fixed",
+                    top: addMenuPos.top,
+                    left: addMenuPos.left,
+                  }}
+                  className={[
+                    "z-50 min-w-[180px]",
+                    "bg-white border border-gray-300 rounded-md shadow-lg",
+                    "py-1",
+                    "animate-[fadeIn_0.1s_ease-out]",
+                  ].join(" ")}
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handlePickFromDevice}
+                    className="w-full text-left px-3 py-2 font-pretendard text-body3 text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer border-none bg-transparent"
+                  >
+                    내 기기에서 찾기
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handlePickFromSharedAlbum}
+                    className="w-full text-left px-3 py-2 font-pretendard text-body3 text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer border-none bg-transparent"
+                  >
+                    공유앨범에서 찾기
+                  </button>
+                </div>,
+                document.body,
+              )}
           </div>
 
           {/* 캡션 */}
@@ -393,7 +552,9 @@ export default function SnsLogCard({
                 className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer border-none bg-transparent"
               >
                 <PlusIcon className="w-8 h-8" />
-                <span className="font-pretendard text-body3">사진/영상을 추가하세요</span>
+                <span className="font-pretendard text-body3">
+                  사진/영상을 추가하세요
+                </span>
               </button>
             )}
 
@@ -487,6 +648,16 @@ export default function SnsLogCard({
         confirmLabel="삭제"
         cancelLabel="취소"
         variant="danger"
+      />
+
+      {/* 공유앨범 사진 선택 모달.
+          createPortal로 document.body에 렌더되므로 카드의 overflow-hidden 영향 없음.
+          선택된 URL은 미디어(type: "image")로 추가됨. */}
+      <SharedAlbumPickerPopup
+        isOpen={isSharedAlbumPickerOpen}
+        photos={sharedAlbumPhotos ?? []}
+        onClose={() => setIsSharedAlbumPickerOpen(false)}
+        onSelect={handleInsertFromSharedAlbum}
       />
     </article>
   );

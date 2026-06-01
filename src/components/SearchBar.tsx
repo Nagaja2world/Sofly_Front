@@ -13,7 +13,7 @@ import PassengerSeatDropdown, {
 
 import { type FlightSearchParams } from "@/utils/flightSearchQuery";
 
-const tripTypes = ["편도", "왕복", "다구간"];
+const tripTypes = ["편도", "왕복"];
 
 /** SearchBar 초기값 (URL 파싱 등 외부에서 주입) */
 export interface SearchBarInitialValues {
@@ -69,6 +69,15 @@ export default function SearchBar({
 
   const closeAll = useCallback(() => setActivePanel(null), []);
 
+  const isOneWay = tabIndex === 0;
+
+  const handleTabChange = (i: number) => {
+    setTabIndex(i);
+    setActivePanel(null);
+    /* 편도로 바꾸면 오는편 제거 */
+    if (i === 0) setDateRange((r) => ({ start: r.start, end: null }));
+  };
+
   const handleSearch = () => {
     setSearchError(null);
 
@@ -115,7 +124,7 @@ export default function SearchBar({
           <Tab
             items={tripTypes}
             activeIndex={tabIndex}
-            onChange={setTabIndex}
+            onChange={handleTabChange}
           />
           <Checkbox
             label="직항만"
@@ -152,6 +161,7 @@ export default function SearchBar({
           <CalendarDropdown
             dateRange={dateRange}
             activePanel={activePanel}
+            singleMode={isOneWay}
             onOpen={(type) =>
               setActivePanel(type === "start" ? "cal-start" : "cal-end")
             }

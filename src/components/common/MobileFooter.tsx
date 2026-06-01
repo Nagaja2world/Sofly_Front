@@ -1,6 +1,8 @@
+import { Link } from "react-router-dom";
+
 interface MobileFooterLink {
   label: string;
-  href: string;
+  to: string;
 }
 
 interface MobileFooterProps {
@@ -11,9 +13,9 @@ interface MobileFooterProps {
 }
 
 const defaultLinks: MobileFooterLink[] = [
-  { label: "이용약관", href: "#" },
-  { label: "개인정보처리방침", href: "#" },
-  { label: "여행약관", href: "#" },
+  { label: "이용약관", to: "/legal/terms" },
+  { label: "개인정보처리방침", to: "/legal/privacy" },
+  { label: "여행약관", to: "/legal/travel" },
 ];
 
 export default function MobileFooter({
@@ -52,12 +54,12 @@ export default function MobileFooter({
         <div className="flex items-center gap-4">
           {links.map((link, index) => (
             <span key={link.label} className="flex items-center gap-4">
-              <a
-                href={link.href}
+              <Link
+                to={link.to}
                 className="font-pretendard text-body4 text-gray-800 no-underline hover:text-gray-900 transition-colors"
               >
                 {link.label}
-              </a>
+              </Link>
               {index < links.length - 1 && (
                 <span className="text-gray-400">|</span>
               )}
