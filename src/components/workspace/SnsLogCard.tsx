@@ -139,12 +139,11 @@ export default function SnsLogCard({
     setIsEditing(false);
   };
 
-  const saveEdit = () => {
+  const handleEditConfirm = () => {
     const cleaned: SnsLogData = {
       caption: draft.caption?.trim() || undefined,
       media: draft.media,
       fileMap: draft.fileMap,
-      visibility: draft.visibility,
     };
 
     const stillInUse = new Set(draft.media.map((m) => m.url));
@@ -152,7 +151,7 @@ export default function SnsLogCard({
     toRevoke.forEach((url) => URL.revokeObjectURL(url));
     objectUrlsRef.current = objectUrlsRef.current.filter((url) => stillInUse.has(url));
 
-    onSave?.(cleaned);
+    onUpload?.(cleaned);
     setIsEditing(false);
   };
 
@@ -239,10 +238,10 @@ export default function SnsLogCard({
             </button>
             <button
               type="button"
-              onClick={saveEdit}
+              onClick={handleEditConfirm}
               className="px-3 py-1 rounded text-body3 font-semibold text-gray-900 bg-primary hover:brightness-95 transition-all cursor-pointer border-none"
             >
-              저장
+              {snsPostId ? "수정" : "업로드"}
             </button>
           </div>
         ) : (
@@ -362,27 +361,6 @@ export default function SnsLogCard({
             />
           </div>
 
-          {/* 공개범위 */}
-          <div>
-            <label
-              htmlFor="sns-visibility"
-              className="block font-pretendard text-body3 font-medium text-gray-700 mb-2"
-            >
-              공개 범위
-            </label>
-            <select
-              id="sns-visibility"
-              value={draft.visibility}
-              onChange={(e) =>
-                setDraft((prev) => ({ ...prev, visibility: e.target.value as SnsPostVisibility }))
-              }
-              className="w-full px-3 py-2 rounded-md border border-gray-300 font-pretendard text-body2 text-gray-900 focus:outline-none focus:border-gray-700 transition-colors bg-white"
-            >
-              <option value="PUBLIC">전체 공개</option>
-              <option value="FOLLOWERS_ONLY">팔로워만</option>
-              <option value="PRIVATE">비공개</option>
-            </select>
-          </div>
         </div>
       ) : (
         /* ───────── 보기 모드 ───────── */

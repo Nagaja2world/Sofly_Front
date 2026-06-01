@@ -427,7 +427,7 @@ export default function WorkspacePage() {
 
   const handleUploadSnsLog = async (data: SnsLogData) => {
     const files = Object.values(data.fileMap ?? {});
-    const visibility: SnsPostVisibility = data.visibility ?? 'PUBLIC';
+    const visibility: SnsPostVisibility = (workspaceDetail?.visibility as SnsPostVisibility) ?? 'PUBLIC';
     try {
       let post;
       if (snsPostId) {
