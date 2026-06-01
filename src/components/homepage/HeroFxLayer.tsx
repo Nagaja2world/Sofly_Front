@@ -69,23 +69,25 @@ export default function HeroFxLayer({
     raf = requestAnimationFrame(tick);
 
     const handleMove = (e: MouseEvent) => {
-      const rect = parent.getBoundingClientRect();
-      targetX.set(e.clientX - rect.left);
-      targetY.set(e.clientY - rect.top);
-      mouseActiveRef.current = true;
-      lastMouseTimeRef.current = performance.now();
-    };
-    const handleLeave = () => {
-      mouseActiveRef.current = false;
+      const rect = root.getBoundingClientRect();
+      const inBounds =
+        e.clientX >= rect.left && e.clientX <= rect.right &&
+        e.clientY >= rect.top  && e.clientY <= rect.bottom;
+      if (inBounds) {
+        targetX.set(e.clientX - rect.left);
+        targetY.set(e.clientY - rect.top);
+        mouseActiveRef.current = true;
+        lastMouseTimeRef.current = performance.now();
+      } else {
+        mouseActiveRef.current = false;
+      }
     };
 
-    parent.addEventListener("mousemove", handleMove);
-    parent.addEventListener("mouseleave", handleLeave);
+    document.addEventListener("mousemove", handleMove);
 
     return () => {
       cancelAnimationFrame(raf);
-      parent.removeEventListener("mousemove", handleMove);
-      parent.removeEventListener("mouseleave", handleLeave);
+      document.removeEventListener("mousemove", handleMove);
     };
   }, [showButterfly, targetX, targetY]);
 
