@@ -28,6 +28,7 @@ export interface HotelOfferItem {
   main_photo_url: string | null;
   url: string;
   min_total_price: number | null;
+  strikethrough_price: number | null;
   composite_price_breakdown: {
     gross_amount: { value: number; currency: string };
   } | null;
@@ -213,15 +214,9 @@ type RawBookingHotel = Partial<HotelOfferItem> & {
       untilTime?: string;
     };
     priceBreakdown?: {
-      grossPrice?: {
-        value?: number;
-        currency?: string;
-      };
-      benefitBadges?: Array<{
-        id?: string;
-        text?: string;
-        title?: string;
-      }>;
+      grossPrice?: { value?: number; currency?: string; };
+      strikethroughPrice?: { value?: number; currency?: string; };
+      benefitBadges?: Array<{ id?: string; text?: string; title?: string; }>;
     };
     bookingUrl?: string;
   };
@@ -424,6 +419,13 @@ function normalizeHotelOffer(raw: RawBookingHotel): HotelOfferItem | null {
     property?.qualityClass ??
     null;
 
+  const strikethroughValue = property?.priceBreakdown?.strikethroughPrice?.value ?? null;
+
+  // accessibilityLabel에서 거리 추출: "1.9 miles from centre" → "1.9"
+  const distanceMatch = raw.accessibilityLabel?.match(/(\d+(?:\.\d+)?)\s*miles?\s*from\s*(?:city\s*)?cent(?:re|er)/i);
+  const distanceMiles = distanceMatch ? parseFloat(distanceMatch[1]) : null;
+  const distanceKm = distanceMiles != null ? (distanceMiles * 1.60934).toFixed(1) : null;
+
   return {
     hotel_id: id,
     name,
@@ -434,6 +436,7 @@ function normalizeHotelOffer(raw: RawBookingHotel): HotelOfferItem | null {
     main_photo_url: raw.main_photo_url ?? property?.photoUrls?.[0] ?? null,
     url: raw.url ?? property?.bookingUrl ?? "",
     min_total_price: raw.min_total_price ?? grossPrice?.value ?? null,
+    strikethrough_price: strikethroughValue,
     composite_price_breakdown:
       raw.composite_price_breakdown ??
       (grossPrice?.value != null
@@ -446,7 +449,7 @@ function normalizeHotelOffer(raw: RawBookingHotel): HotelOfferItem | null {
         : null),
     latitude: raw.latitude ?? property?.latitude ?? 0,
     longitude: raw.longitude ?? property?.longitude ?? 0,
-    distance_to_cc: raw.distance_to_cc ?? null,
+    distance_to_cc: raw.distance_to_cc ?? distanceKm,
     checkin: raw.checkin ?? (property?.checkin?.fromTime ? { from: property.checkin.fromTime } : null),
     checkout:
       raw.checkout ??
