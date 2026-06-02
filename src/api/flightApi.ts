@@ -54,6 +54,23 @@ export async function searchDestination(
   return unwrap<AirportResult[]>(res);
 }
 
+/**
+ * IATA 코드로 API의 destination id를 조회.
+ * 로컬 검색으로 공항을 고른 뒤, searchFlights에 넘길 정식 id를 얻기 위해 호출.
+ */
+export async function resolveAirportId(
+  code: string,
+): Promise<AirportResult | null> {
+  const results = await searchDestination(code);
+  // 코드 정확 일치 우선, 없으면 AIRPORT 타입 우선
+  return (
+    results.find((r) => r.code.toUpperCase() === code.toUpperCase()) ??
+    results.find((r) => r.type === "AIRPORT") ??
+    results[0] ??
+    null
+  );
+}
+
 /* ── 항공편 검색 파라미터 ── */
 export interface SearchFlightsParams {
   fromId: string; // e.g. "ICN.AIRPORT"
