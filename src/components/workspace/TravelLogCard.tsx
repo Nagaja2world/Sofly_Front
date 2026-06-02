@@ -74,7 +74,7 @@ interface TravelLogCardProps {
    *
    * 미지정 시 빈 배열로 취급 → "공유앨범에서 찾기"를 눌러도 빈 상태 안내가 나옴.
    */
-  sharedAlbumPhotos?: string[];
+  sharedAlbumPhotos?: { id: number; url: string }[];
   /**
    * 편집 저장 콜백.
    * 편집 아이콘 → 편집 모드 → "저장" 누르면 호출됨.
@@ -842,37 +842,16 @@ function BodyView({ content }: { content?: JSONContent }) {
   if (isContentEmpty(content)) return null;
 
   return (
-    /* h-full로 부모 본문 섹션의 높이를 꽉 채움 → 카드 하단의 빈 공간 제거.
-       카드 자체가 h-[760px] 고정이고 다른 섹션이 shrink-0이므로,
-       이 영역은 약 400px 정도가 됨. 본문이 그보다 길면 안에서 세로 스크롤.
-       카드 전체가 길어지면 가로 스크롤 컨테이너에서 줄이 어긋나 보이므로
-       본문 영역 안쪽에서만 스크롤 처리. */
-    <div
+    <EditorContent
+      editor={editor}
       className={[
-        "h-full overflow-y-auto pr-1",
-        // 스크롤바 스타일 (가로 스크롤 컨테이너와 결을 맞춤)
-        "[&::-webkit-scrollbar]:w-1.5",
-        "[&::-webkit-scrollbar-thumb]:bg-gray-300",
-        "[&::-webkit-scrollbar-thumb]:rounded",
-        "[&::-webkit-scrollbar-track]:bg-transparent",
+        "font-pretendard text-body3 text-gray-700 leading-relaxed",
+        "[&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-0",
+        "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
+        "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+        "break-keep",
       ].join(" ")}
-    >
-      <EditorContent
-        editor={editor}
-        className={[
-          // 본문 prose 스타일 — Tailwind typography를 안 쓰므로 직접 지정
-          "font-pretendard text-body3 text-gray-700 leading-relaxed",
-          // ProseMirror 기본 outline 제거 (보기 모드라 어차피 포커스 안 됨)
-          "[&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-0",
-          // 이미지 스타일
-          "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
-          // 문단 간격
-          "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-          // break-keep으로 한글 줄바꿈 자연스럽게
-          "break-keep",
-        ].join(" ")}
-      />
-    </div>
+    />
   );
 }
 
@@ -900,15 +879,18 @@ function BodyEditor({
   registerObjectUrl,
   sharedAlbumPhotos,
   onUploadImage,
+  label,
 }: {
   initialContent?: JSONContent;
   onChange: (json: JSONContent) => void;
   /** 새로 만든 ObjectURL을 부모에 등록 → 언마운트/취소 시 revoke 위함 */
   registerObjectUrl: (url: string) => void;
-  /** 워크스페이스 공유 앨범 사진 URL 배열 (공유앨범 선택 모달에 전달) */
-  sharedAlbumPhotos: string[];
+  /** 워크스페이스 공유 앨범 사진 목록 (공유앨범 선택 모달에 전달) */
+  sharedAlbumPhotos: { id: number; url: string }[];
   /** 제공 시 파일을 서버에 업로드하고 URL 반환 — blob URL 저장 방지 */
   onUploadImage?: (file: File) => Promise<string | null>;
+  /** 툴바 위에 고정 표시할 섹션 라벨 */
+  label?: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -984,10 +966,10 @@ function BodyEditor({
    *   공유앨범에서 그 사진이 삭제되면 본문의 이미지도 깨지므로, 백엔드 정책
    *   (참조 vs 복사)에 따라 여기서 새 URL을 받아오는 처리가 필요할 수 있음.
    */
-  const handleInsertFromSharedAlbum = (urls: string[]) => {
+  const handleInsertFromSharedAlbum = (selected: { id: number; url: string }[]) => {
     if (!editor) return;
-    for (const url of urls) {
-      editor.chain().focus().setImage({ src: url }).run();
+    for (const item of selected) {
+      editor.chain().focus().setImage({ src: item.url }).run();
     }
     setIsSharedAlbumPickerOpen(false);
   };
@@ -1000,35 +982,29 @@ function BodyEditor({
   }
 
   return (
-    /* h-full + flex column으로 외곽이 부모 본문 섹션 높이를 꽉 채우도록.
-       툴바는 위쪽에 고정, 입력 영역은 flex-1로 남는 공간을 모두 차지하며
-       그 안에서 자체적으로 세로 스크롤. */
-    <div className="h-full flex flex-col border border-gray-300 rounded-md bg-white overflow-hidden focus-within:border-gray-700 transition-colors">
-      <div className="shrink-0">
-        <EditorToolbar
-          editor={editor}
-          onPickFromDevice={handlePickImage}
-          onPickFromSharedAlbum={() => setIsSharedAlbumPickerOpen(true)}
-        />
+    <div className="flex flex-col">
+      {/* sticky 헤더: 섹션 라벨 + 툴바 — overflow-hidden 없이 sticky가 동작하도록 */}
+      <div className="sticky top-0 z-10 bg-white">
+        {label && (
+          <span className="block pb-2 font-pretendard text-body4 font-medium text-gray-500">
+            {label}
+          </span>
+        )}
+        <div className="border border-gray-300 rounded-t-md focus-within:border-gray-700 transition-colors">
+          <EditorToolbar
+            editor={editor}
+            onPickFromDevice={handlePickImage}
+            onPickFromSharedAlbum={() => setIsSharedAlbumPickerOpen(true)}
+          />
+        </div>
       </div>
-      {/* 입력 영역 — flex-1로 남는 공간 차지, min-h-0으로 flex 안에서 스크롤 정상 동작 */}
-      <div
-        className={[
-          "flex-1 min-h-0 overflow-y-auto",
-          // 스크롤바 스타일
-          "[&::-webkit-scrollbar]:w-1.5",
-          "[&::-webkit-scrollbar-thumb]:bg-gray-300",
-          "[&::-webkit-scrollbar-thumb]:rounded",
-          "[&::-webkit-scrollbar-track]:bg-transparent",
-        ].join(" ")}
-      >
+      {/* 본문 입력 영역 */}
+      <div className="border border-gray-300 border-t-0 rounded-b-md bg-white focus-within:border-gray-700 transition-colors">
         <EditorContent
           editor={editor}
           className={[
-            // 이미지 / 문단 스타일 (보기 모드와 동일하게)
             "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
             "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-            // Placeholder 스타일 — Tiptap Placeholder extension의 관용
             "[&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]",
             "[&_.is-editor-empty:first-child]:before:text-gray-500",
             "[&_.is-editor-empty:first-child]:before:float-left",
@@ -1373,67 +1349,68 @@ export default function TravelLogCard({
 
       <DashedDivider />
 
-      {/* ── 3. 본문 (Tiptap) ──
-          flex-1로 남는 공간을 모두 차지 → 본문이 짧아도 앨범이 카드 하단으로 밀림.
-          min-h-0은 flex 컨테이너에서 자식이 max-height 안에서 스크롤되도록 하는 안전장치. */}
-      <div className="flex-1 min-h-0 px-4 py-6 flex flex-col gap-2 min-w-0">
+      {/* ── 3. 본문 + 4. 앨범 — 통합 스크롤 컨테이너 ── */}
+      <div
+        className={[
+          "flex-1 min-h-0 overflow-y-auto",
+          "[&::-webkit-scrollbar]:w-1.5",
+          "[&::-webkit-scrollbar-thumb]:bg-gray-300",
+          "[&::-webkit-scrollbar-thumb]:rounded",
+          "[&::-webkit-scrollbar-track]:bg-transparent",
+        ].join(" ")}
+      >
+        {/* 본문 */}
         {isEditing ? (
-          <>
-            <span className="font-pretendard text-body4 font-medium text-gray-500 shrink-0">
-              본문
-            </span>
-            {/* 에디터 wrapper: 라벨 아래 남는 공간을 모두 차지 → 에디터가 섹션을 꽉 채움 */}
-            <div className="flex-1 min-h-0">
-              <BodyEditor
-                initialContent={draft.content}
-                onChange={(json) => setDraft((d) => ({ ...d, content: json }))}
-                registerObjectUrl={registerObjectUrl}
-                sharedAlbumPhotos={sharedAlbumPhotos ?? []}
-                onUploadImage={onUploadEditorImage}
-              />
-            </div>
-          </>
-        ) : (
-          /* 보기 wrapper: 섹션의 남는 공간을 모두 차지 → 본문 영역이 카드 하단까지 채움 */
-          <div className="flex-1 min-h-0">
+          <div className="px-4 py-6 min-w-0">
+            <BodyEditor
+              label="본문"
+              initialContent={draft.content}
+              onChange={(json) => setDraft((d) => ({ ...d, content: json }))}
+              registerObjectUrl={registerObjectUrl}
+              sharedAlbumPhotos={sharedAlbumPhotos ?? []}
+              onUploadImage={onUploadEditorImage}
+            />
+          </div>
+        ) : !isContentEmpty(content) ? (
+          <div className="px-4 py-6 flex flex-col gap-2 min-w-0">
             <BodyView content={content} />
           </div>
-        )}
-      </div>
+        ) : null}
 
-      <DashedDivider />
+        {isEditing || !isContentEmpty(content) ? <DashedDivider /> : null}
 
-      {/* ── 4. 앨범 ── */}
-      <div className="shrink-0 px-4 py-6 flex flex-col gap-4 min-w-0">
-        <SectionLabel label="앨범" />
+        {/* 앨범 */}
+        <div className="px-4 py-6 flex flex-col gap-4 min-w-0">
+          <SectionLabel label="앨범" />
 
-        {isEditing ? (
-          <PhotoGridEdit
-            photos={draft.albumPhotos ?? []}
-            onAdd={(files) => {
-              const urls = filesToUrls(files);
-              setDraft((d) => ({
-                ...d,
-                albumPhotos: [...(d.albumPhotos ?? []), ...urls],
-              }));
-            }}
-            onRemove={(idx) => {
-              setDraft((d) => ({
-                ...d,
-                albumPhotos: (d.albumPhotos ?? []).filter((_, i) => i !== idx),
-              }));
-            }}
-            alt="앨범"
-          />
-        ) : (
-          <ViewModeAlbum
-            photos={albumPhotos ?? []}
-            photoIds={photoIds}
-            readOnly={readOnly}
-            onUploadPhotos={onUploadPhotos}
-            onDeletePhoto={onDeletePhoto}
-          />
-        )}
+          {isEditing ? (
+            <PhotoGridEdit
+              photos={draft.albumPhotos ?? []}
+              onAdd={(files) => {
+                const urls = filesToUrls(files);
+                setDraft((d) => ({
+                  ...d,
+                  albumPhotos: [...(d.albumPhotos ?? []), ...urls],
+                }));
+              }}
+              onRemove={(idx) => {
+                setDraft((d) => ({
+                  ...d,
+                  albumPhotos: (d.albumPhotos ?? []).filter((_, i) => i !== idx),
+                }));
+              }}
+              alt="앨범"
+            />
+          ) : (
+            <ViewModeAlbum
+              photos={albumPhotos ?? []}
+              photoIds={photoIds}
+              readOnly={readOnly}
+              onUploadPhotos={onUploadPhotos}
+              onDeletePhoto={onDeletePhoto}
+            />
+          )}
+        </div>
       </div>
 
       {/* 삭제 확인 모달.

@@ -64,7 +64,7 @@ export default function InvitationPanel({ onClose }: InvitationPanelProps) {
       ref={panelRef}
       className={[
         "absolute right-0 top-full mt-2 z-50",
-        "w-[360px] bg-white rounded-2xl shadow-2xl border border-gray-200",
+        "w-[360px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200",
         "flex flex-col overflow-hidden",
       ].join(" ")}
     >

@@ -56,18 +56,47 @@ function ItineraryPreview({ jsonStr }: { jsonStr: string }) {
   try {
     data = JSON.parse(jsonStr);
   } catch {
+    // 스트리밍 중 아직 불완전한 JSON — 로딩 스켈레톤 표시
     return (
-      <pre className="text-xs text-gray-500 whitespace-pre-wrap break-all bg-gray-50 rounded-lg p-3 font-mono">
-        {jsonStr}
-      </pre>
+      <div className="flex flex-col gap-2 w-full animate-pulse">
+        {[1, 2].map((d) => (
+          <div key={d} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+              <div className="h-3.5 w-12 bg-gray-200 rounded" />
+            </div>
+            <div className="divide-y divide-gray-100">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="px-3 py-2.5 flex items-center gap-2">
+                  <div className="h-3 w-10 bg-gray-100 rounded shrink-0" />
+                  <div className="h-3 w-12 bg-gray-100 rounded shrink-0" />
+                  <div className="h-3 bg-gray-100 rounded flex-1" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     );
   }
 
   if (!Array.isArray(data?.days)) {
     return (
-      <pre className="text-xs text-gray-500 whitespace-pre-wrap break-all bg-gray-50 rounded-lg p-3 font-mono">
-        {jsonStr}
-      </pre>
+      <div className="flex flex-col gap-2 w-full animate-pulse">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+            <div className="h-3.5 w-12 bg-gray-200 rounded" />
+          </div>
+          <div className="divide-y divide-gray-100">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="px-3 py-2.5 flex items-center gap-2">
+                <div className="h-3 w-10 bg-gray-100 rounded shrink-0" />
+                <div className="h-3 w-12 bg-gray-100 rounded shrink-0" />
+                <div className="h-3 bg-gray-100 rounded flex-1" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -193,11 +222,12 @@ type MessagePart =
 
 function parseMessageParts(text: string): MessagePart[] {
   const parts: MessagePart[] = [];
-  const re = /```json\s*([\s\S]*?)```/g;
+  // 닫힌 블록: ```json ... ```
+  const closedRe = /```json\s*([\s\S]*?)```/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = re.exec(text)) !== null) {
+  while ((match = closedRe.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push({ type: "text", content: text.slice(lastIndex, match.index) });
     }
@@ -205,8 +235,16 @@ function parseMessageParts(text: string): MessagePart[] {
     lastIndex = match.index + match[0].length;
   }
 
-  if (lastIndex < text.length) {
-    parts.push({ type: "text", content: text.slice(lastIndex) });
+  // 스트리밍 중 아직 닫히지 않은 ```json 블록 처리
+  const remaining = text.slice(lastIndex);
+  const openMatch = remaining.match(/^([\s\S]*?)```json\s*([\s\S]*)$/);
+  if (openMatch) {
+    if (openMatch[1].trim()) {
+      parts.push({ type: "text", content: openMatch[1] });
+    }
+    parts.push({ type: "json", content: openMatch[2].trim() });
+  } else if (remaining) {
+    parts.push({ type: "text", content: remaining });
   }
 
   return parts.length > 0 ? parts : [{ type: "text", content: text }];

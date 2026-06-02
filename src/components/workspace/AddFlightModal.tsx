@@ -13,7 +13,9 @@ interface AddFlightModalProps {
 
 function isoToDatetimeLocal(iso: string): string {
   if (!iso) return '';
-  const d = new Date(iso);
+  // 백엔드가 UTC 값을 Z 없이 반환하는 경우 Z를 붙여 UTC로 파싱
+  const normalized = /Z|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + 'Z';
+  const d = new Date(normalized);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

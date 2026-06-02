@@ -109,7 +109,7 @@ interface CompactTravelLogCardProps {
    * 선택 모달(SharedAlbumPickerPopup)에 전달됨.
    * 미지정 시 빈 배열로 취급 → 공유앨범 선택 모달이 빈 상태로 열림.
    */
-  sharedAlbumPhotos?: string[];
+  sharedAlbumPhotos?: { id: number; url: string }[];
   /**
    * 제목(mainTitle) 인라인 편집 저장.
    * 미지정 시 헤더 제목은 읽기 전용.
@@ -547,8 +547,8 @@ function BodyEditor({
   onChange: (json: JSONContent) => void;
   /** 새로 만든 ObjectURL을 부모에 등록 → 취소/언마운트 시 revoke */
   registerObjectUrl: (url: string) => void;
-  /** 워크스페이스 공유 앨범 사진 URL 배열 (공유앨범 선택 모달용) */
-  sharedAlbumPhotos: string[];
+  /** 워크스페이스 공유 앨범 사진 목록 (공유앨범 선택 모달용) */
+  sharedAlbumPhotos: { id: number; url: string }[];
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isSharedAlbumPickerOpen, setIsSharedAlbumPickerOpen] = useState(false);
@@ -599,10 +599,10 @@ function BodyEditor({
 
   /** 공유앨범에서 고른 URL들을 순서대로 본문에 삽입.
    *  공유앨범의 기존 URL을 그대로 쓰므로 새 ObjectURL을 만들지 않음. */
-  const handleInsertFromSharedAlbum = (urls: string[]) => {
+  const handleInsertFromSharedAlbum = (selected: { id: number; url: string }[]) => {
     if (!editor) return;
-    for (const url of urls) {
-      editor.chain().focus().setImage({ src: url }).run();
+    for (const item of selected) {
+      editor.chain().focus().setImage({ src: item.url }).run();
     }
     setIsSharedAlbumPickerOpen(false);
   };

@@ -8,7 +8,9 @@ interface FlightDetailModalProps {
 
 /* ── 유틸 ── */
 function formatKoreanDateTime(iso: string): string {
-  const d = new Date(iso);
+  // 백엔드가 UTC 값을 Z 없이 반환하는 경우 Z를 붙여 UTC로 파싱
+  const normalized = /Z|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + 'Z';
+  const d = new Date(normalized);
   const yy = d.getFullYear();
   const mm = d.getMonth() + 1;
   const dd = d.getDate();

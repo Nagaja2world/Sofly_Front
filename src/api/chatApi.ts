@@ -138,13 +138,23 @@ export async function sendMessageStream(
       if (line.startsWith('event:')) {
         currentEvent = line.slice(6).trim();
       } else if (line.startsWith('data:')) {
-        const data = line.slice(5).trim();
-        if (!data) continue;
+        const raw = line.slice(5).trim(); // 봉투(JSON)에만 trim — 내부 content는 보존됨
+        if (!raw) continue;
+
+        let parsed: { content?: string; message?: string };
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          // JSON이 아닌 프레임은 무시하고 스트림은 유지
+          console.warn('[chatApi] SSE 프레임 파싱 실패:', raw);
+          continue;
+        }
+
         if (currentEvent === 'error') {
-          onError?.(data);
+          onError?.(parsed.message ?? raw);
           currentEvent = '';
-        } else {
-          onChunk(data);
+        } else if (parsed.content) {
+          onChunk(parsed.content); // content엔 공백·\n 그대로 보존
         }
       } else if (line === '') {
         currentEvent = '';

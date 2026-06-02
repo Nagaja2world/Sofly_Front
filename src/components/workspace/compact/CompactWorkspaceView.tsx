@@ -105,9 +105,9 @@ export interface CompactItineraryProps {
 export interface CompactTravelLogProps {
   travelLogs: CompactTravelLog[];
   snsLog: CompactSnsLogData | null;
-  /** 워크스페이스 공유 앨범 사진 URL 배열 — 여행 기록 카드 본문에
+  /** 워크스페이스 공유 앨범 사진 목록 — 여행 기록 카드 본문에
       "공유앨범에서 찾기"로 사진을 삽입할 때 사용 */
-  sharedAlbumPhotos?: string[];
+  sharedAlbumPhotos?: { id: number; url: string }[];
   /** 카드 제목(mainTitle) 인라인 편집 저장 (useTravelLogs.handleUpdateMainTitle) */
   onUpdateMainTitle?: (id: number, title: string) => void;
   /** 카드 본문/날씨/한줄요약 편집 저장 (useTravelLogs.handleSaveTravelLog) */
