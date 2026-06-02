@@ -15,10 +15,12 @@ import { useIsCompact } from "@/hooks/useMediaQuery";
    ── 펼침(expand) 동작 ──
    일부 행(항공검색·워크스페이스·AI채팅·SNS카드)은 미리보기 이미지에
    마우스를 올리면 해당 행 아래로 "펼침 영역"이 열린다. 그 안에 세부
-   기능들을 데스크톱 2열 2행 / 모바일 1열 그리드로 이미지+설명과 함께
+   기능들을 데스크톱 2열 / 모바일 1열 그리드로 이미지+설명과 함께
    보여준다. 펼침이 열리면 아래 행들은 자연스럽게 밀려 내려간다.
 
    - 펼침은 step.expand 배열이 있을 때만 동작한다.
+   - 한 그리드 칸(ExpandCell)에는 여러 항목을 세로로 묶어 넣을 수 있다.
+     예) 워크스페이스 펼침의 오른쪽 아래 칸 = [공유 앨범, 팀 채팅]
    - hover 영역은 (미리보기 이미지 + 펼침 영역) 전체를 묶어서,
      이미지 → 펼침 내용으로 마우스를 옮기는 동안 닫히지 않도록 했다.
 
@@ -44,23 +46,24 @@ import flightSchedule from "@/assets/flight-schedule.png";
 import travelSchedule from "@/assets/travel-schedule.png";
 import travelLog from "@/assets/travel-log.png";
 import sharedAlbum from "@/assets/shared-album.png";
+import teamChat from "@/assets/team-chat.png";
 
 import aiPrompt from "@/assets/ai-prompt.png";
 import aiAnswer from "@/assets/ai-answer.png";
 import aiSave from "@/assets/ai-save.png";
 
-/* ── 항공 검색 세부 이미지 (준비되면 주석 해제 후 아래 expand에 연결) ── */
-// import flightSearchBar from "@/assets/howto/flight-search-bar.png";
-// import flightResultList from "@/assets/howto/flight-result-list.png";
-// import flightFilter from "@/assets/howto/flight-filter.png";
-// import flightDetail from "@/assets/howto/flight-detail.png";
+/* ── 항공 검색 세부 이미지 ── */
+import flightSearchBar from "@/assets/flight-search-bar.png";
+import flightResultList from "@/assets/flight-result-list.png";
+import flightFilter from "@/assets/flight-filter.png";
+import flightDetail from "@/assets/flight-detail.png";
 
-/* ── SNS 카드 세부 이미지 (준비되면 주석 해제 후 아래 expand에 연결) ── */
-// import snsExplore from "@/assets/howto/sns-explore.png";
-// import snsSearch from "@/assets/howto/sns-search.png";
-// import snsImport from "@/assets/howto/sns-import.png";
+/* ── SNS 카드 세부 이미지 ── */
+import snsExplore from "@/assets/sns-explore.png";
+import snsSearch from "@/assets/sns-search.png";
+import snsImport from "@/assets/sns-import.png";
 
-/* ── 펼침 영역 안의 세부 기능 한 칸 ── */
+/* ── 펼침 영역 안의 세부 기능 한 항목 ── */
 interface ExpandItem {
   /** 세부 기능명 (제목) */
   title: string;
@@ -71,6 +74,11 @@ interface ExpandItem {
   /** 이미지가 없을 때 표시할 placeholder 아이콘 */
   placeholderIcon: ReactNode;
 }
+
+/* ── 펼침 그리드의 한 칸(cell) ──
+   하나의 셀에는 항목을 1개 이상 넣을 수 있고, 같은 칸 안에서는
+   세로로 쌓인다(예: 오른쪽 아래 칸 = 공유 앨범 + 팀 채팅). */
+type ExpandCell = ExpandItem[];
 
 interface HowToStep {
   /** 단계 번호 라벨 (예: "01") */
@@ -88,10 +96,11 @@ interface HowToStep {
   /** 미리보기 프레임 배경색 (브랜드 카드 톤과 맞춤) */
   accentBg: string;
   /**
-   * 미리보기 이미지에 hover 시 행 아래로 펼쳐질 세부 기능 목록.
-   * 있으면 펼침 동작 활성화 (데스크톱 2열 그리드 / 모바일 1열).
+   * 미리보기 이미지에 hover 시 행 아래로 펼쳐질 세부 기능 그리드.
+   * 각 원소가 그리드의 "한 칸"이며, 칸 안에 여러 항목이 있으면 세로로 쌓인다.
+   * 데스크톱 2열 / 모바일 1열.
    */
-  expand?: ExpandItem[];
+  expand?: ExpandCell[];
 }
 
 /* ── 목업 데이터 ── */
@@ -105,36 +114,44 @@ const steps: HowToStep[] = [
     placeholderIcon: <PlaneIcon />,
     accentBg: "#FFF6D6",
     image: searchPreview,
-    /* ── 항공 검색 세부 기능 4개 (데스크톱 2열 2행) ── */
+    /* ── 항공 검색 세부 기능 4개 (데스크톱 2열 2행, 한 칸당 1개씩) ── */
     expand: [
-      {
-        title: "항공편 검색",
-        description:
-          "검색바에 출발지·도착지·날짜를 입력해 원하는 항공편을 바로 찾아봐요.",
-        placeholderIcon: <SearchIcon />,
-        // image: flightSearchBar,
-      },
-      {
-        title: "검색 결과 보기",
-        description:
-          "조건에 맞는 항공권을 한 화면에서 가격·시간순으로 비교할 수 있어요.",
-        placeholderIcon: <ListIcon />,
-        // image: flightResultList,
-      },
-      {
-        title: "필터로 좁히기",
-        description:
-          "항공사·경유·시간대 등 원하는 조건으로 결과를 손쉽게 걸러내요.",
-        placeholderIcon: <FilterIcon />,
-        // image: flightFilter,
-      },
-      {
-        title: "예약 & 일정 저장",
-        description:
-          "마음에 든 항공편을 눌러 판매사 사이트에서 예약하거나, 워크스페이스 항공 일정에 바로 저장해요.",
-        placeholderIcon: <TicketIcon />,
-        // image: flightDetail,
-      },
+      [
+        {
+          title: "항공편 검색",
+          description:
+            "검색바에 출발지·도착지·날짜를 입력해 원하는 항공편을 바로 찾아봐요.",
+          placeholderIcon: <SearchIcon />,
+          image: flightSearchBar,
+        },
+      ],
+      [
+        {
+          title: "검색 결과 보기",
+          description:
+            "조건에 맞는 항공권을 한 화면에서 가격·시간순으로 비교할 수 있어요.",
+          placeholderIcon: <ListIcon />,
+          image: flightResultList,
+        },
+      ],
+      [
+        {
+          title: "필터로 좁히기",
+          description:
+            "항공사·경유·시간대 등 원하는 조건으로 결과를 손쉽게 걸러내요.",
+          placeholderIcon: <FilterIcon />,
+          image: flightFilter,
+        },
+      ],
+      [
+        {
+          title: "예약 & 일정 저장",
+          description:
+            "마음에 든 항공편을 눌러 판매사 사이트에서 예약하거나, 워크스페이스 항공 일정에 바로 저장해요.",
+          placeholderIcon: <TicketIcon />,
+          image: flightDetail,
+        },
+      ],
     ],
   },
   {
@@ -146,36 +163,56 @@ const steps: HowToStep[] = [
     placeholderIcon: <UsersIcon />,
     accentBg: "#EEF5F9",
     image: workspacePreview,
-    /* ── 워크스페이스 세부 기능 4개 (데스크톱 2열 2행) ── */
+    /* ── 워크스페이스 세부 기능 (데스크톱 2열 2행) ──
+       배치:
+         [ 항공 일정 ]   [ 여행 일정 ]
+         [ 여행 기록 ]   [ 공유 앨범 ]
+                         [ 팀 채팅  ]   ← 공유 앨범과 같은 칸(오른쪽 열) 아래에 쌓임
+       오른쪽 아래 칸에 공유 앨범 + 팀 채팅 두 항목을 세로로 묶었다. */
     expand: [
-      {
-        title: "항공 일정",
-        description:
-          "가는 편·오는 편 항공권을 카드로 정리해 출발/도착 시간을 한눈에 확인해요.",
-        placeholderIcon: <PlaneIcon />,
-        image: flightSchedule,
-      },
-      {
-        title: "여행 일정",
-        description:
-          "날짜별 동선을 지도와 함께 정리하고 팀원과 실시간으로 의견을 나눠요.",
-        placeholderIcon: <RouteIcon />,
-        image: travelSchedule,
-      },
-      {
-        title: "여행 기록",
-        description:
-          "다녀온 순간을 기록으로 남겨 워크스페이스 안에 차곡차곡 모아둬요.",
-        placeholderIcon: <NoteIcon />,
-        image: travelLog,
-      },
-      {
-        title: "공유 앨범",
-        description:
-          "함께 찍은 사진을 한곳에 모아 팀원 모두가 추억을 공유할 수 있어요.",
-        placeholderIcon: <AlbumIcon />,
-        image: sharedAlbum,
-      },
+      [
+        {
+          title: "항공 일정",
+          description:
+            "가는 편·오는 편 항공권을 카드로 정리해 출발/도착 시간을 한눈에 확인해요.",
+          placeholderIcon: <PlaneIcon />,
+          image: flightSchedule,
+        },
+      ],
+      [
+        {
+          title: "여행 일정",
+          description:
+            "날짜별 동선을 지도와 함께 정리하고 팀원과 실시간으로 의견을 나눠요.",
+          placeholderIcon: <RouteIcon />,
+          image: travelSchedule,
+        },
+      ],
+      [
+        {
+          title: "여행 기록",
+          description:
+            "다녀온 순간을 기록으로 남겨 워크스페이스 안에 차곡차곡 모아둬요.",
+          placeholderIcon: <NoteIcon />,
+          image: travelLog,
+        },
+      ],
+      [
+        {
+          title: "공유 앨범",
+          description:
+            "함께 찍은 사진을 한곳에 모아 팀원 모두가 추억을 공유할 수 있어요.",
+          placeholderIcon: <AlbumIcon />,
+          image: sharedAlbum,
+        },
+        {
+          title: "팀 채팅",
+          description:
+            "워크스페이스 안에서 팀원들과 실시간으로 대화하며 여행 계획을 함께 맞춰가요.",
+          placeholderIcon: <TeamChatIcon />,
+          image: teamChat,
+        },
+      ],
     ],
   },
   {
@@ -187,29 +224,35 @@ const steps: HowToStep[] = [
     placeholderIcon: <ChatIcon />,
     accentBg: "#F3EFFA",
     image: aiChatPreview,
-    /* ── AI 채팅 세부 기능 3개 (데스크톱 2열 2행) ── */
+    /* ── AI 채팅 세부 기능 3개 (데스크톱 2열, 한 칸당 1개씩) ── */
     expand: [
-      {
-        title: "AI 채팅 프롬프트",
-        description:
-          "가고 싶은 곳·여행 스타일을 자연스럽게 말하면 AI가 알아들어요.",
-        placeholderIcon: <ChatIcon />,
-        image: aiPrompt,
-      },
-      {
-        title: "AI 답변",
-        description:
-          "동선과 시간까지 고려한 맞춤 여행 일정을 AI가 바로 제안해줘요.",
-        placeholderIcon: <SparkleIcon />,
-        image: aiAnswer,
-      },
-      {
-        title: "일정 저장하기",
-        description:
-          "마음에 든 AI 일정을 클릭 한 번으로 워크스페이스에 저장해요.",
-        placeholderIcon: <SaveIcon />,
-        image: aiSave,
-      },
+      [
+        {
+          title: "AI 채팅 프롬프트",
+          description:
+            "가고 싶은 곳·여행 스타일을 자연스럽게 말하면 AI가 알아들어요.",
+          placeholderIcon: <ChatIcon />,
+          image: aiPrompt,
+        },
+      ],
+      [
+        {
+          title: "AI 답변",
+          description:
+            "동선과 시간까지 고려한 맞춤 여행 일정을 AI가 바로 제안해줘요.",
+          placeholderIcon: <SparkleIcon />,
+          image: aiAnswer,
+        },
+      ],
+      [
+        {
+          title: "일정 저장하기",
+          description:
+            "마음에 든 AI 일정을 클릭 한 번으로 워크스페이스에 저장해요.",
+          placeholderIcon: <SaveIcon />,
+          image: aiSave,
+        },
+      ],
     ],
   },
   {
@@ -231,29 +274,35 @@ const steps: HowToStep[] = [
     placeholderIcon: <PhotoIcon />,
     accentBg: "#FBEAF0",
     image: snsPreview,
-    /* ── SNS 카드 세부 기능 3개 (데스크톱 2열 2행) ── */
+    /* ── SNS 카드 세부 기능 3개 (데스크톱 2열, 한 칸당 1개씩) ── */
     expand: [
-      {
-        title: "다른 여행 둘러보기",
-        description:
-          "SNS 페이지에서 다른 사람의 카드를 누르면 그 사람의 워크스페이스를 살펴볼 수 있어요.",
-        placeholderIcon: <CardIcon />,
-        // image: snsExplore,
-      },
-      {
-        title: "나라·도시로 검색",
-        description:
-          "가고 싶은 나라나 도시를 검색하면 그 지역의 여행 카드만 모아서 볼 수 있어요.",
-        placeholderIcon: <SearchIcon />,
-        // image: snsSearch,
-      },
-      {
-        title: "워크스페이스 가져오기",
-        description:
-          "마음에 드는 여행을 발견하면 그 워크스페이스를 내 공간으로 그대로 가져올 수 있어요.",
-        placeholderIcon: <ImportIcon />,
-        // image: snsImport,
-      },
+      [
+        {
+          title: "다른 여행 둘러보기",
+          description:
+            "SNS 페이지에서 다른 사람의 카드를 누르면 그 사람의 워크스페이스를 살펴볼 수 있어요.",
+          placeholderIcon: <CardIcon />,
+          image: snsExplore,
+        },
+      ],
+      [
+        {
+          title: "나라·도시로 검색",
+          description:
+            "가고 싶은 나라나 도시를 검색하면 그 지역의 여행 카드만 모아서 볼 수 있어요.",
+          placeholderIcon: <SearchIcon />,
+          image: snsSearch,
+        },
+      ],
+      [
+        {
+          title: "워크스페이스 가져오기",
+          description:
+            "마음에 드는 여행을 발견하면 그 워크스페이스를 내 공간으로 그대로 가져올 수 있어요.",
+          placeholderIcon: <ImportIcon />,
+          image: snsImport,
+        },
+      ],
     ],
   },
 ];
@@ -457,7 +506,7 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
               onHoverEnd={!isCompact ? () => setHovered(false) : undefined}
               className="overflow-hidden"
             >
-              <ExpandPanel items={step.expand!} accentBg={step.accentBg} />
+              <ExpandPanel cells={step.expand!} accentBg={step.accentBg} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -467,43 +516,55 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
 }
 
 /* ── 펼침 패널 ──
-   데스크톱: 2열 그리드 (4개 → 2열 2행, 3개 → 2열 2행에서 마지막 칸 비움)
-   모바일: 1열 세로 스택 */
+   데스크톱: 2열 그리드. 각 cell이 그리드의 한 칸이며,
+            칸 안에 항목이 여러 개면 세로로 쌓인다.
+   모바일: 1열 세로 스택 (칸 → 항목 순서 그대로 펼쳐짐)
+
+   items-start + self-start 로, 옆 칸이 길어도 짧은 칸이 따라 늘어나지
+   않게 해 빈 공간(회색 여백)을 방지한다. */
 function ExpandPanel({
-  items,
+  cells,
   accentBg,
 }: {
-  items: ExpandItem[];
+  cells: ExpandCell[];
   accentBg: string;
 }) {
+  /* 모든 칸을 평탄화해 전역 등장 순서(delay)를 매긴다. */
+  let order = 0;
   return (
     <div className="pt-8 md:pt-10">
       <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-5 md:p-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-7">
-          {items.map((item, i) => (
-            <motion.div
-              key={item.title}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.4,
-                delay: 0.08 * i,
-                ease: "easeOut",
-              }}
-              className="flex flex-col gap-3"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-7 items-start">
+          {cells.map((cell, cellIdx) => (
+            <div
+              key={cellIdx}
+              className="flex flex-col gap-5 md:gap-7 self-start"
             >
-              {/* 세부 기능 미리보기 (브라우저 프레임 목업) */}
-              <ExpandPreviewFrame item={item} accentBg={accentBg} />
-              {/* 제목 + 설명 */}
-              <div>
-                <h4 className="font-pretendard text-body2 md:text-body1 font-bold text-gray-900 mb-1">
-                  {item.title}
-                </h4>
-                <p className="font-pretendard text-body4 md:text-body3 text-gray-600 leading-relaxed">
-                  {item.description}
-                </p>
-              </div>
-            </motion.div>
+              {cell.map((item) => {
+                const delay = 0.08 * order++;
+                return (
+                  <motion.div
+                    key={item.title}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay, ease: "easeOut" }}
+                    className="flex flex-col gap-3"
+                  >
+                    {/* 세부 기능 미리보기 (브라우저 프레임 목업) */}
+                    <ExpandPreviewFrame item={item} accentBg={accentBg} />
+                    {/* 제목 + 설명 */}
+                    <div>
+                      <h4 className="font-pretendard text-body2 md:text-body1 font-bold text-gray-900 mb-1">
+                        {item.title}
+                      </h4>
+                      <p className="font-pretendard text-body4 md:text-body3 text-gray-600 leading-relaxed">
+                        {item.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
           ))}
         </div>
       </div>
@@ -677,6 +738,17 @@ function AlbumIcon() {
       <path d="M7 5V3h12a2 2 0 0 1 2 2v12h-2" />
       <circle cx="8" cy="10" r="1.5" />
       <path d="M3 16l4-3 4 3" />
+    </svg>
+  );
+}
+
+/* 팀 채팅용 아이콘 — 말풍선 두 개가 겹친 형태로 "여럿이 대화"를 표현.
+   AI 채팅의 ChatIcon(점 3개 단일 말풍선)과 구분된다. */
+function TeamChatIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M8 13a4 4 0 0 1 4-4h5a4 4 0 0 1 0 8h-1v3l-4-3h-0a4 4 0 0 1-4-4z" />
+      <path d="M8 13H7a4 4 0 0 1-4-4 4 4 0 0 1 4-4h5a4 4 0 0 1 3.4 1.9" />
     </svg>
   );
 }
