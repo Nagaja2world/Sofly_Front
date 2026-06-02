@@ -35,7 +35,7 @@ export default function MobileHomeView() {
       </div>
 
       {/* ── 본문(검색바·카드)은 좌우 패딩 적용 ── */}
-      <div className="px-4">
+      <div className="px-4 overflow-x-hidden">
         {/* How It Works 섹션 */}
         <div className="-mt-36 relative z-10">
           <HowToSection />
