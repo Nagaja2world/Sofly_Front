@@ -18,6 +18,8 @@ export interface SnsMedia {
   type: "image" | "video";
   /** 표시 URL (현재는 ObjectURL, API 연결 시 서버 URL로 교체) */
   url: string;
+  /** 공유앨범에서 가져온 경우 원본 AlbumPhoto ID (업로드 시 albumPhotoIds로 전달) */
+  albumPhotoId?: number;
 }
 
 /**

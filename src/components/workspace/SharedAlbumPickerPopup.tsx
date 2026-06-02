@@ -5,19 +5,23 @@ import { createPortal } from "react-dom";
    타입
    ══════════════════════════════════════════ */
 
+export interface AlbumPhotoItem {
+  id: number;
+  url: string;
+}
+
 interface SharedAlbumPickerPopupProps {
   /** 팝업 열림 여부 */
   isOpen: boolean;
-  /** 공유 앨범의 사진 URL 배열 (워크스페이스 단위) */
-  photos: string[];
+  /** 공유 앨범의 사진 목록 (id + url) */
+  photos: AlbumPhotoItem[];
   /** 닫기 콜백 (취소 / 백드롭 클릭 / × / ESC) */
   onClose: () => void;
   /**
    * 사진 선택 확정 콜백.
-   * 사용자가 체크박스로 고른 사진들의 URL 배열을 체크 순서대로 전달.
-   * 부모는 이 URL들을 Tiptap 에디터의 setImage()로 본문에 순서대로 삽입하면 됨.
+   * 사용자가 체크박스로 고른 사진들을 체크 순서대로 전달.
    */
-  onSelect: (selectedUrls: string[]) => void;
+  onSelect: (selected: AlbumPhotoItem[]) => void;
 }
 
 /* ══════════════════════════════════════════
@@ -131,11 +135,11 @@ export default function SharedAlbumPickerPopup({
    *  선택 후엔 모달이 닫히므로 선택 상태도 같이 초기화. */
   const handleConfirm = () => {
     if (selectedIndices.length === 0) return;
-    const selectedUrls = selectedIndices
+    const selected = selectedIndices
       .map((i) => photos[i])
-      .filter((url): url is string => typeof url === "string");
+      .filter((item): item is AlbumPhotoItem => item != null);
     setSelectedIndices([]);
-    onSelect(selectedUrls);
+    onSelect(selected);
   };
 
   /** 백드롭 클릭으로 닫기 — 본체 클릭은 무시 */
@@ -288,13 +292,14 @@ function PhotoGrid({
   selectedIndices,
   onToggle,
 }: {
-  photos: string[];
+  photos: AlbumPhotoItem[];
   selectedIndices: number[];
   onToggle: (index: number) => void;
 }) {
   return (
     <div className="grid grid-cols-5 gap-2">
-      {photos.map((src, i) => {
+      {photos.map((item, i) => {
+        const src = item.url;
         const isSelected = selectedIndices.includes(i);
         /** 선택 순서 (1부터). 미선택이면 0 */
         const order = isSelected ? selectedIndices.indexOf(i) + 1 : 0;

@@ -47,7 +47,7 @@ interface SnsLogCardProps {
    * 미지정 시 빈 배열로 취급 → "공유앨범에서 찾기"를 눌러도 빈 상태 안내가 나옴.
    * (TravelLogCard 본문 툴바의 공유앨범 삽입과 동일한 동작)
    */
-  sharedAlbumPhotos?: string[];
+  sharedAlbumPhotos?: { id: number; url: string }[];
   /** 추가 클래스 */
   className?: string;
 }
@@ -308,15 +308,16 @@ export default function SnsLogCard({
    *   공유앨범에서 그 사진이 삭제되면 카드의 미디어도 깨지므로, 백엔드 정책
    *   (참조 vs 복사)에 따라 여기서 새 URL을 받아오는 처리가 필요할 수 있음.
    */
-  const handleInsertFromSharedAlbum = (urls: string[]) => {
-    if (urls.length === 0) {
+  const handleInsertFromSharedAlbum = (selected: { id: number; url: string }[]) => {
+    if (selected.length === 0) {
       setIsSharedAlbumPickerOpen(false);
       return;
     }
-    const newMedia: SnsMedia[] = urls.map((url) => ({
+    const newMedia: SnsMedia[] = selected.map((item) => ({
       id: crypto.randomUUID(),
       type: "image",
-      url,
+      url: item.url,
+      albumPhotoId: item.id,
     }));
     setDraft((prev) => ({ ...prev, media: [...prev.media, ...newMedia] }));
     setIsSharedAlbumPickerOpen(false);

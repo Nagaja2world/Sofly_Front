@@ -24,7 +24,7 @@ interface TravelLogSectionProps {
   snsLog: SnsLogData | null;
   snsPostId?: number | null;
   showAddCard: boolean;
-  sharedAlbumPhotos: string[];
+  sharedAlbumPhotos: { id: number; url: string }[];
   onOpenAddCard: () => void;
   onCancelAddCard: () => void;
   onAddDailyCard: () => void;

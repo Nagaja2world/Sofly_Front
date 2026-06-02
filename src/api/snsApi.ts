@@ -265,9 +265,11 @@ export async function createSnsPost(
   files: File[],
   content: string | undefined,
   visibility: SnsPostVisibility,
+  albumPhotoIds?: number[],
 ): Promise<SnsPostResponse> {
   const form = new FormData();
   files.forEach(f => form.append('files', f));
+  albumPhotoIds?.forEach(id => form.append('albumPhotoIds', String(id)));
   if (content) form.append('content', content);
   form.append('visibility', visibility);
   const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/sns/post`, {
@@ -289,11 +291,12 @@ export async function getSnsPost(workspaceId: number): Promise<SnsPostResponse> 
 
 export async function updateSnsPost(
   workspaceId: number,
-  opts: { files?: File[]; content?: string; visibility?: SnsPostVisibility; keepImageIds?: number[] },
+  opts: { files?: File[]; content?: string; visibility?: SnsPostVisibility; keepImageIds?: number[]; albumPhotoIds?: number[] },
 ): Promise<SnsPostResponse> {
   const form = new FormData();
   opts.files?.forEach(f => form.append('files', f));
   opts.keepImageIds?.forEach(id => form.append('keepImageIds', String(id)));
+  opts.albumPhotoIds?.forEach(id => form.append('albumPhotoIds', String(id)));
   if (opts.content !== undefined) form.append('content', opts.content);
   if (opts.visibility) form.append('visibility', opts.visibility);
   const res = await fetch(`${API_BASE}/api/workspaces/${workspaceId}/sns/post`, {

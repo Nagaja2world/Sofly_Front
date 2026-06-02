@@ -436,9 +436,12 @@ export default function WorkspacePage() {
     // media 배열 순서대로 분류
     const keepImageIds: number[] = [];
     const newFiles: File[] = [];
+    const albumPhotoIds: number[] = [];
     for (const m of data.media) {
       if (m.id in fileMap) {
         newFiles.push(fileMap[m.id]);
+      } else if (m.albumPhotoId != null) {
+        albumPhotoIds.push(m.albumPhotoId);
       } else {
         const numId = Number(m.id);
         if (!isNaN(numId) && numId > 0) keepImageIds.push(numId);
@@ -453,9 +456,12 @@ export default function WorkspacePage() {
           content: data.caption,
           visibility,
           keepImageIds: keepImageIds.length > 0 ? keepImageIds : undefined,
+          albumPhotoIds: albumPhotoIds.length > 0 ? albumPhotoIds : undefined,
         });
       } else {
-        post = await createSnsPost(workspaceId, newFiles, data.caption, visibility);
+        post = await createSnsPost(workspaceId, newFiles, data.caption, visibility,
+          albumPhotoIds.length > 0 ? albumPhotoIds : undefined,
+        );
       }
       setSnsPostId(post.id);
       setSnsLog({
@@ -592,7 +598,7 @@ export default function WorkspacePage() {
           travelLog={{
             travelLogs,
             snsLog,
-            sharedAlbumPhotos: sharedAlbumPhotos.map((p) => p.url),
+            sharedAlbumPhotos: sharedAlbumPhotos,
             onUpdateMainTitle: handleUpdateMainTitle,
             onSaveTravelLog: handleSaveTravelLog,
             onUploadTravellogPhotos: handleUploadTravellogPhotos,
@@ -736,7 +742,7 @@ export default function WorkspacePage() {
                   snsLog={snsLog}
                   snsPostId={snsPostId}
                   showAddCard={showAddCard}
-                  sharedAlbumPhotos={sharedAlbumPhotos.map((p) => p.url)}
+                  sharedAlbumPhotos={sharedAlbumPhotos}
                   onOpenAddCard={handleOpenAddCard}
                   onCancelAddCard={handleCancelAddCard}
                   onAddDailyCard={handleAddDailyCard}

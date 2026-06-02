@@ -101,7 +101,7 @@ interface CompactTravelLogSectionProps {
    * 여행 기록 카드 본문 편집 시 "공유앨범에서 찾기"로 본문에 삽입할 수 있도록
    * 각 CompactTravelLogCard로 그대로 전달됨.
    */
-  sharedAlbumPhotos?: string[];
+  sharedAlbumPhotos?: { id: number; url: string }[];
   /**
    * 카드 제목(mainTitle) 인라인 편집 저장.
    * 미지정 시 헤더 제목이 편집 불가(읽기 전용 텍스트)로 렌더.

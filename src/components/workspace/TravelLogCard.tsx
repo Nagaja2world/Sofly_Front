@@ -74,7 +74,7 @@ interface TravelLogCardProps {
    *
    * 미지정 시 빈 배열로 취급 → "공유앨범에서 찾기"를 눌러도 빈 상태 안내가 나옴.
    */
-  sharedAlbumPhotos?: string[];
+  sharedAlbumPhotos?: { id: number; url: string }[];
   /**
    * 편집 저장 콜백.
    * 편집 아이콘 → 편집 모드 → "저장" 누르면 호출됨.
@@ -966,10 +966,10 @@ function BodyEditor({
    *   공유앨범에서 그 사진이 삭제되면 본문의 이미지도 깨지므로, 백엔드 정책
    *   (참조 vs 복사)에 따라 여기서 새 URL을 받아오는 처리가 필요할 수 있음.
    */
-  const handleInsertFromSharedAlbum = (urls: string[]) => {
+  const handleInsertFromSharedAlbum = (selected: { id: number; url: string }[]) => {
     if (!editor) return;
-    for (const url of urls) {
-      editor.chain().focus().setImage({ src: url }).run();
+    for (const item of selected) {
+      editor.chain().focus().setImage({ src: item.url }).run();
     }
     setIsSharedAlbumPickerOpen(false);
   };
