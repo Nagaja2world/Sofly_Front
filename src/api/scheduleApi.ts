@@ -332,6 +332,7 @@ export async function searchPlaces(text: string): Promise<PlaceResult[]> {
     { headers: authHeaders() },
   );
   const data = await handleResponse<{ places: PlaceResult[] }>(res);
+  console.log('[Places API] raw response:', JSON.stringify(data?.places?.[0]));
   return data?.places ?? [];
 }
 
