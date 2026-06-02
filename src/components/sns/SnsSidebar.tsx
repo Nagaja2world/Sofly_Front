@@ -68,7 +68,7 @@ export default function SnsSidebar({
             type="text"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="나라 / 도시 / 공항"
+            placeholder="나라 / 도시"
             className={[
               "flex-1 bg-transparent border-none outline-none",
               "font-pretendard text-body3 text-gray-900",
