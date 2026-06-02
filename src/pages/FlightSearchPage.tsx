@@ -106,18 +106,54 @@ export default function FlightSearchPage() {
   );
 
   /* ── URL 쿼리스트링 → 검색 input ── */
-  const searchInput = useMemo<FlightSearchInput | null>(() => {
+  // const searchInput = useMemo<FlightSearchInput | null>(() => {
+  //   const fromCity = searchParams.get("fromCity") ?? "";
+  //   const fromCode = searchParams.get("fromCode") ?? "";
+  //   const toCity = searchParams.get("toCity") ?? "";
+  //   const toCode = searchParams.get("toCode") ?? "";
+  //   const departDate = searchParams.get("departDate");
+  //   const departureQuery = fromCity || fromCode;
+  //   const arrivalQuery = toCity || toCode;
+
+  //   if (!departureQuery || !arrivalQuery || !departDate) return null;
+
+  //   return {
+  //     departureQuery,
+  //     arrivalQuery,
+  //     departDate,
+  //     returnDate: searchParams.get("returnDate") || undefined,
+  //     adults: Number(searchParams.get("adults")) || 1,
+  //     cabinClass: mapSeatClassToCabin(searchParams.get("seatClass")),
+  //     stops: (searchParams.get("directOnly") === "true"
+  //       ? "0"
+  //       : "none") as FlightSearchInput["stops"],
+  //   };
+  // }, [searchParams]);
+
+  /* ── URL 쿼리스트링 → 검색 input ── */
+  const searchInput = useMemo<
+    (FlightSearchInput & { fromId?: string; toId?: string }) | null
+  >(() => {
+    const fromId = searchParams.get("fromId") ?? "";
+    const toId = searchParams.get("toId") ?? "";
     const fromCity = searchParams.get("fromCity") ?? "";
     const fromCode = searchParams.get("fromCode") ?? "";
     const toCity = searchParams.get("toCity") ?? "";
     const toCode = searchParams.get("toCode") ?? "";
     const departDate = searchParams.get("departDate");
-    const departureQuery = fromCity || fromCode;
-    const arrivalQuery = toCity || toCode;
 
-    if (!departureQuery || !arrivalQuery || !departDate) return null;
+    /* id가 있으면 도시명 재검색 불필요. 없을 때만 쿼리로 폴백.
+       폴백 시에도 한글(fromCity)이 아니라 코드(fromCode)를 우선 사용. */
+    const departureQuery = fromCode || fromCity;
+    const arrivalQuery = toCode || toCity;
+
+    if (!departDate) return null;
+    if (!fromId && !departureQuery) return null;
+    if (!toId && !arrivalQuery) return null;
 
     return {
+      fromId: fromId || undefined,
+      toId: toId || undefined,
       departureQuery,
       arrivalQuery,
       departDate,
@@ -154,7 +190,9 @@ export default function FlightSearchPage() {
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
   const [sort, setSort] = useState<SortOption>(() => {
     const raw = searchParams.get("sort");
-    return (raw === "cheapest" || raw === "fastest" || raw === "best") ? raw : "best";
+    return raw === "cheapest" || raw === "fastest" || raw === "best"
+      ? raw
+      : "best";
   });
 
   /* sentinel ref — FlightResultList 하단에 마운트 */
@@ -297,10 +335,7 @@ export default function FlightSearchPage() {
      매핑 & 필터 & 정렬
      ══════════════════════════════════════════ */
 
-  const airlineList = useMemo(
-    () => extractAirlineList(accItems),
-    [accItems],
-  );
+  const airlineList = useMemo(() => extractAirlineList(accItems), [accItems]);
 
   const filteredItems = useMemo(() => {
     return accItems.filter((item) => {
@@ -362,11 +397,14 @@ export default function FlightSearchPage() {
 
   const handleSortChange = (next: SortOption) => {
     setSort(next);
-    setSearchParams((prev) => {
-      const sp = new URLSearchParams(prev);
-      sp.set("sort", next);
-      return sp;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const sp = new URLSearchParams(prev);
+        sp.set("sort", next);
+        return sp;
+      },
+      { replace: true },
+    );
   };
 
   const handleCardClick = (id: string) => {

@@ -13,10 +13,10 @@ import { useIsCompact } from "@/hooks/useMediaQuery";
    - 모바일(md 미만): 자동으로 세로 1열 스택 (이미지 → 텍스트 순)
 
    ── 펼침(expand) 동작 ──
-   일부 행(워크스페이스·AI채팅)은 미리보기 이미지에 마우스를 올리면
-   해당 행 아래로 "펼침 영역"이 열린다. 그 안에 세부 기능들을
-   데스크톱 2열 2행 / 모바일 1열 그리드로 이미지+설명과 함께 보여준다.
-   펼침이 열리면 아래 행들은 자연스럽게 밀려 내려간다.
+   일부 행(항공검색·워크스페이스·AI채팅·SNS카드)은 미리보기 이미지에
+   마우스를 올리면 해당 행 아래로 "펼침 영역"이 열린다. 그 안에 세부
+   기능들을 데스크톱 2열 2행 / 모바일 1열 그리드로 이미지+설명과 함께
+   보여준다. 펼침이 열리면 아래 행들은 자연스럽게 밀려 내려간다.
 
    - 펼침은 step.expand 배열이 있을 때만 동작한다.
    - hover 영역은 (미리보기 이미지 + 펼침 영역) 전체를 묶어서,
@@ -32,12 +32,33 @@ import { useIsCompact } from "@/hooks/useMediaQuery";
    // ... expand 배열에서 image: flightSchedule
 */
 
-/* 기능별 미리보기 이미지 (준비되면 위 주석 해제 후 연결) */
+/* 기능별 미리보기 이미지 */
 import searchPreview from "@/assets/search.png";
 import workspacePreview from "@/assets/workspace.png";
 import aiChatPreview from "@/assets/ai-chat.png";
 import conquestPreview from "@/assets/conquest.png";
 import snsPreview from "@/assets/sns.png";
+
+/* 기능별 세부 이미지 */
+import flightSchedule from "@/assets/flight-schedule.png";
+import travelSchedule from "@/assets/travel-schedule.png";
+import travelLog from "@/assets/travel-log.png";
+import sharedAlbum from "@/assets/shared-album.png";
+
+import aiPrompt from "@/assets/ai-prompt.png";
+import aiAnswer from "@/assets/ai-answer.png";
+import aiSave from "@/assets/ai-save.png";
+
+/* ── 항공 검색 세부 이미지 (준비되면 주석 해제 후 아래 expand에 연결) ── */
+// import flightSearchBar from "@/assets/howto/flight-search-bar.png";
+// import flightResultList from "@/assets/howto/flight-result-list.png";
+// import flightFilter from "@/assets/howto/flight-filter.png";
+// import flightDetail from "@/assets/howto/flight-detail.png";
+
+/* ── SNS 카드 세부 이미지 (준비되면 주석 해제 후 아래 expand에 연결) ── */
+// import snsExplore from "@/assets/howto/sns-explore.png";
+// import snsSearch from "@/assets/howto/sns-search.png";
+// import snsImport from "@/assets/howto/sns-import.png";
 
 /* ── 펼침 영역 안의 세부 기능 한 칸 ── */
 interface ExpandItem {
@@ -84,6 +105,37 @@ const steps: HowToStep[] = [
     placeholderIcon: <PlaneIcon />,
     accentBg: "#FFF6D6",
     image: searchPreview,
+    /* ── 항공 검색 세부 기능 4개 (데스크톱 2열 2행) ── */
+    expand: [
+      {
+        title: "항공편 검색",
+        description:
+          "검색바에 출발지·도착지·날짜를 입력해 원하는 항공편을 바로 찾아봐요.",
+        placeholderIcon: <SearchIcon />,
+        // image: flightSearchBar,
+      },
+      {
+        title: "검색 결과 보기",
+        description:
+          "조건에 맞는 항공권을 한 화면에서 가격·시간순으로 비교할 수 있어요.",
+        placeholderIcon: <ListIcon />,
+        // image: flightResultList,
+      },
+      {
+        title: "필터로 좁히기",
+        description:
+          "항공사·경유·시간대 등 원하는 조건으로 결과를 손쉽게 걸러내요.",
+        placeholderIcon: <FilterIcon />,
+        // image: flightFilter,
+      },
+      {
+        title: "예약 & 일정 저장",
+        description:
+          "마음에 든 항공편을 눌러 판매사 사이트에서 예약하거나, 워크스페이스 항공 일정에 바로 저장해요.",
+        placeholderIcon: <TicketIcon />,
+        // image: flightDetail,
+      },
+    ],
   },
   {
     index: "02",
@@ -101,28 +153,28 @@ const steps: HowToStep[] = [
         description:
           "가는 편·오는 편 항공권을 카드로 정리해 출발/도착 시간을 한눈에 확인해요.",
         placeholderIcon: <PlaneIcon />,
-        // image: flightSchedule,
+        image: flightSchedule,
       },
       {
         title: "여행 일정",
         description:
           "날짜별 동선을 지도와 함께 정리하고 팀원과 실시간으로 의견을 나눠요.",
         placeholderIcon: <RouteIcon />,
-        // image: travelSchedule,
+        image: travelSchedule,
       },
       {
         title: "여행 기록",
         description:
           "다녀온 순간을 기록으로 남겨 워크스페이스 안에 차곡차곡 모아둬요.",
         placeholderIcon: <NoteIcon />,
-        // image: travelLog,
+        image: travelLog,
       },
       {
         title: "공유 앨범",
         description:
           "함께 찍은 사진을 한곳에 모아 팀원 모두가 추억을 공유할 수 있어요.",
         placeholderIcon: <AlbumIcon />,
-        // image: sharedAlbum,
+        image: sharedAlbum,
       },
     ],
   },
@@ -142,21 +194,21 @@ const steps: HowToStep[] = [
         description:
           "가고 싶은 곳·여행 스타일을 자연스럽게 말하면 AI가 알아들어요.",
         placeholderIcon: <ChatIcon />,
-        // image: aiPrompt,
+        image: aiPrompt,
       },
       {
         title: "AI 답변",
         description:
           "동선과 시간까지 고려한 맞춤 여행 일정을 AI가 바로 제안해줘요.",
         placeholderIcon: <SparkleIcon />,
-        // image: aiAnswer,
+        image: aiAnswer,
       },
       {
         title: "일정 저장하기",
         description:
           "마음에 든 AI 일정을 클릭 한 번으로 워크스페이스에 저장해요.",
         placeholderIcon: <SaveIcon />,
-        // image: aiSave,
+        image: aiSave,
       },
     ],
   },
@@ -179,6 +231,30 @@ const steps: HowToStep[] = [
     placeholderIcon: <PhotoIcon />,
     accentBg: "#FBEAF0",
     image: snsPreview,
+    /* ── SNS 카드 세부 기능 3개 (데스크톱 2열 2행) ── */
+    expand: [
+      {
+        title: "다른 여행 둘러보기",
+        description:
+          "SNS 페이지에서 다른 사람의 카드를 누르면 그 사람의 워크스페이스를 살펴볼 수 있어요.",
+        placeholderIcon: <CardIcon />,
+        // image: snsExplore,
+      },
+      {
+        title: "나라·도시로 검색",
+        description:
+          "가고 싶은 나라나 도시를 검색하면 그 지역의 여행 카드만 모아서 볼 수 있어요.",
+        placeholderIcon: <SearchIcon />,
+        // image: snsSearch,
+      },
+      {
+        title: "워크스페이스 가져오기",
+        description:
+          "마음에 드는 여행을 발견하면 그 워크스페이스를 내 공간으로 그대로 가져올 수 있어요.",
+        placeholderIcon: <ImportIcon />,
+        // image: snsImport,
+      },
+    ],
   },
 ];
 
@@ -620,6 +696,62 @@ function SaveIcon() {
       <path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
       <path d="M7 3v5h8V3" />
       <path d="M7 15h10v6H7z" />
+    </svg>
+  );
+}
+
+/* ── 항공 검색 / SNS 카드 세부 기능용 추가 아이콘 ── */
+function SearchIcon() {
+  return (
+    <svg {...iconProps()}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}
+
+function ListIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M8 6h13M8 12h13M8 18h13" />
+      <path d="M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M3 5h18l-7 8v6l-4 2v-8z" />
+    </svg>
+  );
+}
+
+function TicketIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 2 2 0 0 0 0-4z" />
+      <path d="M14 6v2M14 11v2M14 16v2" />
+    </svg>
+  );
+}
+
+function CardIcon() {
+  return (
+    <svg {...iconProps()}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M7 15h4" />
+    </svg>
+  );
+}
+
+function ImportIcon() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M12 3v12" />
+      <path d="M8 11l4 4 4-4" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
     </svg>
   );
 }
