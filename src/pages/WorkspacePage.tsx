@@ -145,7 +145,6 @@ export default function WorkspacePage() {
 
   const handleChangeCountry = async (destination: string, countryCode: string | null) => {
     if (!workspaceDetail) return;
-    console.log('[Workspace] destination 업데이트:', destination, '/ countryCode:', countryCode);
     await handleWorkspaceUpdate(
       workspaceDetail.title,
       destination,

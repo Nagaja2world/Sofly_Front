@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type ChangeEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { searchPlaces, type PlaceResult } from '@/api/scheduleApi';
+import { countryCodeFromAddress } from '@/utils/countryCodeMap';
 
 interface DestinationAutocompleteProps {
   value: string;
@@ -11,7 +12,11 @@ interface DestinationAutocompleteProps {
 }
 
 function extractCountryCode(place: PlaceResult): string | null {
-  return place.addressComponents?.find((c) => c.types.includes('country'))?.shortText ?? null;
+  // 백엔드가 addressComponents를 내려주면 우선 사용
+  const fromComponents = place.addressComponents?.find((c) => c.types.includes('country'))?.shortText;
+  if (fromComponents) return fromComponents;
+  // fallback: formattedAddress 파싱
+  return countryCodeFromAddress(place.formattedAddress);
 }
 
 export default function DestinationAutocomplete({
@@ -72,12 +77,8 @@ export default function DestinationAutocomplete({
     if (isSaving) return;
     setIsSaving(true);
     setResults([]);
-    const countryCode = extractCountryCode(place);
-    console.log('[Places] 선택된 장소 원본:', place);
-    console.log('[Places] addressComponents:', place.addressComponents);
-    console.log('[Places] 추출된 countryCode:', countryCode);
     try {
-      await onSelect(place.displayName.text, countryCode);
+      await onSelect(place.displayName.text, extractCountryCode(place));
     } catch (err) {
       console.warn('[DestinationAutocomplete] 저장 실패:', err);
     } finally {
