@@ -879,6 +879,7 @@ function BodyEditor({
   registerObjectUrl,
   sharedAlbumPhotos,
   onUploadImage,
+  label,
 }: {
   initialContent?: JSONContent;
   onChange: (json: JSONContent) => void;
@@ -888,6 +889,8 @@ function BodyEditor({
   sharedAlbumPhotos: string[];
   /** 제공 시 파일을 서버에 업로드하고 URL 반환 — blob URL 저장 방지 */
   onUploadImage?: (file: File) => Promise<string | null>;
+  /** 툴바 위에 고정 표시할 섹션 라벨 */
+  label?: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -979,26 +982,37 @@ function BodyEditor({
   }
 
   return (
-    <div className="flex flex-col border border-gray-300 rounded-md bg-white overflow-hidden focus-within:border-gray-700 transition-colors">
-      <div className="shrink-0">
-        <EditorToolbar
+    <div className="flex flex-col">
+      {/* sticky 헤더: 섹션 라벨 + 툴바 — overflow-hidden 없이 sticky가 동작하도록 */}
+      <div className="sticky top-0 z-10 bg-white">
+        {label && (
+          <span className="block pb-2 font-pretendard text-body4 font-medium text-gray-500">
+            {label}
+          </span>
+        )}
+        <div className="border border-gray-300 rounded-t-md focus-within:border-gray-700 transition-colors">
+          <EditorToolbar
+            editor={editor}
+            onPickFromDevice={handlePickImage}
+            onPickFromSharedAlbum={() => setIsSharedAlbumPickerOpen(true)}
+          />
+        </div>
+      </div>
+      {/* 본문 입력 영역 */}
+      <div className="border border-gray-300 border-t-0 rounded-b-md bg-white focus-within:border-gray-700 transition-colors">
+        <EditorContent
           editor={editor}
-          onPickFromDevice={handlePickImage}
-          onPickFromSharedAlbum={() => setIsSharedAlbumPickerOpen(true)}
+          className={[
+            "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
+            "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+            "[&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]",
+            "[&_.is-editor-empty:first-child]:before:text-gray-500",
+            "[&_.is-editor-empty:first-child]:before:float-left",
+            "[&_.is-editor-empty:first-child]:before:h-0",
+            "[&_.is-editor-empty:first-child]:before:pointer-events-none",
+          ].join(" ")}
         />
       </div>
-      <EditorContent
-        editor={editor}
-        className={[
-          "[&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2",
-          "[&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-          "[&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]",
-          "[&_.is-editor-empty:first-child]:before:text-gray-500",
-          "[&_.is-editor-empty:first-child]:before:float-left",
-          "[&_.is-editor-empty:first-child]:before:h-0",
-          "[&_.is-editor-empty:first-child]:before:pointer-events-none",
-        ].join(" ")}
-      />
       <input
         ref={fileInputRef}
         type="file"
@@ -1347,11 +1361,9 @@ export default function TravelLogCard({
       >
         {/* 본문 */}
         {isEditing ? (
-          <div className="px-4 py-6 flex flex-col gap-2 min-w-0">
-            <span className="font-pretendard text-body4 font-medium text-gray-500">
-              본문
-            </span>
+          <div className="px-4 py-6 min-w-0">
             <BodyEditor
+              label="본문"
               initialContent={draft.content}
               onChange={(json) => setDraft((d) => ({ ...d, content: json }))}
               registerObjectUrl={registerObjectUrl}
