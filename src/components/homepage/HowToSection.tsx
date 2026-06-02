@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useIsCompact } from "@/hooks/useMediaQuery";
 
@@ -422,6 +422,34 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
   const isCompact = useIsCompact();
   const isOpen = hasExpand && (isCompact || hovered);
 
+  /* ── hover 닫힘 디바운스 ──
+     미리보기(motion.div)와 펼침 영역(motion.div)이 서로 분리돼 있어,
+     마우스를 미리보기 → 펼침 영역으로 옮기는 순간 미리보기의 onHoverEnd가
+     먼저 발화해 펼침이 깜빡이며 닫히는 문제가 있다.
+     닫힘을 짧게(120ms) 지연시키고, 그 사이 다른 영역에 hover가 진입하면
+     (openExpand 호출) 타이머를 취소해 연속 hover처럼 동작하게 한다. */
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openExpand = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setHovered(true);
+  };
+
+  const closeExpand = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setHovered(false), 120);
+  };
+
+  /* 언마운트 시 남은 타이머 정리 */
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, []);
+
   return (
     <motion.div
       initial="hidden"
@@ -476,13 +504,8 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
         <motion.div
           className="flex-1 w-full min-w-0"
           variants={textItemVariants(dir)}
-          onHoverStart={
-            hasExpand && !isCompact ? () => setHovered(true) : undefined
-          }
-          onHoverEnd={
-            hasExpand && !isCompact ? () => setHovered(false) : undefined
-          }
-          // whileHover={hasExpand ? undefined : { scale: 1.12 }}
+          onHoverStart={hasExpand && !isCompact ? openExpand : undefined}
+          onHoverEnd={hasExpand && !isCompact ? closeExpand : undefined}
           whileHover={hasExpand || isCompact ? undefined : { scale: 1.12 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
@@ -503,8 +526,8 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.4, ease: "easeInOut" }}
-              onHoverStart={!isCompact ? () => setHovered(true) : undefined}
-              onHoverEnd={!isCompact ? () => setHovered(false) : undefined}
+              onHoverStart={!isCompact ? openExpand : undefined}
+              onHoverEnd={!isCompact ? closeExpand : undefined}
               className="overflow-hidden"
             >
               <ExpandPanel cells={step.expand!} accentBg={step.accentBg} />
