@@ -11,6 +11,7 @@ import LayoutLeftIcon from "@/assets/layout_left.svg?react";
 import PlusIcon from "@/assets/plus.svg?react";
 import Edit2Icon from "@/assets/edit2.svg?react";
 import type { WorkspaceVisibility, MemberRole } from "@/api/workspaceApi";
+import DestinationAutocomplete from "./DestinationAutocomplete";
 
 /* ══════════════════════════════════════════
    타입
@@ -60,11 +61,10 @@ interface MemberSidebarProps {
    */
   onRenameWorkspace?: (newName: string) => void | Promise<void>;
   /**
-   * 도시/나라 텍스트 변경 콜백 (인라인 편집 저장 시 호출).
-   * 미지정이면 도시 편집 버튼이 렌더되지 않고, country가 비어 있으면 라인 자체가 사라짐.
-   * 빈 문자열을 저장하는 것도 허용 (사용자가 일부러 지운 경우).
+   * 목적지 변경 콜백 (Places 검색 선택 시 호출).
+   * destination: 표시 텍스트 (예: "파리"), countryCode: ISO-2 코드 (예: "FR") or null
    */
-  onChangeCountry?: (newCountry: string) => void | Promise<void>;
+  onChangeCountry?: (destination: string, countryCode: string | null) => void | Promise<void>;
   /**
    * 커버 이미지 변경 콜백 (파일 선택 시 호출).
    * 미지정이면 커버 이미지 영역이 렌더되지 않음.
@@ -628,6 +628,65 @@ function InlineEditableText({
 }
 
 /* ══════════════════════════════════════════
+   목적지 편집 행 (Places 자동완성)
+   ══════════════════════════════════════════ */
+
+function DestinationEditRow({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange?: (destination: string, countryCode: string | null) => void | Promise<void>;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+
+  if (!isEditing) {
+    const hasValue = value.trim().length > 0;
+    return (
+      <div className="flex items-center gap-1 min-w-0">
+        <span
+          className={[
+            "flex-1 min-w-0 truncate font-pretendard text-body4",
+            hasValue ? "text-gray-500" : "text-gray-400 italic",
+          ].join(" ")}
+        >
+          <span className="mr-1">📍</span>
+          {hasValue ? value : "도시 또는 나라 입력"}
+        </span>
+        {onChange && (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            aria-label="여행 도시 편집"
+            className="p-1 rounded shrink-0 text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer border-none bg-transparent inline-flex items-center justify-center"
+          >
+            <Edit2Icon className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <DestinationAutocomplete
+      value={value}
+      onSelect={async (destination, countryCode) => {
+        await onChange?.(destination, countryCode);
+        setIsEditing(false);
+      }}
+      onCancel={() => setIsEditing(false)}
+      placeholder="목적지 검색..."
+      inputClassName={[
+        "flex-1 min-w-0 w-full",
+        "font-pretendard text-body4 text-gray-500",
+        "px-1.5 py-0.5 rounded border border-primary bg-white",
+        "outline-none",
+      ].join(" ")}
+    />
+  );
+}
+
+/* ══════════════════════════════════════════
    메인 컴포넌트
    ══════════════════════════════════════════ */
 
@@ -728,21 +787,12 @@ export default function MemberSidebar({
         maxLength={50}
       />
 
-      {/* ── 여행 도시/나라 ──
-          편집 가능(onChangeCountry 있음)하면 빈 값이어도 placeholder로 표시,
-          편집 불가하고 country도 비어 있으면 라인 자체를 생략. */}
+      {/* ── 여행 도시/나라 ── Places 검색 autocomplete */}
       {(onChangeCountry || (country && country.trim())) && (
         <div className="-mt-3">
-          <InlineEditableText
+          <DestinationEditRow
             value={country ?? ""}
             onChange={onChangeCountry}
-            placeholder="도시 또는 나라 입력"
-            textClassName="font-pretendard text-body4 text-gray-500"
-            ariaLabel="여행 도시 편집"
-            iconSize="w-3 h-3"
-            maxLength={40}
-            allowEmpty
-            prefix={<span className="mr-1">📍</span>}
           />
         </div>
       )}
