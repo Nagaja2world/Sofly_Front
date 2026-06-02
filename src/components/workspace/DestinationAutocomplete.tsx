@@ -72,8 +72,12 @@ export default function DestinationAutocomplete({
     if (isSaving) return;
     setIsSaving(true);
     setResults([]);
+    const countryCode = extractCountryCode(place);
+    console.log('[Places] 선택된 장소 원본:', place);
+    console.log('[Places] addressComponents:', place.addressComponents);
+    console.log('[Places] 추출된 countryCode:', countryCode);
     try {
-      await onSelect(place.displayName.text, extractCountryCode(place));
+      await onSelect(place.displayName.text, countryCode);
     } catch (err) {
       console.warn('[DestinationAutocomplete] 저장 실패:', err);
     } finally {
