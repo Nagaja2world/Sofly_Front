@@ -53,7 +53,7 @@ export default function SnsSidebar({
       {/* ── 검색 ── */}
       <form onSubmit={handleSubmit} className="w-full">
         <label htmlFor="sns-search" className="sr-only">
-          나라/도시/공항 검색
+          나라/도시 검색
         </label>
         <div
           className={[

@@ -49,6 +49,9 @@ export default function Layout() {
           <Header
             variant={isLoggedIn ? "login" : "default"}
             onLogout={handleLogout}
+            onKakaoLogin={handleKakaoLogin}
+            onGoogleLogin={handleGoogleLogin}
+            onNaverLogin={handleNaverLogin}
           />
         </div>
       </div>
@@ -59,7 +62,7 @@ export default function Layout() {
       </main>
 
       {/* ══ 모바일 Footer (md 미만) ══ */}
-      <div className="md:hidden">
+      <div className="md:hidden bg-white">
         {/* TODO: MobileFooter 컴포넌트로 교체 */}
         <MobileFooter />
       </div>

@@ -54,7 +54,7 @@ export default function NoHeaderLayout() {
       </div>
 
       {/* ══ 데스크톱 Footer (md 이상) ══ */}
-      <div className="hidden md:block w-full border-t border-gray-300">
+      <div className="hidden md:block w-full border-t border-gray-300 bg-white">
         <div className="max-w-[1200px] w-full mx-auto px-4">
           <Footer />
         </div>

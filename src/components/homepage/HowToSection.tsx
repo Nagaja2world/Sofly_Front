@@ -46,8 +46,7 @@ import flightSchedule from "@/assets/flight-schedule.png";
 import travelSchedule from "@/assets/travel-schedule.png";
 import travelLog from "@/assets/travel-log.png";
 import sharedAlbum from "@/assets/shared-album.png";
-/* 팀 채팅 세부 이미지 (준비되면 주석 해제 후 아래 expand에 연결) */
-// import teamChat from "@/assets/team-chat.png";
+import teamChat from "@/assets/team-chat.png";
 
 import aiPrompt from "@/assets/ai-prompt.png";
 import aiAnswer from "@/assets/ai-answer.png";
@@ -211,7 +210,7 @@ const steps: HowToStep[] = [
           description:
             "워크스페이스 안에서 팀원들과 실시간으로 대화하며 여행 계획을 함께 맞춰가요.",
           placeholderIcon: <TeamChatIcon />,
-          // image: teamChat,
+          image: teamChat,
         },
       ],
     ],
@@ -483,7 +482,8 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
           onHoverEnd={
             hasExpand && !isCompact ? () => setHovered(false) : undefined
           }
-          whileHover={hasExpand ? undefined : { scale: 1.12 }}
+          // whileHover={hasExpand ? undefined : { scale: 1.12 }}
+          whileHover={hasExpand || isCompact ? undefined : { scale: 1.12 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
           <PreviewFrame step={step} active={isOpen} />
