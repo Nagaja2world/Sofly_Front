@@ -547,8 +547,8 @@ function BodyEditor({
   onChange: (json: JSONContent) => void;
   /** 새로 만든 ObjectURL을 부모에 등록 → 취소/언마운트 시 revoke */
   registerObjectUrl: (url: string) => void;
-  /** 워크스페이스 공유 앨범 사진 URL 배열 (공유앨범 선택 모달용) */
-  sharedAlbumPhotos: string[];
+  /** 워크스페이스 공유 앨범 사진 목록 (공유앨범 선택 모달용) */
+  sharedAlbumPhotos: { id: number; url: string }[];
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isSharedAlbumPickerOpen, setIsSharedAlbumPickerOpen] = useState(false);

@@ -885,8 +885,8 @@ function BodyEditor({
   onChange: (json: JSONContent) => void;
   /** 새로 만든 ObjectURL을 부모에 등록 → 언마운트/취소 시 revoke 위함 */
   registerObjectUrl: (url: string) => void;
-  /** 워크스페이스 공유 앨범 사진 URL 배열 (공유앨범 선택 모달에 전달) */
-  sharedAlbumPhotos: string[];
+  /** 워크스페이스 공유 앨범 사진 목록 (공유앨범 선택 모달에 전달) */
+  sharedAlbumPhotos: { id: number; url: string }[];
   /** 제공 시 파일을 서버에 업로드하고 URL 반환 — blob URL 저장 방지 */
   onUploadImage?: (file: File) => Promise<string | null>;
   /** 툴바 위에 고정 표시할 섹션 라벨 */
