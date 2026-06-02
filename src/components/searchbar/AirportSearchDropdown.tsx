@@ -65,24 +65,26 @@ export default function AirportSearchDropdown({
     return () => document.removeEventListener("mousedown", handler);
   }, [isOpen, onClose]);
 
-  /* 열릴 때: 데이터 lazy 로드 + 포커스 + 초기화 */
+  /* 열릴 때: 포커스 + 입력 초기화 */
   useEffect(() => {
     if (!isOpen) return;
-
     setQuery("");
     setResults([]);
     setError(null);
-    setTimeout(() => inputRef.current?.focus(), 50);
+    const t = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [isOpen, activePanel]);
 
-    // airports.json 최초 1회만 로드
-    if (!airportsData && !isLoadingData) {
-      setIsLoadingData(true);
-      loadAirports()
-        .then((data) => setAirportsData(data))
-        .catch(() => setError("공항 데이터를 불러오지 못했습니다"))
-        .finally(() => setIsLoadingData(false));
-    }
-  }, [isOpen, activePanel, airportsData, isLoadingData]);
+  /* 최초 1회: airports.json lazy 로드 (열림 여부와 무관하게 한 번만) */
+  useEffect(() => {
+    if (airportsData || isLoadingData) return;
+    setIsLoadingData(true);
+    loadAirports()
+      .then((data) => setAirportsData(data))
+      .catch(() => setError("공항 데이터를 불러오지 못했습니다"))
+      .finally(() => setIsLoadingData(false));
+    // 첫 마운트에 바로 로드. "열릴 때만" 원하면 deps에 isOpen 넣고 상단에 if(!isOpen) return 추가
+  }, [airportsData, isLoadingData]);
 
   /* 입력 시 로컬 검색 (네트워크 호출 없음, 디바운스 불필요) */
   const handleQueryChange = useCallback(
@@ -241,7 +243,7 @@ export default function AirportSearchDropdown({
                   <button
                     key={entry.code}
                     type="button"
-                    disabled={isResolving}
+                    disabled={resolvingCode !== null}
                     onClick={() => handleSelect(entry)}
                     className={[
                       "flex items-center gap-3 w-full px-4 py-3",

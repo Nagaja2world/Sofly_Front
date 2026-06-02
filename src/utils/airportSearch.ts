@@ -53,7 +53,8 @@ export async function loadAirports(): Promise<AirportEntry[]> {
 }
 
 /** 검색어 정규화: 소문자 + 공백 제거 */
-function normalize(s: string): string {
+function normalize(s: string | undefined | null): string {
+  if (!s) return "";
   return s.toLowerCase().replace(/\s+/g, "");
 }
 
