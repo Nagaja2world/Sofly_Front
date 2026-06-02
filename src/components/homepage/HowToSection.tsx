@@ -46,7 +46,8 @@ import flightSchedule from "@/assets/flight-schedule.png";
 import travelSchedule from "@/assets/travel-schedule.png";
 import travelLog from "@/assets/travel-log.png";
 import sharedAlbum from "@/assets/shared-album.png";
-import teamChat from "@/assets/team-chat.png";
+/* 팀 채팅 세부 이미지 (준비되면 주석 해제 후 아래 expand에 연결) */
+// import teamChat from "@/assets/team-chat.png";
 
 import aiPrompt from "@/assets/ai-prompt.png";
 import aiAnswer from "@/assets/ai-answer.png";
@@ -210,7 +211,7 @@ const steps: HowToStep[] = [
           description:
             "워크스페이스 안에서 팀원들과 실시간으로 대화하며 여행 계획을 함께 맞춰가요.",
           placeholderIcon: <TeamChatIcon />,
-          image: teamChat,
+          // image: teamChat,
         },
       ],
     ],
@@ -529,8 +530,6 @@ function ExpandPanel({
   cells: ExpandCell[];
   accentBg: string;
 }) {
-  /* 모든 칸을 평탄화해 전역 등장 순서(delay)를 매긴다. */
-  let order = 0;
   return (
     <div className="pt-8 md:pt-10">
       <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-5 md:p-8">
@@ -540,8 +539,15 @@ function ExpandPanel({
               key={cellIdx}
               className="flex flex-col gap-5 md:gap-7 self-start"
             >
-              {cell.map((item) => {
-                const delay = 0.08 * order++;
+              {cell.map((item, itemIdx) => {
+                /* 전역 등장 순서(delay)를 순수하게 계산:
+                   이전 칸들의 항목 수 합 + 현재 칸 내 인덱스.
+                   렌더 중 변수 변경(mutation) 없이 인덱스만으로 결정한다. */
+                const globalIdx =
+                  cells
+                    .slice(0, cellIdx)
+                    .reduce((sum, c) => sum + c.length, 0) + itemIdx;
+                const delay = 0.08 * globalIdx;
                 return (
                   <motion.div
                     key={item.title}
