@@ -49,7 +49,7 @@ export default function NoHeaderLayout() {
       </main>
 
       {/* ══ 모바일 Footer (md 미만) ══ */}
-      <div className="md:hidden">
+      <div className="md:hidden bg-white">
         <MobileFooter />
       </div>
 
