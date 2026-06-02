@@ -504,8 +504,12 @@ function HowToRow({ step, reverse }: { step: HowToStep; reverse: boolean }) {
         <motion.div
           className="flex-1 w-full min-w-0"
           variants={textItemVariants(dir)}
-          onHoverStart={hasExpand && !isCompact ? openExpand : undefined}
-          onHoverEnd={hasExpand && !isCompact ? closeExpand : undefined}
+          onHoverStart={
+            hasExpand && !isCompact ? () => setHovered(true) : undefined
+          }
+          onHoverEnd={
+            hasExpand && !isCompact ? () => setHovered(false) : undefined
+          }
           whileHover={hasExpand || isCompact ? undefined : { scale: 1.12 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
