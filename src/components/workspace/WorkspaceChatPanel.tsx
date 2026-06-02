@@ -75,15 +75,35 @@ export default function WorkspaceChatPanel({
   const needsScrollRestoreRef = useRef(false);
   const prevScrollHeightRef = useRef(0);
 
+  const isNearBottom = () => {
+    const c = scrollContainerRef.current;
+    if (!c) return true;
+    return c.scrollHeight - c.scrollTop - c.clientHeight < 120;
+  };
+
+  const prevLenRef = useRef(0);
+
   useEffect(() => {
     if (needsScrollRestoreRef.current && scrollContainerRef.current) {
+      // 이전 메시지 로드 후 스크롤 위치 복원
       const container = scrollContainerRef.current;
       const delta = container.scrollHeight - prevScrollHeightRef.current;
       container.scrollTop = delta;
       needsScrollRestoreRef.current = false;
     } else {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      const isInitial = prevLenRef.current === 0 && messages.length > 0;
+      const isNewMessage = messages.length > prevLenRef.current;
+      // 초기 로드이거나, 새 메시지 도착 + 사용자가 하단 근처에 있을 때만 스크롤
+      if (isInitial || (isNewMessage && isNearBottom())) {
+        // requestAnimationFrame: 팝업 애니메이션/렌더링 완료 후 실행해 정확한 scrollHeight 확보
+        requestAnimationFrame(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+          }
+        });
+      }
     }
+    prevLenRef.current = messages.length;
   }, [messages]);
 
   const handleScroll = () => {
