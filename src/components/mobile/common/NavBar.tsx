@@ -125,41 +125,35 @@ export default function NavBar({
 
       {/* Right Actions */}
       {variant === "login" ? (
-        <div className="flex items-center gap-3">
+        <div ref={bellRef} className="relative flex items-center gap-3">
           {/* 초대 알림 벨 */}
-          <div ref={bellRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setIsInvitationOpen((v) => !v)}
-              aria-label={`워크스페이스 초대 알림${pendingCount > 0 ? ` (${pendingCount}건)` : ""}`}
-              className="relative bg-transparent border-none cursor-pointer p-1 text-gray-900 hover:text-gray-600 transition-colors inline-flex items-center justify-center"
-            >
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                <path
-                  d="M11 2a7 7 0 0 0-7 7v3.382l-1.447 2.894A1 1 0 0 0 3.447 17H18.553a1 1 0 0 0 .894-1.724L18 12.382V9a7 7 0 0 0-7-7Z"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M9 17a2 2 0 0 0 4 0"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-              {pendingCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white font-pretendard text-[10px] font-bold flex items-center justify-center leading-none">
-                  {pendingCount > 9 ? "9+" : pendingCount}
-                </span>
-              )}
-            </button>
-
-            {isInvitationOpen && (
-              <InvitationPanel onClose={() => setIsInvitationOpen(false)} />
+          <button
+            type="button"
+            onClick={() => setIsInvitationOpen((v) => !v)}
+            aria-label={`워크스페이스 초대 알림${pendingCount > 0 ? ` (${pendingCount}건)` : ""}`}
+            className="relative bg-transparent border-none cursor-pointer p-1 text-gray-900 hover:text-gray-600 transition-colors inline-flex items-center justify-center"
+          >
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <path
+                d="M11 2a7 7 0 0 0-7 7v3.382l-1.447 2.894A1 1 0 0 0 3.447 17H18.553a1 1 0 0 0 .894-1.724L18 12.382V9a7 7 0 0 0-7-7Z"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9 17a2 2 0 0 0 4 0"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+            {pendingCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white font-pretendard text-[10px] font-bold flex items-center justify-center leading-none">
+                {pendingCount > 9 ? "9+" : pendingCount}
+              </span>
             )}
-          </div>
+          </button>
 
           <IconButton onClick={onUser}>
             <LoginImage />
@@ -167,6 +161,11 @@ export default function NavBar({
           <IconButton onClick={onLogout}>
             <LogoutImage />
           </IconButton>
+
+          {/* 패널은 액션 그룹(화면 우측) 기준으로 정렬 — 벨 기준이면 왼쪽이 잘림 */}
+          {isInvitationOpen && (
+            <InvitationPanel onClose={() => setIsInvitationOpen(false)} />
+          )}
         </div>
       ) : (
         /* default: 비로그인 — 데스크톱 Header처럼 "로그인" 버튼 + 팝업 */
