@@ -24,7 +24,7 @@ export default function WorkspaceChatSidebar({
   onOpen,
   onClose,
 }: WorkspaceChatSidebarProps) {
-  const { messages, isConnected, isLoading, sendMessage } = useWorkspaceMessaging(
+  const { messages, isConnected, isLoading, isLoadingMore, hasMore, sendMessage, loadMoreMessages } = useWorkspaceMessaging(
     workspaceId,
     memberUserIds,
     isOpen,
@@ -69,9 +69,12 @@ export default function WorkspaceChatSidebar({
               messages={messages}
               isConnected={isConnected}
               isLoading={isLoading}
+              isLoadingMore={isLoadingMore}
+              hasMore={hasMore}
               members={members}
               onSend={sendMessage}
               onClose={onClose}
+              onLoadMore={loadMoreMessages}
             />
           </div>
           {/* Open button below panel */}

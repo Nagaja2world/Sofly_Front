@@ -22,6 +22,10 @@ export function useWorkspaceMessaging(
   const [messages, setMessages] = useState<MessagingMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const currentPageRef = useRef(0);
+  const primaryRoomIdRef = useRef<number | null>(null);
   const clientRef = useRef<CompatClient | null>(null);
   const memberIdsRef = useRef(memberUserIds);
   // 중복 메시지 방지용 수신 ID 세트
@@ -131,15 +135,18 @@ export function useWorkspaceMessaging(
 
         // 가장 오래된 방(primary)의 히스토리를 로드
         const primary = targetRooms[0];
-        const history = await fetchMessageHistory(primary.roomId);
+        primaryRoomIdRef.current = primary.roomId;
+        currentPageRef.current = 0;
+        const result = await fetchMessageHistory(primary.roomId, 0);
         if (cancelled) return;
 
         // 히스토리 메시지를 receivedIds에 등록해 WebSocket 중복 수신 방지
-        history.forEach((m) => {
+        result.messages.forEach((m) => {
           const key = m.id ?? `${m.senderId}-${m.createdAt}`;
           receivedIdsRef.current.add(key);
         });
-        setMessages(history);
+        setHasMore(result.hasMore);
+        setMessages(result.messages);
 
         connect(targetRooms);
       } catch (err) {
@@ -156,9 +163,32 @@ export function useWorkspaceMessaging(
       disconnect();
       setRooms([]);
       setMessages([]);
+      setHasMore(false);
+      primaryRoomIdRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, workspaceId, membersLoaded]);
 
-  return { messages, isConnected, isLoading, sendMessage };
+  const loadMoreMessages = useCallback(async () => {
+    const roomId = primaryRoomIdRef.current;
+    if (!roomId || isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const nextPage = currentPageRef.current + 1;
+      const result = await fetchMessageHistory(roomId, nextPage);
+      result.messages.forEach((m) => {
+        const key = m.id ?? `${m.senderId}-${m.createdAt}`;
+        receivedIdsRef.current.add(key);
+      });
+      setMessages((prev) => [...result.messages, ...prev]);
+      currentPageRef.current = nextPage;
+      setHasMore(result.hasMore);
+    } catch (err) {
+      console.warn('[팀채팅] 이전 메시지 로드 실패:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore]);
+
+  return { messages, isConnected, isLoading, isLoadingMore, hasMore, sendMessage, loadMoreMessages };
 }
