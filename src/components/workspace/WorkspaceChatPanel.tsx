@@ -12,9 +12,12 @@ interface WorkspaceChatPanelProps {
   messages: MessagingMessage[];
   isConnected: boolean;
   isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
   members: WorkspaceMember[];
   onSend: (content: string) => void;
   onClose: () => void;
+  onLoadMore: () => void;
 }
 
 function formatTime(iso: string) {
@@ -48,9 +51,12 @@ export default function WorkspaceChatPanel({
   messages,
   isConnected,
   isLoading,
+  isLoadingMore,
+  hasMore,
   members,
   onSend,
   onClose,
+  onLoadMore,
 }: WorkspaceChatPanelProps) {
   const avatarMap = new Map(members.map((m) => [m.userId, m.avatarUrl]));
   // auth store에서 직접 읽어야 새로고침 직후 user가 null이어도
@@ -64,11 +70,51 @@ export default function WorkspaceChatPanel({
 
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
+  const needsScrollRestoreRef = useRef(false);
+  const prevScrollHeightRef = useRef(0);
+
+  const isNearBottom = () => {
+    const c = scrollContainerRef.current;
+    if (!c) return true;
+    return c.scrollHeight - c.scrollTop - c.clientHeight < 120;
+  };
+
+  const prevLenRef = useRef(0);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (needsScrollRestoreRef.current && scrollContainerRef.current) {
+      // 이전 메시지 로드 후 스크롤 위치 복원
+      const container = scrollContainerRef.current;
+      const delta = container.scrollHeight - prevScrollHeightRef.current;
+      container.scrollTop = delta;
+      needsScrollRestoreRef.current = false;
+    } else {
+      const isInitial = prevLenRef.current === 0 && messages.length > 0;
+      const isNewMessage = messages.length > prevLenRef.current;
+      // 초기 로드이거나, 새 메시지 도착 + 사용자가 하단 근처에 있을 때만 스크롤
+      if (isInitial || (isNewMessage && isNearBottom())) {
+        // requestAnimationFrame: 팝업 애니메이션/렌더링 완료 후 실행해 정확한 scrollHeight 확보
+        requestAnimationFrame(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+          }
+        });
+      }
+    }
+    prevLenRef.current = messages.length;
   }, [messages]);
+
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container || !hasMore || isLoadingMore) return;
+    if (container.scrollTop < 60) {
+      prevScrollHeightRef.current = container.scrollHeight;
+      needsScrollRestoreRef.current = true;
+      onLoadMore();
+    }
+  };
 
   const handleSend = () => {
     const trimmed = input.trim();
@@ -122,7 +168,23 @@ export default function WorkspaceChatPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3"
+      >
+        {isLoadingMore && (
+          <div className="flex items-center justify-center py-2">
+            <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+          </div>
+        )}
+
+        {!isLoadingMore && !hasMore && messages.length > 0 && (
+          <div className="text-center font-pretendard text-[10px] text-gray-400 py-1">
+            대화 시작
+          </div>
+        )}
+
         {isLoading && (
           <div className="flex items-center justify-center py-8">
             <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />

@@ -95,6 +95,8 @@ interface TravelLogCardProps {
    * readOnly가 true이면 삭제 버튼이 표시되지 않으므로 무시됨.
    */
   onDelete?: () => void;
+  /** 에디터 본문 이미지 업로드 콜백 — 제공 시 blob URL 대신 서버 URL 사용 */
+  onUploadEditorImage?: (file: File) => Promise<string | null>;
   /**
    * 읽기 전용 모드.
    * true이면:
@@ -897,6 +899,7 @@ function BodyEditor({
   onChange,
   registerObjectUrl,
   sharedAlbumPhotos,
+  onUploadImage,
 }: {
   initialContent?: JSONContent;
   onChange: (json: JSONContent) => void;
@@ -904,6 +907,8 @@ function BodyEditor({
   registerObjectUrl: (url: string) => void;
   /** 워크스페이스 공유 앨범 사진 URL 배열 (공유앨범 선택 모달에 전달) */
   sharedAlbumPhotos: string[];
+  /** 제공 시 파일을 서버에 업로드하고 URL 반환 — blob URL 저장 방지 */
+  onUploadImage?: (file: File) => Promise<string | null>;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -949,13 +954,19 @@ function BodyEditor({
 
   const handlePickImage = () => fileInputRef.current?.click();
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !editor) return;
-    // 여러 장 선택 시 순서대로 삽입
     for (let i = 0; i < files.length; i++) {
-      const url = URL.createObjectURL(files[i]);
-      registerObjectUrl(url);
+      let url: string;
+      if (onUploadImage) {
+        const serverUrl = await onUploadImage(files[i]);
+        if (!serverUrl) continue;
+        url = serverUrl;
+      } else {
+        url = URL.createObjectURL(files[i]);
+        registerObjectUrl(url);
+      }
       editor.chain().focus().setImage({ src: url }).run();
     }
     e.target.value = "";
@@ -1094,6 +1105,7 @@ export default function TravelLogCard({
   onDeletePhoto,
   onSave,
   onDelete,
+  onUploadEditorImage,
   readOnly = false,
   className = "",
 }: TravelLogCardProps) {
@@ -1377,6 +1389,7 @@ export default function TravelLogCard({
                 onChange={(json) => setDraft((d) => ({ ...d, content: json }))}
                 registerObjectUrl={registerObjectUrl}
                 sharedAlbumPhotos={sharedAlbumPhotos ?? []}
+                onUploadImage={onUploadEditorImage}
               />
             </div>
           </>

@@ -31,6 +31,7 @@ interface TravelLogSectionProps {
   onAddSnsCard: () => void;
   onSaveTravelLog: (id: number, data: TravelLogData) => void;
   onUploadTravellogPhotos: (id: number, files: File[]) => void;
+  onUploadEditorImage?: (logId: number, file: File) => Promise<string | null>;
   onDetachPhoto: (logId: number, photoId: number) => void;
   onDeleteTravelLog: (id: number) => void;
   onUpdateMainTitle: (id: number, title: string) => void;
@@ -52,6 +53,7 @@ export default function TravelLogSection({
   onAddSnsCard,
   onSaveTravelLog,
   onUploadTravellogPhotos,
+  onUploadEditorImage,
   onDetachPhoto,
   onDeleteTravelLog,
   onUpdateMainTitle,
@@ -196,6 +198,11 @@ export default function TravelLogSection({
                   log.id != null && onSaveTravelLog(log.id, data)
                 }
                 onDelete={() => log.id != null && onDeleteTravelLog(log.id)}
+                onUploadEditorImage={
+                  onUploadEditorImage && log.id != null
+                    ? (file) => onUploadEditorImage(log.id!, file)
+                    : undefined
+                }
               />
             </div>
           ))}

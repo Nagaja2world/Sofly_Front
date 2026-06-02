@@ -73,11 +73,17 @@ export async function addRoomMembers(roomId: number, memberIds: number[]): Promi
   if (!res.ok) throw new Error(`채팅방 멤버 추가 실패: ${res.status}`);
 }
 
+export interface MessageHistoryPage {
+  messages: MessagingMessage[];
+  hasMore: boolean;
+  page: number;
+}
+
 export async function fetchMessageHistory(
   roomId: number,
   page = 0,
   size = 30,
-): Promise<MessagingMessage[]> {
+): Promise<MessageHistoryPage> {
   const res = await fetch(
     `${API_BASE}/api/v1/messaging/rooms/${roomId}/messages?page=${page}&size=${size}`,
     { headers: authHeaders() },
@@ -86,5 +92,7 @@ export async function fetchMessageHistory(
   const json = await res.json();
   const paged = json.data ?? json;
   const content: MessagingMessage[] = paged.content ?? paged;
-  return [...content].reverse();
+  // last=false 이면 더 오래된 페이지가 남아 있음
+  const hasMore = paged.last === false;
+  return { messages: [...content].reverse(), hasMore, page };
 }
