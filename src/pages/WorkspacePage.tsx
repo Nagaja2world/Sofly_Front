@@ -118,6 +118,7 @@ export default function WorkspacePage() {
     destination: string,
     startDate: string,
     endDate: string,
+    countryCode?: string | null,
   ) => {
     if (!workspaceDetail) return;
     const updated = await updateWorkspace(workspaceId, {
@@ -127,7 +128,7 @@ export default function WorkspacePage() {
       endDate,
       headcount: workspaceDetail.headcount,
       coverImageUrl: workspaceDetail.coverImageUrl,
-      countryCode: workspaceDetail.countryCode,
+      countryCode: countryCode !== undefined ? countryCode : workspaceDetail.countryCode,
     });
     setWorkspaceDetail(updated);
   };
@@ -142,13 +143,14 @@ export default function WorkspacePage() {
     );
   };
 
-  const handleChangeCountry = async (newCountry: string) => {
+  const handleChangeCountry = async (destination: string, countryCode: string | null) => {
     if (!workspaceDetail) return;
     await handleWorkspaceUpdate(
       workspaceDetail.title,
-      newCountry,
+      destination,
       workspaceDetail.startDate,
       workspaceDetail.endDate,
+      countryCode,
     );
   };
 

@@ -306,6 +306,13 @@ export interface PlacePhoto {
   heightPx: number;
 }
 
+export interface PlaceAddressComponent {
+  longText: string;
+  shortText: string;
+  types: string[];
+  languageCode: string;
+}
+
 export interface PlaceResult {
   id: string;
   displayName: { text: string; languageCode: string };
@@ -315,6 +322,7 @@ export interface PlaceResult {
   rating?: number;
   userRatingCount?: number;
   photos?: PlacePhoto[];
+  addressComponents?: PlaceAddressComponent[];
 }
 
 /** 장소 검색 */
