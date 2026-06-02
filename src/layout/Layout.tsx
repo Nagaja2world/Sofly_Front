@@ -49,6 +49,9 @@ export default function Layout() {
           <Header
             variant={isLoggedIn ? "login" : "default"}
             onLogout={handleLogout}
+            onKakaoLogin={handleKakaoLogin}
+            onGoogleLogin={handleGoogleLogin}
+            onNaverLogin={handleNaverLogin}
           />
         </div>
       </div>
