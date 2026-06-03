@@ -33,7 +33,9 @@ function parseParams(sp: URLSearchParams): HotelSearchBarParams | null {
   };
 }
 
-export function buildHotelSearchParams(p: HotelSearchBarParams): URLSearchParams {
+export function buildHotelSearchParams(
+  p: HotelSearchBarParams,
+): URLSearchParams {
   const sp = new URLSearchParams();
   sp.set("destId", p.destId);
   sp.set("searchType", p.searchType);
@@ -48,7 +50,9 @@ export function buildHotelSearchParams(p: HotelSearchBarParams): URLSearchParams
 export default function HotelSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [selectedHotel, setSelectedHotel] = useState<HotelOfferItem | null>(null);
+  const [selectedHotel, setSelectedHotel] = useState<HotelOfferItem | null>(
+    null,
+  );
 
   const parsedParams = parseParams(searchParams);
   const sortBy = searchParams.get("sortBy") ?? "";
@@ -186,7 +190,7 @@ export default function HotelSearchPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* 상단 검색 바 */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-background border-b border-gray-200 px-6 py-4">
         <div className="max-w-[1200px] mx-auto">
           <SearchModeBar
             initialMode="hotel"
